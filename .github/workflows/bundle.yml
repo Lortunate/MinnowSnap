@@ -1,0 +1,70 @@
+name: Build and Package
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            os_name: Windows
+            qt_arch: win64_msvc2022_64
+          - os: macos-15-intel
+            os_name: macos-15-intel
+            qt_arch: clang_64
+          - os: macos-15
+            os_name: macos-15
+            qt_arch: clang_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.10.0"
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+          modules: "qtimageformats"
+
+      - name: Install cargo-bundle
+        if: runner.os == 'macOS'
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-bundle
+
+      - name: Install create-dmg
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      - name: Build and Package
+        shell: bash
+        run: python scripts/bundle.py
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MinnowSnap-${{ matrix.os_name }}
+          path: |
+            deploy/*.zip
+            deploy/*.dmg
+          if-no-files-found: error

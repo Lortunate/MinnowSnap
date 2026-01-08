@@ -17,10 +17,10 @@ def run_command(cmd, cwd=None, silent=False):
     try:
         if silent:
             result = subprocess.run(
-                cmd, 
-                cwd=cwd, 
-                check=True, 
-                stdout=subprocess.PIPE, 
+                cmd,
+                cwd=cwd,
+                check=True,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
         else:
@@ -42,10 +42,24 @@ def get_version():
                 return line.split('=')[1].strip().strip('"')
     return "0.0.0"
 
+def get_arch():
+    machine = platform.machine().lower()
+    if machine in ["x86_64", "amd64"]:
+        return "x86_64"
+    elif machine in ["arm64", "aarch64"]:
+        return "aarch64"
+    return machine
+
+def get_system_name():
+    system = platform.system().lower()
+    if system == "darwin":
+        return "macos"
+    return system
+
 def clean_deploy_dir(name="MinnowSnap"):
     if DEPLOY_DIR.exists():
         shutil.rmtree(DEPLOY_DIR)
-    
+
     dist_dir = DEPLOY_DIR / name
     dist_dir.mkdir(parents=True, exist_ok=True)
     return DEPLOY_DIR, dist_dir
@@ -66,12 +80,12 @@ def dist_windows():
     run_command(["cargo", "build", "--release"], cwd=PROJECT_ROOT)
 
     deploy_dir, bundle_dir = clean_deploy_dir("MinnowSnap")
-    
+
     exe_path = TARGET_DIR / "MinnowSnap.exe"
     if not exe_path.exists():
         print(f"Error: {exe_path} not found")
         sys.exit(1)
-        
+
     shutil.copy2(exe_path, bundle_dir / "MinnowSnap.exe")
 
     print_action("Deploying", "Qt dependencies (windeployqt)")
@@ -87,18 +101,20 @@ def dist_windows():
 
     print_action("Copying", "resources")
     shutil.copytree(qml_dir, bundle_dir / "qml", dirs_exist_ok=True)
-    
+
     res_dir = PROJECT_ROOT / "resources"
     if res_dir.exists():
         shutil.copytree(res_dir, bundle_dir / "resources", dirs_exist_ok=True)
 
     version = get_version()
-    zip_name = f"minnowsnap-v{version}-portable.zip"
+    system = get_system_name()
+    arch = get_arch()
+    zip_name = f"minnowsnap-v{version}-{system}-{arch}.zip"
     zip_path = deploy_dir / zip_name
-    
+
     print_action("Packaging", zip_name)
     create_zip(bundle_dir, zip_path)
-    
+
     print_action("Finished", f"output: {zip_path}")
 
 def dist_macos():
@@ -123,18 +139,20 @@ def dist_macos():
     DEPLOY_DIR.mkdir(parents=True, exist_ok=True)
 
     version = get_version()
-    dmg_name = f"MinnowSnap-v{version}.dmg"
+    system = get_system_name()
+    arch = get_arch()
+    dmg_name = f"MinnowSnap-v{version}-{system}-{arch}.dmg"
     dmg_path = DEPLOY_DIR / dmg_name
 
     print_action("Packaging", "DMG installer (create-dmg)")
-    
+
     if not shutil.which("create-dmg"):
         print("Error: create-dmg not found. Please install it (brew install create-dmg).")
         sys.exit(1)
-    
+
     # Check for icon
     volicon = PROJECT_ROOT / "assets_icons" / "icon.icns"
-    
+
     cmd = [
         "create-dmg",
         "--volname", "MinnowSnap Installer",
@@ -147,7 +165,7 @@ def dist_macos():
         str(dmg_path),
         str(bundle_path)
     ]
-    
+
     if volicon.exists():
         cmd.insert(1, str(volicon))
         cmd.insert(1, "--volicon")
