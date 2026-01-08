@@ -85,6 +85,16 @@
         <translation>选择保存目录</translation>
     </message>
     <message>
+        <location filename="../../qml/features/preferences/pages/GeneralPage.qml" line="43"/>
+        <source>Launch at login</source>
+        <translation>开机自启动</translation>
+    </message>
+    <message>
+        <location filename="../../qml/features/preferences/pages/GeneralPage.qml" line="44"/>
+        <source>Automatically start the application when you log in.</source>
+        <translation>在您登录系统时自动启动应用程序。</translation>
+    </message>
+    <message>
         <location filename="../../qml/features/preferences/pages/GeneralPage.qml" line="30"/>
         <source>Language</source>
         <translation>语言</translation>

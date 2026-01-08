@@ -1,3 +1,5 @@
+use auto_launch::AutoLaunchBuilder;
+use log::{error, info};
 use single_instance::SingleInstance;
 use std::env;
 
@@ -41,5 +43,38 @@ pub fn get_instance_id() -> String {
         env::temp_dir().join(APP_ID).to_string_lossy().to_string()
     } else {
         APP_ID.to_string()
+    }
+}
+
+pub fn set_auto_start(enabled: bool) {
+    let app_name = "MinnowSnap";
+    let app_path = env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    if app_path.is_empty() {
+        error!("Failed to get current executable path for auto-start");
+        return;
+    }
+
+    let auto = AutoLaunchBuilder::new()
+        .set_app_name(app_name)
+        .set_app_path(&app_path)
+        .set_use_launch_agent(true)
+        .build()
+        .expect("Failed to build AutoLaunch");
+
+    if enabled {
+        if let Err(e) = auto.enable() {
+            error!("Failed to enable auto-start: {}", e);
+        } else {
+            info!("Auto-start enabled");
+        }
+    } else {
+        if let Err(e) = auto.disable() {
+            error!("Failed to disable auto-start: {}", e);
+        } else {
+            info!("Auto-start disabled");
+        }
     }
 }

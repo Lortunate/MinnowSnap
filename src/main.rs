@@ -22,8 +22,9 @@ impl MinnowApp {
         let app = QGuiApplication::new();
         bridge::app::set_quit_on_last_window_closed();
 
-        let language = core::settings::SETTINGS.lock().unwrap().get().general.language;
-        bridge::app::install_translator(&language);
+        let settings = core::settings::SETTINGS.lock().unwrap().get();
+        bridge::app::install_translator(&settings.general.language);
+        core::app::set_auto_start(settings.general.auto_start);
 
         #[cfg(target_os = "macos")]
         core::app::hide_dock_icon();

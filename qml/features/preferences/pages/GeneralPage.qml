@@ -33,10 +33,23 @@ Item {
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
+        ScrollBar.vertical.policy: ScrollBar.AlwaysOff
 
         ColumnLayout {
             width: parent.width
             spacing: AppTheme.spacingMedium
+
+            SettingCard {
+                SettingItem {
+                    title: qsTr("Launch at login")
+                    description: qsTr("Automatically start the application when you log in.")
+
+                    control: Switch {
+                        checked: Config.autoStart
+                        onCheckedChanged: Config.updateAutoStart(checked)
+                    }
+                }
+            }
 
             SettingCard {
                 SettingItem {

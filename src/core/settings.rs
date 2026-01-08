@@ -9,10 +9,12 @@ use std::sync::{LazyLock, Mutex};
 pub static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct GeneralSettings {
     pub theme: String,
     pub language: String,
     pub font_family: Option<String>,
+    pub auto_start: bool,
 }
 
 impl Default for GeneralSettings {
@@ -21,11 +23,13 @@ impl Default for GeneralSettings {
             theme: "System".to_string(),
             language: "System".to_string(),
             font_family: None,
+            auto_start: false,
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct ShortcutSettings {
     pub capture: String,
     pub quick_capture: String,
@@ -41,6 +45,7 @@ impl Default for ShortcutSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct OutputSettings {
     pub save_path: Option<String>,
     pub oxipng_enabled: bool,
@@ -56,6 +61,7 @@ impl Default for OutputSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct AppSettings {
     pub general: GeneralSettings,
     pub shortcuts: ShortcutSettings,
@@ -140,6 +146,10 @@ impl SettingsManager {
 
     pub fn set_language(&mut self, language: String) {
         self.update(|c| c.general.language = language);
+    }
+
+    pub fn set_auto_start(&mut self, enabled: bool) {
+        self.update(|c| c.general.auto_start = enabled);
     }
 
     pub fn set_capture_shortcut(&mut self, shortcut: String) {

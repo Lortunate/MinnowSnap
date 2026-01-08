@@ -26,6 +26,7 @@ single-instance = "0.3"
 config = { version = "0.15", default-features = false, features = ["async", "toml"] }
 toml = "0.9"
 directories = "6.0"
+auto-launch = "0.5"
 font-kit = "0.14"
 
 [target.'cfg(target_os = "macos")'.dependencies]
