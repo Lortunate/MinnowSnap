@@ -8,6 +8,7 @@ Rectangle {
     id: root
 
     property string activeTool: ""
+    property bool showTooltips: true
     property var buttons: [[
             {
                 "icon": "qrc:/resources/icons/square.svg",
@@ -144,6 +145,7 @@ Rectangle {
                         icon.source: modelData.icon
                         icon.width: 24
                         isActive: modelData.action === root.activeTool
+                        showTooltip: root.showTooltips
                         tooltipText: modelData.text
 
                         onClicked: {
