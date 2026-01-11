@@ -344,7 +344,7 @@ impl ScrollStitcher {
                         let p = idx + (x * 4);
                         if p >= stride {
                             let prev_p = p - stride;
-                            (raw[p] as i32 - raw[prev_p] as i32).abs() as u64
+                            ((raw[p] as i32 - raw[prev_p] as i32).abs() + (raw[p + 1] as i32 - raw[prev_p + 1] as i32).abs() + (raw[p + 2] as i32 - raw[prev_p + 2] as i32).abs()) as u64
                         } else {
                             0
                         }
