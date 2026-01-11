@@ -15,7 +15,7 @@ Window {
         if (imgPhysicalW <= 0)
             return 150;
 
-        let viewW = width - 2; // minus border
+        let viewW = width;
         let ratio = viewW / imgPhysicalW;
         let h = currentHeight * ratio;
         return Math.max(100, h);
@@ -37,7 +37,7 @@ Window {
 
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
-    height: Math.min(contentHeight + 2, 600) // Cap at 600px, +2 for border
+    height: Math.min(contentHeight, 600)
 
     width: 300
 
@@ -63,8 +63,6 @@ Window {
         id: mainRect
 
         anchors.fill: parent
-        border.color: AppTheme.border
-        border.width: 1
         clip: true
         color: AppTheme.surface
         radius: AppTheme.radiusLarge
@@ -83,7 +81,6 @@ Window {
             id: previewImg
 
             anchors.fill: parent
-            anchors.margins: 1
             cache: false
             // Default to cropping (showing latest content) for better feedback during scroll
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
