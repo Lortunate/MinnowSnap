@@ -316,7 +316,7 @@ impl ScrollStitcher {
             let (hits, checks) = cols.iter().step_by(step).fold((0, 0), |(h, c), &x| {
                 let idx1 = (y1 as usize) * stride + (x * 4);
                 let idx2 = (y2 as usize) * stride + (x * 4);
-                let d = (raw_prev[idx1] as i32 - raw_next[idx2] as i32).abs() + (raw_prev[idx1 + 1] as i32 - raw_next[idx2 + 1] as i32).abs();
+                let d = (raw_prev[idx1] as i32 - raw_next[idx2] as i32).abs() + (raw_prev[idx1 + 1] as i32 - raw_next[idx2 + 1] as i32).abs() + (raw_prev[idx1 + 2] as i32 - raw_next[idx2 + 2] as i32).abs();
                 (if d < 80 { h + 1 } else { h }, c + 1)
             });
 
