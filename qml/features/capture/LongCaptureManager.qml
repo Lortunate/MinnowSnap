@@ -31,11 +31,11 @@ Item {
     function processScrollResult(path) {
         if (!scrollCancelled && path !== "") {
             if (pendingScrollAction === "save") {
-                scrollToolbar.busyText = qsTr("Saving...");
                 screenCapture.saveImage(path, 0, 0, 0, 0);
+                finish(false);
             } else if (pendingScrollAction === "copy") {
-                scrollToolbar.busyText = qsTr("Copying...");
                 screenCapture.copyImage(path, 0, 0, 0, 0);
+                finish(false);
             } else if (pendingScrollAction === "pin") {
                 let component = Qt.createComponent("../pin/PinWindow.qml");
                 if (component.status === Component.Ready) {
@@ -130,14 +130,11 @@ Item {
 
     Connections {
 
-        function onCaptureReady(path) {
+        function onCaptureReady() {
             if (scrollToolbar.visible)
                 finish(false);
         }
-        function onNotification(msg, type) {
-            if (scrollToolbar.visible)
-                finish(false);
-        }
+
         function onScrollCaptureFinished(path) {
             processScrollResult(path);
         }
