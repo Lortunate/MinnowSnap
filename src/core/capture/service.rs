@@ -27,6 +27,17 @@ impl CaptureService {
         }
     }
 
+    fn play_shutter_sound() {
+        std::thread::spawn(|| {
+            let sound_data = include_bytes!("../../../resources/raw/capture.mp3");
+            let cursor = std::io::Cursor::new(&sound_data[..]);
+            let stream_handle = rodio::OutputStreamBuilder::open_default_stream().expect("Failed to open default audio stream");
+            let sink = rodio::Sink::connect_new(stream_handle.mixer());
+            sink.append(rodio::Decoder::new(cursor).expect("Failed to decode audio stream"));
+            sink.sleep_until_end();
+        });
+    }
+
     pub fn prepare_capture() -> Option<(RgbaImage, String)> {
         let windows = fetch_windows_data();
         let json = serde_json::to_string(&windows).unwrap_or_else(|_| "[]".to_string());
@@ -79,6 +90,7 @@ impl CaptureService {
         let img = Self::resolve_and_crop(path, x, y, width, height).ok_or_else(|| "Failed to resolve or crop image for clipboard".to_string())?;
 
         if copy_image_to_clipboard(&img) {
+            Self::play_shutter_sound();
             Ok(())
         } else {
             Err("Failed to copy image to clipboard".to_string())
@@ -90,11 +102,16 @@ impl CaptureService {
 
         let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
 
-        save_image_to_user_dir(&img, settings.output.oxipng_enabled, settings.output.save_path).ok_or_else(|| "Failed to save image to disk".to_string())
+        let result = save_image_to_user_dir(&img, settings.output.oxipng_enabled, settings.output.save_path);
+        if result.is_some() {
+            Self::play_shutter_sound();
+        }
+        result.ok_or_else(|| "Failed to save image to disk".to_string())
     }
 
     pub fn run_quick_capture_workflow(x: i32, y: i32, width: i32, height: i32) -> Option<(String, Option<String>)> {
         let image = Self::capture_region(x, y, width, height)?;
+        Self::play_shutter_sound();
         let temp_path = Self::save_temp(&image)?;
 
         let mut final_save_path = None;
