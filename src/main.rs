@@ -5,7 +5,7 @@ use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, QML
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
-use log::info;
+use log::{error, info};
 use mimalloc::MiMalloc;
 use std::pin::Pin;
 
@@ -55,6 +55,11 @@ fn main() {
     if !ensure_single_instance(&get_instance_id()) {
         info!("Another instance is running, exiting.");
         return;
+    }
+
+    #[cfg(target_os = "macos")]
+    if let Err(e) = notify_rust::set_application("com.lortunate.minnowsnap") {
+        error!("Failed to set application: {}", e);
     }
 
     MinnowApp::new().run();

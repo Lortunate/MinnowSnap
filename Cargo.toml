@@ -49,3 +49,4 @@ strip = true
 [package.metadata.bundle]
 identifier = "com.lortunate.minnowsnap"
 icon = ["assets_icons/icon.icns", "assets_icons/icon.ico"]
+osx_info_plist_exts = ["resources/Info.plist.extra"]
