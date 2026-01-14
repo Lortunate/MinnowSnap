@@ -2,8 +2,8 @@ use crate::core::capture::stitcher::{ScrollStitcher, StitchResult};
 use crate::core::capture::{get_primary_monitor, get_primary_monitor_scale, perform_crop};
 use image::RgbaImage;
 use log::{error, info};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -21,7 +21,7 @@ pub fn start_scroll_capture_thread(x: i32, y: i32, width: i32, height: i32, acti
         .spawn(move || {
             info!("Scroll capture thread started");
             // Small delay to let UI hide if needed
-            thread::sleep(Duration::from_millis(150));
+            thread::sleep(Duration::from_millis(250));
 
             let Some(monitor) = get_primary_monitor() else {
                 error!("No primary monitor found for scroll capture");

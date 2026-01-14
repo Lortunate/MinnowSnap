@@ -10,31 +10,23 @@ Rectangle {
     border.color: AppTheme.border
     border.width: 1
     color: AppTheme.surface
-    height: 44
-    radius: 22
+    height: 32
+    radius: 16
     visible: running
-    width: Math.max(140, label.contentWidth + 50)
+    width: Math.max(110, contentRow.width + 24)
 
-    // Shadow effect
-    Rectangle {
-        anchors.fill: parent
-        anchors.leftMargin: 2
-        anchors.topMargin: 2
-        color: AppTheme.shadowColor
-        radius: 22
-        z: -1
-    }
     Row {
-        anchors.centerIn: parent
-        spacing: 12
+        id: contentRow
 
-        // Spinner
+        anchors.centerIn: parent
+        spacing: 8
+
         Item {
-            height: 20
-            width: 20
+            height: 14
+            width: 14
 
             RotationAnimator on rotation {
-                duration: 1000
+                duration: 800
                 from: 0
                 loops: Animation.Infinite
                 running: root.running
@@ -43,25 +35,27 @@ Rectangle {
 
             Canvas {
                 anchors.fill: parent
+                antialiasing: true
+                renderTarget: Canvas.Image
 
                 onPaint: {
                     var ctx = getContext("2d");
                     ctx.reset();
                     ctx.beginPath();
-                    ctx.arc(10, 10, 8, 0, Math.PI * 1.5);
-                    ctx.lineWidth = 2;
+                    ctx.arc(7, 7, 5.5, 0, Math.PI * 1.5);
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = "round";
                     ctx.strokeStyle = AppTheme.primary;
                     ctx.stroke();
                 }
             }
         }
-        Text {
-            id: label
 
+        Text {
             color: AppTheme.text
             font.family: AppTheme.fontFamily
-            font.pixelSize: AppTheme.fontSizeBody
-            font.weight: Font.DemiBold
+            font.pixelSize: AppTheme.fontSizeSmall
+            font.weight: Font.Medium
             text: root.text
             verticalAlignment: Text.AlignVCenter
         }

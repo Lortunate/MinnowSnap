@@ -43,12 +43,13 @@ Window {
 
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
+        showTooltips: false
         buttons: [[
                 {
                     "icon": "qrc:/resources/icons/save.svg",
                     "text": qsTr("Save"),
                     "action": "save",
-                    "hoverColor": AppTheme.success
+                    "hoverColor": AppTheme.primary
                 },
                 {
                     "icon": "qrc:/resources/icons/keep.svg",

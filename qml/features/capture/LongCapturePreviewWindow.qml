@@ -15,7 +15,7 @@ Window {
         if (imgPhysicalW <= 0)
             return 150;
 
-        let viewW = width - 2; // minus border
+        let viewW = width;
         let ratio = viewW / imgPhysicalW;
         let h = currentHeight * ratio;
         return Math.max(100, h);
@@ -37,7 +37,7 @@ Window {
 
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
-    height: Math.min(contentHeight + 2, 600) // Cap at 600px, +2 for border
+    height: Math.min(contentHeight, 600)
 
     width: 300
 
@@ -52,7 +52,7 @@ Window {
 
     // Shadow for depth
     Rectangle {
-        color: AppTheme.shadowHeavy
+        color: AppTheme.shadowMedium
         height: parent.height
         radius: AppTheme.radiusLarge
         width: parent.width
@@ -63,8 +63,6 @@ Window {
         id: mainRect
 
         anchors.fill: parent
-        border.color: AppTheme.border
-        border.width: 1
         clip: true
         color: AppTheme.surface
         radius: AppTheme.radiusLarge
@@ -83,7 +81,6 @@ Window {
             id: previewImg
 
             anchors.fill: parent
-            anchors.margins: 1
             cache: false
             // Default to cropping (showing latest content) for better feedback during scroll
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
@@ -93,41 +90,31 @@ Window {
             sourceSize.width: parent.width * Screen.devicePixelRatio
             verticalAlignment: Image.AlignBottom
 
-            // Loading / Active State
             Item {
                 anchors.centerIn: parent
-                height: 48
+                height: 24
                 visible: root.currentHeight === 0
-                width: 48
+                width: 24
 
                 RotationAnimator on rotation {
-                    duration: 1500
+                    duration: 800
                     from: 0
                     loops: Animation.Infinite
                     to: 360
                 }
 
-                // Simple spinner using Rectangles
-                Rectangle {
-                    border.color: AppTheme.subText
-                    border.width: AppTheme.spacingTiny
-                    color: "transparent"
-                    height: 48
-                    opacity: 0.1
-                    radius: AppTheme.radiusLarge
-                    width: 48
-                }
-
-                // Arc segment (simulated with canvas for clean look)
                 Canvas {
                     anchors.fill: parent
+                    antialiasing: true
+                    renderTarget: Canvas.Image
 
                     onPaint: {
                         var ctx = getContext("2d");
                         ctx.reset();
                         ctx.beginPath();
-                        ctx.arc(width / 2, height / 2, width / 2 - 2, 0, Math.PI / 1.5);
-                        ctx.lineWidth = AppTheme.spacingTiny;
+                        ctx.arc(12, 12, 9, 0, Math.PI * 1.5);
+                        ctx.lineWidth = 2;
+                        ctx.lineCap = "round";
                         ctx.strokeStyle = AppTheme.primary;
                         ctx.stroke();
                     }
@@ -135,7 +122,7 @@ Window {
             }
             Text {
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: 40
+                anchors.verticalCenterOffset: 24
                 color: AppTheme.subText
                 font.bold: true
                 font.pixelSize: 12
@@ -147,14 +134,15 @@ Window {
         // Minimal Floating Badge
         Rectangle {
             anchors.bottom: parent.bottom
-            anchors.margins: 6
+            anchors.margins: 8
             anchors.right: parent.right
             color: AppTheme.primary
-            height: 20
+            height: 24
+            opacity: 0.9
 
             // Add shadow to badge too
             layer.enabled: true
-            radius: AppTheme.radiusMedium
+            radius: 12
             visible: root.currentHeight > 0
             width: badgeTxt.contentWidth + AppTheme.spacingMedium
 

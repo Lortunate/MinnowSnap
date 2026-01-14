@@ -12,6 +12,7 @@ Basic.Button {
     property color hoveredIconColor: defaultIconColor
     property bool isActive: false
     property string tooltipText: ""
+    property bool showTooltip: true
 
     Layout.preferredHeight: AppTheme.buttonHeight
     Layout.preferredWidth: AppTheme.buttonHeight
@@ -34,7 +35,7 @@ Basic.Button {
     Tooltip {
         parent: root
         text: root.tooltipText
-        visible: root.hovered && root.tooltipText !== ""
+        visible: root.showTooltip && root.hovered && root.tooltipText !== ""
         position: Qt.AlignTop
     }
 }
