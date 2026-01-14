@@ -7,19 +7,31 @@ pub enum StitchResult {
     Failure,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StitchConfig {
     pub min_overlap: u32,
-    pub max_overlap_check: u32,
     pub min_scroll_threshold: u32,
+    pub overlap_avg_threshold: u64,
+    pub motion_scan_step: usize,
+    pub motion_threshold_divisor: u64,
+    pub fixed_diff_percent: u64,
+    pub verify_pixel_diff: u32,
+    pub verify_step_divisor: usize,
+    pub seam_margin_divisor: u32,
 }
 
 impl Default for StitchConfig {
     fn default() -> Self {
         Self {
             min_overlap: 20,
-            max_overlap_check: 95,
             min_scroll_threshold: 5,
+            overlap_avg_threshold: 500,
+            motion_scan_step: 8,
+            motion_threshold_divisor: 2,
+            fixed_diff_percent: 5,
+            verify_pixel_diff: 80,
+            verify_step_divisor: 20,
+            seam_margin_divisor: 4,
         }
     }
 }
@@ -40,13 +52,7 @@ impl Default for ScrollStitcher {
 
 impl ScrollStitcher {
     pub fn new() -> Self {
-        Self {
-            canvas: None,
-            valid_height: 0,
-            last_frame: None,
-            last_footer_height: 0,
-            config: StitchConfig::default(),
-        }
+        Self::with_config(StitchConfig::default())
     }
 
     pub fn with_config(config: StitchConfig) -> Self {
@@ -68,8 +74,7 @@ impl ScrollStitcher {
         if h == 0 || canvas.width() == 0 {
             return None;
         }
-        let w = canvas.width();
-        let mut final_img = RgbaImage::new(w, h);
+        let mut final_img = RgbaImage::new(canvas.width(), h);
         Self::copy_region(canvas, 0, &mut final_img, 0, h);
         Some(final_img)
     }
@@ -87,9 +92,11 @@ impl ScrollStitcher {
             return None;
         }
 
-        let view = image::imageops::crop_imm(canvas, 0, 0, w, valid_h).to_image();
+        let mut cropped = RgbaImage::new(w, valid_h);
+        Self::copy_region(canvas, 0, &mut cropped, 0, valid_h);
+
         Some(image::imageops::resize(
-            &view,
+            &cropped,
             target_width,
             target_height,
             image::imageops::FilterType::Triangle,
@@ -98,15 +105,7 @@ impl ScrollStitcher {
 
     pub fn process_frame(&mut self, new_image: RgbaImage) -> StitchResult {
         if self.canvas.is_none() {
-            let w = new_image.width();
-            let h = new_image.height();
-            let mut canvas = RgbaImage::new(w, h * 3);
-            Self::copy_region(&new_image, 0, &mut canvas, 0, h);
-
-            self.canvas = Some(canvas);
-            self.valid_height = h;
-            self.last_frame = Some(new_image);
-            self.last_footer_height = 0;
+            self.initialize_canvas(new_image);
             return StitchResult::Success;
         }
 
@@ -132,7 +131,7 @@ impl ScrollStitcher {
         let valid_prev = h_prev.saturating_sub(fixed_top + fixed_bottom);
         let valid_next = h_next.saturating_sub(fixed_top + fixed_bottom);
 
-        if valid_prev < 20 || valid_next < 20 {
+        if valid_prev < self.config.min_overlap || valid_next < self.config.min_overlap {
             return StitchResult::Failure;
         }
 
@@ -171,13 +170,25 @@ impl ScrollStitcher {
         }
     }
 
+    fn initialize_canvas(&mut self, first_image: RgbaImage) {
+        let w = first_image.width();
+        let h = first_image.height();
+        let mut canvas = RgbaImage::new(w, h * 3);
+        Self::copy_region(&first_image, 0, &mut canvas, 0, h);
+
+        self.canvas = Some(canvas);
+        self.valid_height = h;
+        self.last_frame = Some(first_image);
+        self.last_footer_height = 0;
+    }
+
     fn compute_motion_mask(&self, prev: &RgbaImage, next: &RgbaImage) -> Vec<usize> {
         let w = prev.width();
         let h = prev.height();
         let raw_prev = prev.as_raw();
         let raw_next = next.as_raw();
         let stride = (w * 4) as usize;
-        let step = 8;
+        let step = self.config.motion_scan_step;
 
         (0..w)
             .step_by(step)
@@ -186,12 +197,9 @@ impl ScrollStitcher {
                 let mut diff_sum: u64 = 0;
                 for y in (0..h).step_by(step) {
                     let idx = (y as usize) * stride + (x * 4);
-                    let d = (raw_prev[idx] as i32 - raw_next[idx] as i32).abs()
-                        + (raw_prev[idx + 1] as i32 - raw_next[idx + 1] as i32).abs()
-                        + (raw_prev[idx + 2] as i32 - raw_next[idx + 2] as i32).abs();
-                    diff_sum += d as u64;
+                    diff_sum += Self::pixel_diff(raw_prev, idx, raw_next, idx) as u64;
                 }
-                diff_sum > (h as u64 / 2)
+                diff_sum > (h as u64 / self.config.motion_threshold_divisor)
             })
             .collect()
     }
@@ -207,18 +215,18 @@ impl ScrollStitcher {
                 let row_start = (y as usize) * stride;
                 cols.iter().fold(0u64, |sum, &x| {
                     let idx = row_start + (x * 4);
-                    sum + (raw[idx] as u64) + (raw[idx + 1] as u64) + (raw[idx + 2] as u64)
+                    sum + Self::pixel_sum(raw, idx)
                 })
             })
             .collect()
     }
 
-    fn measure_fixed_len(&self, s1: &[u64], s2: &[u64], indices: impl Iterator<Item=usize>) -> u32 {
+    fn measure_fixed_len(&self, s1: &[u64], s2: &[u64], indices: impl Iterator<Item = usize>) -> u32 {
         let mut len = 0;
         for i in indices {
             let diff = s1[i].abs_diff(s2[i]);
             let max_val = s1[i].max(s2[i]);
-            if max_val > 0 && (diff * 100 / max_val) > 5 {
+            if max_val > 0 && (diff * 100 / max_val) > self.config.fixed_diff_percent {
                 break;
             }
             len += 1;
@@ -236,7 +244,7 @@ impl ScrollStitcher {
         (top, bottom)
     }
 
-    fn scan_overlaps<F>(&self, range: impl Iterator<Item=u32>, calc_offsets: F, s1: &[u64], s2: &[u64]) -> (u32, u64)
+    fn scan_overlaps<F>(&self, range: impl Iterator<Item = u32>, calc_offsets: F, s1: &[u64], s2: &[u64]) -> (u32, u64)
     where
         F: Fn(u32) -> (usize, usize),
     {
@@ -248,7 +256,7 @@ impl ScrollStitcher {
             let score = Self::score_overlap(s1, s2, st1, st2, overlap as usize);
             let avg = score / (overlap as u64);
 
-            if avg < 500 {
+            if avg < self.config.overlap_avg_threshold {
                 return (overlap, avg);
             }
             if avg < best_score {
@@ -311,13 +319,13 @@ impl ScrollStitcher {
         [0, overlap / 2, overlap - 1].iter().all(|&r| {
             let y1 = y1_base + r;
             let y2 = y2_base + r;
-            let step = (cols.len() / 20).max(1);
+            let step = (cols.len() / self.config.verify_step_divisor).max(1);
 
             let (hits, checks) = cols.iter().step_by(step).fold((0, 0), |(h, c), &x| {
                 let idx1 = (y1 as usize) * stride + (x * 4);
                 let idx2 = (y2 as usize) * stride + (x * 4);
-                let d = (raw_prev[idx1] as i32 - raw_next[idx2] as i32).abs() + (raw_prev[idx1 + 1] as i32 - raw_next[idx2 + 1] as i32).abs() + (raw_prev[idx1 + 2] as i32 - raw_next[idx2 + 2] as i32).abs();
-                (if d < 80 { h + 1 } else { h }, c + 1)
+                let d = Self::pixel_diff(raw_prev, idx1, raw_next, idx2);
+                (if d < self.config.verify_pixel_diff { h + 1 } else { h }, c + 1)
             });
 
             checks == 0 || hits >= (checks / 2)
@@ -330,9 +338,17 @@ impl ScrollStitcher {
         let raw = next.as_raw();
         let start_y = f_top;
 
-        let search_start = if overlap > 20 { overlap / 4 } else { 0 };
-        let search_end = if overlap > 20 { overlap * 3 / 4 } else { overlap };
-        let step = (cols.len() / 20).max(1);
+        let search_start = if overlap > self.config.min_overlap {
+            overlap / self.config.seam_margin_divisor
+        } else {
+            0
+        };
+        let search_end = if overlap > self.config.min_overlap {
+            overlap * (self.config.seam_margin_divisor - 1) / self.config.seam_margin_divisor
+        } else {
+            overlap
+        };
+        let step = (cols.len() / self.config.verify_step_divisor).max(1);
 
         (search_start..search_end)
             .min_by_key(|&k| {
@@ -343,8 +359,7 @@ impl ScrollStitcher {
                     .map(|&x| {
                         let p = idx + (x * 4);
                         if p >= stride {
-                            let prev_p = p - stride;
-                            ((raw[p] as i32 - raw[prev_p] as i32).abs() + (raw[p + 1] as i32 - raw[prev_p + 1] as i32).abs() + (raw[p + 2] as i32 - raw[prev_p + 2] as i32).abs()) as u64
+                            Self::pixel_diff(raw, p, raw, p - stride) as u64
                         } else {
                             0
                         }
@@ -397,5 +412,15 @@ impl ScrollStitcher {
         if src_offset + copy_bytes <= src_raw.len() && dest_offset + copy_bytes <= dest_raw.len() {
             dest_raw[dest_offset..dest_offset + copy_bytes].copy_from_slice(&src_raw[src_offset..src_offset + copy_bytes]);
         }
+    }
+
+    #[inline(always)]
+    fn pixel_diff(raw1: &[u8], idx1: usize, raw2: &[u8], idx2: usize) -> u32 {
+        (raw1[idx1].abs_diff(raw2[idx2]) as u32) + (raw1[idx1 + 1].abs_diff(raw2[idx2 + 1]) as u32) + (raw1[idx1 + 2].abs_diff(raw2[idx2 + 2]) as u32)
+    }
+
+    #[inline(always)]
+    fn pixel_sum(raw: &[u8], idx: usize) -> u64 {
+        (raw[idx] as u64) + (raw[idx + 1] as u64) + (raw[idx + 2] as u64)
     }
 }
