@@ -1,5 +1,7 @@
 use image::RgbaImage;
 
+const CANVAS_RESIZE_HEADROOM: u32 = 2000;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StitchResult {
     Success,
@@ -382,7 +384,7 @@ impl ScrollStitcher {
         let new_total_h = keep_h + new_content_h;
 
         if new_total_h > canvas.height() {
-            let new_cap = (canvas.height() * 2).max(new_total_h + 2000);
+            let new_cap = (canvas.height() * 2).max(new_total_h + CANVAS_RESIZE_HEADROOM);
             let width = canvas.width();
             let mut new_canvas = RgbaImage::new(width, new_cap);
             Self::copy_region(canvas, 0, &mut new_canvas, 0, keep_h);
