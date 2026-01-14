@@ -3,7 +3,9 @@ use log::{error, info};
 use single_instance::SingleInstance;
 use std::env;
 
-pub const APP_ID: &str = "com.lortunate.minnow.lock";
+pub const APP_ID: &str = "com.lortunate.minnow";
+pub const APP_NAME: &str = "MinnowSnap";
+pub const APP_LOCK_ID: &str = "com.lortunate.minnow.lock";
 pub const QML_MAIN: &str = "qrc:/qt/qml/com/lortunate/minnow/qml/main.qml";
 
 pub fn init_logger() {
@@ -40,9 +42,9 @@ pub fn ensure_single_instance(uniq_id: &str) -> bool {
 
 pub fn get_instance_id() -> String {
     if cfg!(target_os = "macos") {
-        env::temp_dir().join(APP_ID).to_string_lossy().to_string()
+        env::temp_dir().join(APP_LOCK_ID).to_string_lossy().to_string()
     } else {
-        APP_ID.to_string()
+        APP_LOCK_ID.to_string()
     }
 }
 

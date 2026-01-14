@@ -101,6 +101,7 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
+use crate::core::app::APP_NAME;
 use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
 use crate::core::capture::service::CaptureService;
 use crate::core::capture::SCROLL_CAPTURE;
@@ -149,7 +150,9 @@ where
 }
 
 fn send_notification(title: &str, message: &str) {
-    Notification::new().summary(title).body(message).appname("MinnowSnap").show().ok();
+    if let Err(e) = Notification::new().summary(title).body(message).appname(APP_NAME).show() {
+        error!("Failed to send notification: {}", e);
+    }
 }
 
 struct QtScrollObserver {

@@ -1,7 +1,7 @@
 pub mod bridge;
 pub mod core;
 
-use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, QML_MAIN};
+use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, APP_ID, QML_MAIN};
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
@@ -58,7 +58,7 @@ fn main() {
     }
 
     #[cfg(target_os = "macos")]
-    if let Err(e) = notify_rust::set_application("com.lortunate.minnowsnap") {
+    if let Err(e) = notify_rust::set_application(APP_ID) {
         error!("Failed to set application: {}", e);
     }
 

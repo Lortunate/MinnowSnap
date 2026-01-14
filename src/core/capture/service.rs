@@ -31,10 +31,19 @@ impl CaptureService {
         std::thread::spawn(|| {
             let sound_data = include_bytes!("../../../resources/raw/capture.mp3");
             let cursor = std::io::Cursor::new(&sound_data[..]);
-            let stream_handle = rodio::OutputStreamBuilder::open_default_stream().expect("Failed to open default audio stream");
-            let sink = rodio::Sink::connect_new(stream_handle.mixer());
-            sink.append(rodio::Decoder::new(cursor).expect("Failed to decode audio stream"));
-            sink.sleep_until_end();
+            match rodio::OutputStreamBuilder::open_default_stream() {
+                Ok(stream_handle) => {
+                    let sink = rodio::Sink::connect_new(stream_handle.mixer());
+                    match rodio::Decoder::new(cursor) {
+                        Ok(source) => {
+                            sink.append(source);
+                            sink.sleep_until_end();
+                        }
+                        Err(e) => log::error!("Failed to decode audio stream: {}", e),
+                    }
+                }
+                Err(e) => log::error!("Failed to open default audio stream: {}", e),
+            }
         });
     }
 
