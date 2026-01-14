@@ -28,6 +28,8 @@ toml = "0.9"
 directories = "6.0"
 auto-launch = "0.5"
 font-kit = "0.14"
+notify-rust = "4"
+rodio = "0.21.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
@@ -47,3 +49,4 @@ strip = true
 [package.metadata.bundle]
 identifier = "com.lortunate.minnowsnap"
 icon = ["assets_icons/icon.icns", "assets_icons/icon.ico"]
+osx_info_plist_exts = ["resources/Info.plist.extra"]

@@ -70,10 +70,6 @@ pub mod qobject {
         fn quick_capture_shortcut_triggered(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "notification"]
-        fn notification(self: Pin<&mut Self>, title: QString, message: QString);
-
-        #[qsignal]
         #[cxx_name = "screenshotCaptured"]
         fn screenshot_captured(self: Pin<&mut Self>, path: QString);
 
@@ -105,17 +101,19 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
-use crate::core::capture::SCROLL_CAPTURE;
-use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::app::APP_NAME;
+use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
 use crate::core::capture::service::CaptureService;
+use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
-use crate::core::settings::{SETTINGS, ShortcutSettings};
+use crate::core::settings::{ShortcutSettings, SETTINGS};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
+use global_hotkey::{hotkey::HotKey, GlobalHotKeyManager};
 use image::RgbaImage;
 use log::{error, info};
+use notify_rust::Notification;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -149,6 +147,12 @@ where
     F: FnOnce() + Send + 'static,
 {
     thread::Builder::new().name(name.to_string()).spawn(f).expect("Failed to spawn thread");
+}
+
+fn send_notification(title: &str, message: &str) {
+    if let Err(e) = Notification::new().summary(title).body(message).appname(APP_NAME).show() {
+        error!("Failed to send notification: {}", e);
+    }
 }
 
 struct QtScrollObserver {
@@ -242,7 +246,7 @@ impl qobject::ScreenCapture {
                         if let Some(saved) = saved_path {
                             let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
                             let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
-                            qobject.as_mut().notification(title, QString::from(&msg));
+                            send_notification(&title.to_string(), &msg);
                         }
                     }
                     qobject.as_mut().set_is_capturing(false);
@@ -289,11 +293,10 @@ impl qobject::ScreenCapture {
             match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
                 Ok(_) => {
                     qt_thread
-                        .queue(|mut qobject| {
-                            qobject.as_mut().notification(
-                                crate::bridge::app::tr("ScreenCapture", "Success"),
-                                crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard"),
-                            );
+                        .queue(|_qobject| {
+                            let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                            let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
+                            send_notification(&title.to_string(), &msg.to_string());
                         })
                         .ok();
                 }
@@ -310,10 +313,10 @@ impl qobject::ScreenCapture {
             match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
                 Ok(saved_path) => {
                     qt_thread
-                        .queue(move |mut qobject| {
+                        .queue(move |_qobject| {
                             let title = crate::bridge::app::tr("ScreenCapture", "Saved");
                             let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                            qobject.as_mut().notification(title, QString::from(&msg));
+                            send_notification(&title.to_string(), &msg);
                         })
                         .ok();
                 }
@@ -360,7 +363,8 @@ impl qobject::ScreenCapture {
 
         let hotkey_ids = self.rust().hotkey_ids.clone();
 
-        if let Some(manager) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback, hotkey_ids) {
+        if let Some(manager) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback, hotkey_ids)
+        {
             self.as_mut().rust_mut().hotkey_manager = Some(manager);
         }
     }
@@ -387,11 +391,7 @@ impl ScreenCaptureRust {
         let mut shortcut_str = shortcut.to_string();
         if shortcut_str.is_empty() {
             let defaults = ShortcutSettings::default();
-            shortcut_str = if is_screen {
-                defaults.capture
-            } else {
-                defaults.quick_capture
-            };
+            shortcut_str = if is_screen { defaults.capture } else { defaults.quick_capture };
         }
 
         if let Some(manager) = &self.hotkey_manager {
