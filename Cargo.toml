@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Lortuante"]
 
 [workspace]
-members = ["build-tools"]
+members = ["build-tools", "plugins/ocr"]
 
 [dependencies]
 mimalloc = "0.1"
