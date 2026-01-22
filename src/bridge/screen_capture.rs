@@ -67,6 +67,10 @@ pub mod qobject {
         fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString;
 
         #[qinvokable]
+        #[cxx_name = "setCursorPosition"]
+        fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64);
+
+        #[qinvokable]
         #[cxx_name = "emitCloseAllPins"]
         fn emit_close_all_pins(self: Pin<&mut Self>);
 
@@ -441,6 +445,17 @@ impl qobject::ScreenCapture {
             }
         }
         QString::from("")
+    }
+
+    pub fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) {
+        let x = x as f64;
+        let y = y as f64;
+        let (sx, sy) = if cfg!(target_os = "macos") { (x, y) } else { (x * scale, y * scale) };
+        spawn_thread(move || {
+            if let Err(e) = rdev::simulate(&rdev::EventType::MouseMove { x: sx, y: sy }) {
+                error!("Failed to move cursor: {:?}", e);
+            }
+        });
     }
 
     pub fn emit_close_all_pins(self: Pin<&mut Self>) {
