@@ -39,6 +39,10 @@ pub mod qobject {
         fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
+        #[cxx_name = "copyText"]
+        fn copy_text(self: Pin<&mut Self>, text: QString);
+
+        #[qinvokable]
         #[cxx_name = "saveImage"]
         fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList;
 
@@ -57,6 +61,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "generateTempPath"]
         fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "getPixelColor"]
+        fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString;
 
         #[qinvokable]
         #[cxx_name = "emitCloseAllPins"]
@@ -111,15 +119,16 @@ pub mod qobject {
 }
 
 use crate::core::app::APP_NAME;
-use crate::core::capture::SCROLL_CAPTURE;
-use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
 use crate::core::capture::service::CaptureService;
+use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
-use crate::core::settings::{SETTINGS, ShortcutSettings};
+use crate::core::settings::{ShortcutSettings, SETTINGS};
+use arboard::Clipboard;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
+use global_hotkey::{hotkey::HotKey, GlobalHotKeyManager};
 use image::RgbaImage;
 use log::{error, info};
 use notify_rust::Notification;
@@ -313,6 +322,28 @@ impl qobject::ScreenCapture {
         });
     }
 
+    pub fn copy_text(self: Pin<&mut Self>, text: QString) {
+        let text_str = text.to_string();
+        let qt_thread = self.qt_thread();
+
+        spawn_thread(move || match Clipboard::new() {
+            Ok(mut clipboard) => {
+                if let Err(e) = clipboard.set_text(text_str) {
+                    error!("Clipboard text error: {e}");
+                } else {
+                    qt_thread
+                        .queue(|_qobject| {
+                            let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                            let msg = crate::bridge::app::tr("ScreenCapture", "Text copied to clipboard");
+                            send_notification(&title.to_string(), &msg.to_string());
+                        })
+                        .ok();
+                }
+            }
+            Err(e) => error!("Failed to initialize clipboard: {e}"),
+        });
+    }
+
     pub fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
@@ -367,7 +398,9 @@ impl qobject::ScreenCapture {
             settings.shortcuts.quick_capture
         };
 
-        if let Some((manager, ids, screen_hk, quick_hk)) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback) {
+        if let Some((manager, ids, screen_hk, quick_hk)) =
+            HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback)
+        {
             let mut rust = self.as_mut().rust_mut();
             rust.hotkey_manager = Some(manager);
             rust.hotkey_ids = ids;
@@ -386,6 +419,28 @@ impl qobject::ScreenCapture {
 
     pub fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString {
         QString::from(CaptureService::generate_temp_path(&extension.to_string()))
+    }
+
+    pub fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString {
+        use crate::core::capture::LAST_CAPTURE;
+
+        let x_phys = (x as f64 * scale) as i32;
+        let y_phys = (y as f64 * scale) as i32;
+
+        if let Ok(lock) = LAST_CAPTURE.lock() {
+            if let Some(img) = &*lock {
+                if x_phys >= 0 && y_phys >= 0 {
+                    let u_x = x_phys as u32;
+                    let u_y = y_phys as u32;
+                    if u_x < img.width() && u_y < img.height() {
+                        let pixel = img.get_pixel(u_x, u_y);
+                        let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
+                        return QString::from(&hex);
+                    }
+                }
+            }
+        }
+        QString::from("")
     }
 
     pub fn emit_close_all_pins(self: Pin<&mut Self>) {

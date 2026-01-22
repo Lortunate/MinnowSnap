@@ -172,6 +172,16 @@ Window {
             cancelCapture();
         }
         Keys.onPressed: event => {
+            if (!isLockedState && controller.state !== states.dragging) {
+                if (event.key === Qt.Key_C) {
+                    colorPicker.copyColor();
+                    event.accepted = true;
+                }
+                if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
+                    colorPicker.cycleFormat();
+                }
+            }
+
             // Ctrl+Z / Cmd+Z to Undo
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
@@ -333,6 +343,18 @@ Window {
             BusyStatus {
                 anchors.centerIn: parent
                 running: processing
+            }
+
+            ColorPicker {
+                id: colorPicker
+                imageSource: overlayWindow.backgroundImageSource
+                mouseX: mouseArea.mouseX
+                mouseY: mouseArea.mouseY
+                screenCapture: overlayWindow.screenCapture
+                surfaceWidth: overlayWindow.width
+                surfaceHeight: overlayWindow.height
+                visible: !isLockedState && controller.state !== states.dragging
+                onColorCopied: cancelCapture()
             }
         }
 
