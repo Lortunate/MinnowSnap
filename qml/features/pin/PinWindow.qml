@@ -1,8 +1,8 @@
 import QtQuick
-import QtQuick.Window
-import QtQuick.Effects
 import QtQuick.Controls
-import QtCore
+import QtQuick.Effects
+import QtQuick.Window
+import Qt.labs.platform as Platform
 import com.lortunate.minnow
 import "../../components"
 
@@ -13,19 +13,15 @@ Window {
     property int shadowMargin: 20
     property var screenCapture: null
 
-    color: "transparent"
-    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
+    visible: true
     width: 300
     height: 200
-    visible: true
+    color: "transparent"
+    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
 
-    Component.onCompleted: {
-        pinWindow.raise();
-    }
+    Component.onCompleted: pinWindow.raise()
 
-    onClosing: {
-        pinWindow.destroy();
-    }
+    onClosing: pinWindow.destroy()
 
     Connections {
         target: pinWindow.screenCapture
@@ -35,75 +31,103 @@ Window {
         }
     }
 
+    QtObject {
+        id: menuActions
+
+        function copy() {
+            if (pinWindow.screenCapture) {
+                pinWindow.screenCapture.copyImage(pinWindow.imageSource, 0, 0, 0, 0);
+            }
+        }
+
+        function save() {
+            if (pinWindow.screenCapture) {
+                pinWindow.screenCapture.saveImage(pinWindow.imageSource, 0, 0, 0, 0);
+            }
+        }
+
+        function close() {
+            pinWindow.close();
+        }
+
+        function closeAll() {
+            if (pinWindow.screenCapture) {
+                pinWindow.screenCapture.emitCloseAllPins();
+            }
+        }
+    }
+
     Item {
         id: contentItem
-
         anchors.fill: parent
         anchors.margins: pinWindow.shadowMargin
+        visible: false
 
         Rectangle {
-            id: bgRect
             anchors.fill: parent
             color: "transparent"
             radius: AppTheme.radiusLarge
 
             Image {
                 id: img
-
                 anchors.fill: parent
-                asynchronous: true
+                source: pinWindow.imageSource
                 fillMode: Image.PreserveAspectFit
+                asynchronous: true
                 mipmap: true
                 smooth: true
-                source: pinWindow.imageSource
             }
         }
     }
 
     MultiEffect {
         id: shadowEffect
-
         anchors.fill: contentItem
-        shadowBlur: 1.0
-        shadowColor: "#000000"
-        shadowEnabled: true
-        shadowOpacity: 0.5
-        shadowVerticalOffset: 4
         source: contentItem
+        shadowEnabled: true
+        shadowColor: "#000000"
+        shadowOpacity: 0.5
+        shadowBlur: 1.0
+        shadowVerticalOffset: 4
     }
 
     MouseArea {
         id: mouseArea
         anchors.fill: contentItem
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         onPressed: mouse => {
             if (mouse.button === Qt.LeftButton) {
+                customMenu.visible = false;
                 pinWindow.startSystemMove();
             }
         }
 
         onClicked: mouse => {
             if (mouse.button === Qt.RightButton) {
-                var point = mouseArea.mapToGlobal(mouse.x, mouse.y);
-                contextMenu.popup(point.x, point.y);
+                if (Qt.platform.os === "osx") {
+                    nativeMenu.open();
+                } else {
+                    const point = mouseArea.mapToGlobal(mouse.x, mouse.y);
+                    customMenu.popup(point.x, point.y);
+                }
             }
         }
 
         onWheel: wheel => {
-            var factor = wheel.angleDelta.y > 0 ? 1.1 : 0.9;
-            var newW = pinWindow.width * factor;
-            var newH = pinWindow.height * factor;
+            customMenu.visible = false;
+            const factor = wheel.angleDelta.y > 0 ? 1.1 : 0.9;
+            const newW = pinWindow.width * factor;
+            const newH = pinWindow.height * factor;
 
-            // Limit size
-            var maxTextureSize = 16384 - 50;
-            var dpr = Screen.devicePixelRatio || 1.0;
-            var maxSize = maxTextureSize / dpr;
+            const maxTextureSize = 16384 - 50;
+            const dpr = Screen.devicePixelRatio || 1.0;
+            const maxSize = maxTextureSize / dpr;
 
             if (newW > 100 && newH > 100 && newW < maxSize && newH < maxSize) {
-                var dw = newW - pinWindow.width;
-                var dh = newH - pinWindow.height;
+                const dw = newW - pinWindow.width;
+                const dh = newH - pinWindow.height;
                 pinWindow.x -= dw / 2;
                 pinWindow.y -= dh / 2;
                 pinWindow.width = newW;
@@ -112,27 +136,56 @@ Window {
         }
     }
 
+    Platform.Menu {
+        id: nativeMenu
+
+        Platform.MenuItem {
+            text: qsTr("Copy")
+            enabled: pinWindow.screenCapture !== null
+            onTriggered: menuActions.copy()
+        }
+
+        Platform.MenuItem {
+            text: qsTr("Save")
+            enabled: pinWindow.screenCapture !== null
+            onTriggered: menuActions.save()
+        }
+
+        Platform.MenuSeparator {}
+
+        Platform.MenuItem {
+            text: qsTr("Close")
+            onTriggered: menuActions.close()
+        }
+
+        Platform.MenuItem {
+            text: qsTr("Close All")
+            enabled: pinWindow.screenCapture !== null
+            onTriggered: menuActions.closeAll()
+        }
+    }
+
     ContextMenu {
-        id: contextMenu
+        id: customMenu
+        transientParent: pinWindow
+        flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint
+
+        onActiveChanged: {
+            if (!active) {
+                visible = false;
+            }
+        }
 
         menuItems: [
             {
                 text: qsTr("Copy"),
                 enabled: pinWindow.screenCapture !== null,
-                action: function () {
-                    if (pinWindow.screenCapture) {
-                        pinWindow.screenCapture.copyImage(pinWindow.imageSource, 0, 0, 0, 0);
-                    }
-                }
+                action: menuActions.copy
             },
             {
                 text: qsTr("Save"),
                 enabled: pinWindow.screenCapture !== null,
-                action: function () {
-                    if (pinWindow.screenCapture) {
-                        pinWindow.screenCapture.saveImage(pinWindow.imageSource, 0, 0, 0, 0);
-                    }
-                }
+                action: menuActions.save
             },
             {
                 isDivider: true
@@ -140,18 +193,12 @@ Window {
             {
                 text: qsTr("Close"),
                 enabled: true,
-                action: function () {
-                    pinWindow.close();
-                }
+                action: menuActions.close
             },
             {
                 text: qsTr("Close All"),
                 enabled: pinWindow.screenCapture !== null,
-                action: function () {
-                    if (pinWindow.screenCapture) {
-                        pinWindow.screenCapture.emitCloseAllPins();
-                    }
-                }
+                action: menuActions.closeAll
             }
         ]
     }
