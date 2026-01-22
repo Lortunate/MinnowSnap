@@ -26,11 +26,13 @@ dependencies = [
  "notify-rust",
  "objc2",
  "objc2-app-kit",
+ "ocr",
  "oxipng",
  "rodio",
  "serde",
  "serde_json",
  "single-instance",
+ "tokio",
  "toml 0.9.10+spec-1.1.0",
  "xcap",
 ]

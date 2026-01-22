@@ -28,15 +28,10 @@ impl ModelManager {
         filenames.iter().all(|name| self.save_dir.join(name).exists())
     }
 
-    pub async fn ensure_model(
-        &self,
-        url: &str,
-        filename: &str,
-        on_progress: Option<Box<dyn Fn(f32) + Send + Sync>>,
-    ) -> Result<PathBuf> {
+    pub async fn ensure_model(&self, url: &str, filename: &str, force: bool, on_progress: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
         let file_path = self.save_dir.join(filename);
 
-        if file_path.exists() {
+        if !force && file_path.exists() {
             info!("Model {} already exists at {:?}", filename, file_path);
             if let Some(cb) = on_progress {
                 cb(1.0);
@@ -55,7 +50,9 @@ impl ModelManager {
     }
 
     async fn download_file(&self, url: &str, path: &PathBuf, on_progress: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<()> {
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .build()?;
         let response = client.get(url).send().await?.error_for_status()?;
         let total_size = response.content_length().unwrap_or(0);
 
