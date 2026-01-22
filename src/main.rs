@@ -1,7 +1,7 @@
 pub mod bridge;
 pub mod core;
 
-use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, APP_ID, QML_MAIN};
+use crate::core::app::{APP_ID, QML_MAIN, ensure_single_instance, get_instance_id, init_logger};
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
@@ -25,6 +25,7 @@ impl MinnowApp {
         let settings = core::settings::SETTINGS.lock().unwrap().get();
         bridge::app::install_translator(&settings.general.language);
         core::app::set_auto_start(settings.general.auto_start);
+        core::io::fonts::preload_fonts();
 
         #[cfg(target_os = "macos")]
         core::app::hide_dock_icon();

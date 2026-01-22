@@ -100,9 +100,7 @@ impl SettingsManager {
             return (AppSettings::default(), config_path);
         }
 
-        let s = Config::builder()
-            .add_source(File::from(config_path.clone()))
-            .build();
+        let s = Config::builder().add_source(File::from(config_path.clone())).build();
 
         match s {
             Ok(s) => match s.try_deserialize() {
@@ -161,15 +159,18 @@ impl SettingsManager {
     }
 
     fn save(&self) {
-        match toml::to_string_pretty(&self.config) {
+        let config = self.config.clone();
+        let path = self.config_path.clone();
+
+        crate::core::RUNTIME.spawn_blocking(move || match toml::to_string_pretty(&config) {
             Ok(toml_string) => {
-                if let Err(e) = fs::write(&self.config_path, toml_string) {
-                    error!("Failed to write config file to {:?}: {}", self.config_path, e);
+                if let Err(e) = fs::write(&path, toml_string) {
+                    error!("Failed to write config file to {:?}: {}", path, e);
                 } else {
-                    info!("Settings saved to {:?}", self.config_path);
+                    info!("Settings saved to {:?}", path);
                 }
             }
             Err(e) => error!("Failed to serialize config: {}", e),
-        }
+        });
     }
 }
