@@ -433,9 +433,7 @@ impl qobject::ScreenCapture {
 
         if let Ok(lock) = LAST_CAPTURE.lock() {
             if let Some(img) = &*lock {
-                if x_phys >= 0 && y_phys >= 0 {
-                    let u_x = x_phys as u32;
-                    let u_y = y_phys as u32;
+                if let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys)) {
                     if u_x < img.width() && u_y < img.height() {
                         let pixel = img.get_pixel(u_x, u_y);
                         let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
