@@ -19,7 +19,18 @@ Window {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
 
-    Component.onCompleted: pinWindow.raise()
+    Component.onCompleted: {
+        if (pinWindow.screenCapture) {
+            pinWindow.screenCapture.incrementPinCount();
+        }
+        pinWindow.raise();
+    }
+
+    Component.onDestruction: {
+        if (pinWindow.screenCapture) {
+            pinWindow.screenCapture.decrementPinCount();
+        }
+    }
 
     onClosing: pinWindow.destroy()
 
@@ -161,6 +172,7 @@ Window {
         Platform.MenuItem {
             text: qsTr("Close All")
             enabled: pinWindow.screenCapture !== null
+            visible: pinWindow.screenCapture && pinWindow.screenCapture.pinCount > 1
             onTriggered: menuActions.closeAll()
         }
     }
@@ -176,30 +188,37 @@ Window {
             }
         }
 
-        menuItems: [
-            {
-                text: qsTr("Copy"),
-                enabled: pinWindow.screenCapture !== null,
-                action: menuActions.copy
-            },
-            {
-                text: qsTr("Save"),
-                enabled: pinWindow.screenCapture !== null,
-                action: menuActions.save
-            },
-            {
-                isDivider: true
-            },
-            {
-                text: qsTr("Close"),
-                enabled: true,
-                action: menuActions.close
-            },
-            {
-                text: qsTr("Close All"),
-                enabled: pinWindow.screenCapture !== null,
-                action: menuActions.closeAll
+        menuItems: {
+            const items = [
+                {
+                    text: qsTr("Copy"),
+                    enabled: pinWindow.screenCapture !== null,
+                    action: menuActions.copy
+                },
+                {
+                    text: qsTr("Save"),
+                    enabled: pinWindow.screenCapture !== null,
+                    action: menuActions.save
+                },
+                {
+                    isDivider: true
+                },
+                {
+                    text: qsTr("Close"),
+                    enabled: true,
+                    action: menuActions.close
+                }
+            ];
+
+            if (pinWindow.screenCapture && pinWindow.screenCapture.pinCount > 1) {
+                items.push({
+                    text: qsTr("Close All"),
+                    enabled: pinWindow.screenCapture !== null,
+                    action: menuActions.closeAll
+                });
             }
-        ]
+
+            return items;
+        }
     }
 }
