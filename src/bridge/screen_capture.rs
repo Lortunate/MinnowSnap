@@ -116,7 +116,6 @@ use log::{error, info};
 use notify_rust::Notification;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 pub struct ScreenCaptureRust {
     hotkey_manager: Option<GlobalHotKeyManager>,
@@ -142,11 +141,11 @@ impl Default for ScreenCaptureRust {
     }
 }
 
-fn spawn_thread<F>(name: &str, f: F)
+fn spawn_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    thread::Builder::new().name(name.to_string()).spawn(f).expect("Failed to spawn thread");
+    crate::core::RUNTIME.spawn_blocking(f);
 }
 
 fn send_notification(title: &str, message: &str) {
@@ -210,7 +209,7 @@ impl qobject::ScreenCapture {
 
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-capture-monitor", move || {
+        spawn_thread(move || {
             let result = CaptureService::prepare_capture();
 
             qt_thread
@@ -235,7 +234,7 @@ impl qobject::ScreenCapture {
 
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-quick-capture", move || {
+        spawn_thread(move || {
             let result = CaptureService::run_quick_capture_workflow(x, y, width, height);
 
             qt_thread
@@ -289,19 +288,17 @@ impl qobject::ScreenCapture {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-copy-clipboard", move || {
-            match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
-                Ok(_) => {
-                    qt_thread
-                        .queue(|_qobject| {
-                            let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                            let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
-                            send_notification(&title.to_string(), &msg.to_string());
-                        })
-                        .ok();
-                }
-                Err(e) => error!("Clipboard error: {e}"),
+        spawn_thread(move || match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
+            Ok(_) => {
+                qt_thread
+                    .queue(|_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                        let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
+                        send_notification(&title.to_string(), &msg.to_string());
+                    })
+                    .ok();
             }
+            Err(e) => error!("Clipboard error: {e}"),
         });
     }
 
@@ -309,19 +306,17 @@ impl qobject::ScreenCapture {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-save-files", move || {
-            match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
-                Ok(saved_path) => {
-                    qt_thread
-                        .queue(move |_qobject| {
-                            let title = crate::bridge::app::tr("ScreenCapture", "Saved");
-                            let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                            send_notification(&title.to_string(), &msg);
-                        })
-                        .ok();
-                }
-                Err(e) => error!("Save error: {e}"),
+        spawn_thread(move || match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
+            Ok(saved_path) => {
+                qt_thread
+                    .queue(move |_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Saved");
+                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
+                        send_notification(&title.to_string(), &msg);
+                    })
+                    .ok();
             }
+            Err(e) => error!("Save error: {e}"),
         });
 
         QStringList::default()
@@ -361,11 +356,12 @@ impl qobject::ScreenCapture {
             settings.shortcuts.quick_capture
         };
 
-        let hotkey_ids = self.rust().hotkey_ids.clone();
-
-        if let Some(manager) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback, hotkey_ids)
-        {
-            self.as_mut().rust_mut().hotkey_manager = Some(manager);
+        if let Some((manager, ids, screen_hk, quick_hk)) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback) {
+            let mut rust = self.as_mut().rust_mut();
+            rust.hotkey_manager = Some(manager);
+            rust.hotkey_ids = ids;
+            rust.current_screen_hotkey = screen_hk;
+            rust.current_quick_hotkey = quick_hk;
         }
     }
 

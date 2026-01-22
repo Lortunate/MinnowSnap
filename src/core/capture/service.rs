@@ -28,7 +28,7 @@ impl CaptureService {
     }
 
     fn play_shutter_sound() {
-        std::thread::spawn(|| {
+        crate::core::RUNTIME.spawn_blocking(|| {
             let sound_data = include_bytes!("../../../resources/raw/capture.mp3");
             let cursor = std::io::Cursor::new(&sound_data[..]);
             match rodio::OutputStreamBuilder::open_default_stream() {

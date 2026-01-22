@@ -30,8 +30,7 @@ impl HotkeyService {
         quick_shortcut: &str,
         screen_callback: F1,
         quick_callback: F2,
-        hotkey_ids: Arc<Mutex<HotkeyIds>>,
-    ) -> Option<GlobalHotKeyManager>
+    ) -> Option<(GlobalHotKeyManager, Arc<Mutex<HotkeyIds>>, Option<HotKey>, Option<HotKey>)>
     where
         F1: Fn() + Send + 'static,
         F2: Fn() + Send + 'static,
@@ -44,6 +43,7 @@ impl HotkeyService {
             }
         };
 
+        let hotkey_ids = Arc::new(Mutex::new(HotkeyIds::default()));
         let screen_hotkey = parse_hotkey(screen_shortcut);
         let quick_hotkey = parse_hotkey(quick_shortcut);
 
@@ -65,11 +65,12 @@ impl HotkeyService {
             }
         }
 
-        std::thread::spawn(move || {
+        let ids_clone = hotkey_ids.clone();
+        crate::core::RUNTIME.spawn_blocking(move || {
             let receiver = GlobalHotKeyEvent::receiver();
             while let Ok(event) = receiver.recv() {
                 if event.state == HotKeyState::Pressed {
-                    let ids = hotkey_ids.lock().unwrap();
+                    let ids = ids_clone.lock().unwrap();
 
                     if let Some(id) = ids.screen_capture
                         && event.id == id
@@ -89,7 +90,7 @@ impl HotkeyService {
         });
 
         info!("Global hotkeys registered");
-        Some(manager)
+        Some((manager, hotkey_ids, screen_hotkey, quick_hotkey))
     }
 
     pub fn update_hotkey_registration(
