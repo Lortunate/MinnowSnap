@@ -83,6 +83,8 @@ Item {
         targetX += dx;
         targetY += dy;
         updateColor();
+        if (screenCapture)
+            screenCapture.setCursorPosition(targetX, targetY, Screen.devicePixelRatio);
     }
 
     function updateColor() {
