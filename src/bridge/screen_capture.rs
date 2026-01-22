@@ -11,6 +11,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, is_capturing, cxx_name = "isCapturing")]
+        #[qproperty(i32, pin_count, cxx_name = "pinCount")]
         type ScreenCapture = super::ScreenCaptureRust;
 
         #[qinvokable]
@@ -61,6 +62,14 @@ pub mod qobject {
         #[cxx_name = "emitCloseAllPins"]
         fn emit_close_all_pins(self: Pin<&mut Self>);
 
+        #[qinvokable]
+        #[cxx_name = "incrementPinCount"]
+        fn increment_pin_count(self: Pin<&mut Self>);
+
+        #[qinvokable]
+        #[cxx_name = "decrementPinCount"]
+        fn decrement_pin_count(self: Pin<&mut Self>);
+
         #[qsignal]
         #[cxx_name = "screenCaptureShortcutTriggered"]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
@@ -102,15 +111,15 @@ pub mod qobject {
 }
 
 use crate::core::app::APP_NAME;
-use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
-use crate::core::capture::service::CaptureService;
 use crate::core::capture::SCROLL_CAPTURE;
+use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::capture::service::CaptureService;
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
-use crate::core::settings::{ShortcutSettings, SETTINGS};
+use crate::core::settings::{SETTINGS, ShortcutSettings};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyManager};
+use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
 use image::RgbaImage;
 use log::{error, info};
 use notify_rust::Notification;
@@ -124,6 +133,7 @@ pub struct ScreenCaptureRust {
     current_screen_hotkey: Option<HotKey>,
     current_quick_hotkey: Option<HotKey>,
     is_capturing: bool,
+    pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
 }
@@ -136,6 +146,7 @@ impl Default for ScreenCaptureRust {
             current_screen_hotkey: None,
             current_quick_hotkey: None,
             is_capturing: false,
+            pin_count: 0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
             last_scroll_path: None,
         }
@@ -383,6 +394,18 @@ impl qobject::ScreenCapture {
 
     pub fn emit_close_all_pins(self: Pin<&mut Self>) {
         self.close_all_pins();
+    }
+
+    pub fn increment_pin_count(mut self: Pin<&mut Self>) {
+        let count = *self.pin_count();
+        self.as_mut().set_pin_count(count + 1);
+    }
+
+    pub fn decrement_pin_count(mut self: Pin<&mut Self>) {
+        let count = *self.pin_count();
+        if count > 0 {
+            self.as_mut().set_pin_count(count - 1);
+        }
     }
 }
 
