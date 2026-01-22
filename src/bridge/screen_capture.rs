@@ -11,6 +11,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, is_capturing, cxx_name = "isCapturing")]
+        #[qproperty(i32, pin_count, cxx_name = "pinCount")]
         type ScreenCapture = super::ScreenCaptureRust;
 
         #[qinvokable]
@@ -38,6 +39,10 @@ pub mod qobject {
         fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
+        #[cxx_name = "copyText"]
+        fn copy_text(self: Pin<&mut Self>, text: QString);
+
+        #[qinvokable]
         #[cxx_name = "saveImage"]
         fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList;
 
@@ -58,8 +63,24 @@ pub mod qobject {
         fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString;
 
         #[qinvokable]
+        #[cxx_name = "getPixelColor"]
+        fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "setCursorPosition"]
+        fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64);
+
+        #[qinvokable]
         #[cxx_name = "emitCloseAllPins"]
         fn emit_close_all_pins(self: Pin<&mut Self>);
+
+        #[qinvokable]
+        #[cxx_name = "incrementPinCount"]
+        fn increment_pin_count(self: Pin<&mut Self>);
+
+        #[qinvokable]
+        #[cxx_name = "decrementPinCount"]
+        fn decrement_pin_count(self: Pin<&mut Self>);
 
         #[qsignal]
         #[cxx_name = "screenCaptureShortcutTriggered"]
@@ -107,6 +128,7 @@ use crate::core::capture::service::CaptureService;
 use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
 use crate::core::settings::{ShortcutSettings, SETTINGS};
+use arboard::Clipboard;
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
@@ -116,7 +138,6 @@ use log::{error, info};
 use notify_rust::Notification;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 pub struct ScreenCaptureRust {
     hotkey_manager: Option<GlobalHotKeyManager>,
@@ -124,6 +145,7 @@ pub struct ScreenCaptureRust {
     current_screen_hotkey: Option<HotKey>,
     current_quick_hotkey: Option<HotKey>,
     is_capturing: bool,
+    pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
 }
@@ -136,17 +158,18 @@ impl Default for ScreenCaptureRust {
             current_screen_hotkey: None,
             current_quick_hotkey: None,
             is_capturing: false,
+            pin_count: 0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
             last_scroll_path: None,
         }
     }
 }
 
-fn spawn_thread<F>(name: &str, f: F)
+fn spawn_thread<F>(f: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    thread::Builder::new().name(name.to_string()).spawn(f).expect("Failed to spawn thread");
+    crate::core::RUNTIME.spawn_blocking(f);
 }
 
 fn send_notification(title: &str, message: &str) {
@@ -210,7 +233,7 @@ impl qobject::ScreenCapture {
 
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-capture-monitor", move || {
+        spawn_thread(move || {
             let result = CaptureService::prepare_capture();
 
             qt_thread
@@ -235,7 +258,7 @@ impl qobject::ScreenCapture {
 
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-quick-capture", move || {
+        spawn_thread(move || {
             let result = CaptureService::run_quick_capture_workflow(x, y, width, height);
 
             qt_thread
@@ -289,19 +312,39 @@ impl qobject::ScreenCapture {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-copy-clipboard", move || {
-            match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
-                Ok(_) => {
+        spawn_thread(move || match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
+            Ok(_) => {
+                qt_thread
+                    .queue(|_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                        let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
+                        send_notification(&title.to_string(), &msg.to_string());
+                    })
+                    .ok();
+            }
+            Err(e) => error!("Clipboard error: {e}"),
+        });
+    }
+
+    pub fn copy_text(self: Pin<&mut Self>, text: QString) {
+        let text_str = text.to_string();
+        let qt_thread = self.qt_thread();
+
+        spawn_thread(move || match Clipboard::new() {
+            Ok(mut clipboard) => {
+                if let Err(e) = clipboard.set_text(text_str) {
+                    error!("Clipboard text error: {e}");
+                } else {
                     qt_thread
                         .queue(|_qobject| {
                             let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                            let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
+                            let msg = crate::bridge::app::tr("ScreenCapture", "Text copied to clipboard");
                             send_notification(&title.to_string(), &msg.to_string());
                         })
                         .ok();
                 }
-                Err(e) => error!("Clipboard error: {e}"),
             }
+            Err(e) => error!("Failed to initialize clipboard: {e}"),
         });
     }
 
@@ -309,19 +352,17 @@ impl qobject::ScreenCapture {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
 
-        spawn_thread("minnow-save-files", move || {
-            match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
-                Ok(saved_path) => {
-                    qt_thread
-                        .queue(move |_qobject| {
-                            let title = crate::bridge::app::tr("ScreenCapture", "Saved");
-                            let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                            send_notification(&title.to_string(), &msg);
-                        })
-                        .ok();
-                }
-                Err(e) => error!("Save error: {e}"),
+        spawn_thread(move || match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
+            Ok(saved_path) => {
+                qt_thread
+                    .queue(move |_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Saved");
+                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
+                        send_notification(&title.to_string(), &msg);
+                    })
+                    .ok();
             }
+            Err(e) => error!("Save error: {e}"),
         });
 
         QStringList::default()
@@ -361,11 +402,14 @@ impl qobject::ScreenCapture {
             settings.shortcuts.quick_capture
         };
 
-        let hotkey_ids = self.rust().hotkey_ids.clone();
-
-        if let Some(manager) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback, hotkey_ids)
+        if let Some((manager, ids, screen_hk, quick_hk)) =
+            HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback)
         {
-            self.as_mut().rust_mut().hotkey_manager = Some(manager);
+            let mut rust = self.as_mut().rust_mut();
+            rust.hotkey_manager = Some(manager);
+            rust.hotkey_ids = ids;
+            rust.current_screen_hotkey = screen_hk;
+            rust.current_quick_hotkey = quick_hk;
         }
     }
 
@@ -381,8 +425,51 @@ impl qobject::ScreenCapture {
         QString::from(CaptureService::generate_temp_path(&extension.to_string()))
     }
 
+    pub fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString {
+        use crate::core::capture::LAST_CAPTURE;
+
+        let x_phys = (x as f64 * scale) as i32;
+        let y_phys = (y as f64 * scale) as i32;
+
+        if let Ok(lock) = LAST_CAPTURE.lock() {
+            if let Some(img) = &*lock {
+                if let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys)) {
+                    if u_x < img.width() && u_y < img.height() {
+                        let pixel = img.get_pixel(u_x, u_y);
+                        let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
+                        return QString::from(&hex);
+                    }
+                }
+            }
+        }
+        QString::from("")
+    }
+
+    pub fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) {
+        let x = x as f64;
+        let y = y as f64;
+        let (sx, sy) = if cfg!(target_os = "macos") { (x, y) } else { (x * scale, y * scale) };
+        spawn_thread(move || {
+            if let Err(e) = rdev::simulate(&rdev::EventType::MouseMove { x: sx, y: sy }) {
+                error!("Failed to move cursor: {:?}", e);
+            }
+        });
+    }
+
     pub fn emit_close_all_pins(self: Pin<&mut Self>) {
         self.close_all_pins();
+    }
+
+    pub fn increment_pin_count(mut self: Pin<&mut Self>) {
+        let count = *self.pin_count();
+        self.as_mut().set_pin_count(count + 1);
+    }
+
+    pub fn decrement_pin_count(mut self: Pin<&mut Self>) {
+        let count = *self.pin_count();
+        if count > 0 {
+            self.as_mut().set_pin_count(count - 1);
+        }
     }
 }
 

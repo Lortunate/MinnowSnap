@@ -4,6 +4,12 @@ use std::time::Instant;
 
 static FONTS_CACHE: LazyLock<Mutex<Option<Vec<String>>>> = LazyLock::new(|| Mutex::new(None));
 
+pub fn preload_fonts() {
+    crate::core::RUNTIME.spawn_blocking(|| {
+        get_system_fonts();
+    });
+}
+
 pub fn get_system_fonts() -> Vec<String> {
     let mut cache_guard = FONTS_CACHE.lock().unwrap();
 
