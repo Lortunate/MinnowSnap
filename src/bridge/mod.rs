@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod ocr;
+pub mod ocr_overlay;
 pub mod overlay_controller;
 pub mod provider;
 pub mod screen_capture;

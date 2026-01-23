@@ -39,6 +39,7 @@ fn main() {
             "src/bridge/shortcut_helper.rs",
             "src/bridge/config.rs",
             "src/bridge/ocr.rs",
+            "src/bridge/ocr_overlay.rs",
         ])
         .qt_module("Network")
         .qt_module("Quick");

@@ -4,6 +4,7 @@ pub mod engine;
 pub mod model_manager;
 pub mod recognizer;
 pub mod utils;
+pub mod visualization;
 
 pub use config::{OcrConfig, OcrModelType};
 pub use engine::{OcrEngine, OcrResult};

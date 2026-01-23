@@ -102,7 +102,6 @@ impl qobject::OcrManager {
                 });
             });
 
-            // Force Mobile models as per requirement
             let result = rt.block_on(ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)));
 
             let _ = qt_thread.queue(move |mut qobject: Pin<&mut qobject::OcrManager>| {

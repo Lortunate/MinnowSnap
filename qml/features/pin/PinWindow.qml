@@ -5,6 +5,7 @@ import QtQuick.Window
 import Qt.labs.platform as Platform
 import com.lortunate.minnow
 import "../../components"
+import "components"
 
 Window {
     id: pinWindow
@@ -12,6 +13,7 @@ Window {
     property string imageSource: ""
     property int shadowMargin: 20
     property var screenCapture: null
+    property bool autoOcr: false
 
     visible: true
     width: 300
@@ -24,6 +26,9 @@ Window {
             pinWindow.screenCapture.incrementPinCount();
         }
         pinWindow.raise();
+        if (autoOcr) {
+            ocrOverlay.recognize();
+        }
     }
 
     Component.onDestruction: {
@@ -46,6 +51,17 @@ Window {
         id: menuActions
 
         function copy() {
+            var focusItem = pinWindow.activeFocusItem;
+            if (focusItem && typeof focusItem.copy === "function" && focusItem.selectedText && focusItem.selectedText.length > 0) {
+                focusItem.copy();
+                focusItem.deselect();
+                return;
+            }
+
+            if (ocrOverlay.copySelection()) {
+                return;
+            }
+
             if (pinWindow.screenCapture) {
                 pinWindow.screenCapture.copyImage(pinWindow.imageSource, 0, 0, 0, 0);
             }
@@ -66,6 +82,15 @@ Window {
                 pinWindow.screenCapture.emitCloseAllPins();
             }
         }
+
+        function triggerOcr() {
+            ocrOverlay.recognize();
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.Copy
+        onActivated: menuActions.copy()
     }
 
     Item {
@@ -147,6 +172,22 @@ Window {
         }
     }
 
+    OcrOverlay {
+        id: ocrOverlay
+        anchors.fill: contentItem
+        z: 10
+        targetImage: img
+        sourcePath: pinWindow.imageSource
+        onRequestMenu: (x, y) => {
+            if (Qt.platform.os === "osx") {
+                nativeMenu.open();
+            } else {
+                const point = ocrOverlay.mapToGlobal(x, y);
+                customMenu.popup(point.x, point.y);
+            }
+        }
+    }
+
     Platform.Menu {
         id: nativeMenu
 
@@ -160,6 +201,11 @@ Window {
             text: qsTr("Save")
             enabled: pinWindow.screenCapture !== null
             onTriggered: menuActions.save()
+        }
+
+        Platform.MenuItem {
+            text: qsTr("OCR")
+            onTriggered: menuActions.triggerOcr()
         }
 
         Platform.MenuSeparator {}
@@ -199,6 +245,11 @@ Window {
                     text: qsTr("Save"),
                     enabled: pinWindow.screenCapture !== null,
                     action: menuActions.save
+                },
+                {
+                    text: qsTr("OCR"),
+                    enabled: true,
+                    action: menuActions.triggerOcr
                 },
                 {
                     isDivider: true
