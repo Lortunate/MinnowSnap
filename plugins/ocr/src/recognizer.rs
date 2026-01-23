@@ -87,7 +87,6 @@ impl Recognizer {
         Ok(results)
     }
 
-    /// CTC Greedy Decode implementation
     fn ctc_decode(keys: &[String], output: ArrayView2<f32>) -> (String, f32) {
         let mut text = String::with_capacity(32);
         let mut confidence_sum = 0.0;

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use image::{DynamicImage, GenericImageView, Rgb, imageops::FilterType};
+use image::{imageops::FilterType, DynamicImage, GenericImageView, Rgb};
 use ndarray::{Array3, Array4};
-use ort::session::{Session, builder::GraphOptimizationLevel};
+use ort::session::{builder::GraphOptimizationLevel, Session};
 use rayon::prelude::*;
 use std::path::Path;
 
