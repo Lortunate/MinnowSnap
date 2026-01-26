@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import com.lortunate.minnow
 
 Item {
@@ -21,6 +22,14 @@ Item {
     function recognize() {
         if (sourcePath)
             ocrModel.recognizeImage(sourcePath);
+    }
+
+    function clearSelection() {
+        selectedIndices = {};
+        if (activeTextBlock) {
+            activeTextBlock.deselect();
+            activeTextBlock = null;
+        }
     }
 
     function copySelection() {
@@ -112,6 +121,13 @@ Item {
 
         onPressed: mouse => {
             if (mouse.button === Qt.LeftButton) {
+                if (mouse.modifiers & Qt.ControlModifier || mouse.modifiers & Qt.MetaModifier) {
+                    if (Window.window) {
+                        Window.window.startSystemMove();
+                    }
+                    return;
+                }
+
                 if (root.activeTextBlock) {
                     root.activeTextBlock.deselect();
                     root.activeTextBlock = null;
@@ -202,7 +218,7 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                color: parent.isSelected ? Qt.rgba(0.0, 0.48, 1.0, 0.3) : (hoverHandler.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : "transparent")
+                color: parent.isSelected ? Qt.rgba(0.0, 0.48, 1.0, 0.3) : (interactor.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : "transparent")
                 radius: 2
             }
 
@@ -237,20 +253,35 @@ Item {
                 }
 
                 MouseArea {
-                    id: hoverHandler
+                    id: interactor
                     anchors.fill: parent
                     hoverEnabled: true
-                    acceptedButtons: Qt.RightButton
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
                     cursorShape: Qt.IBeamCursor
-                    onClicked: mouse => {
-                        if (!parent.isSelected && !textEdit.activeFocus) {
-                            var sel = {};
-                            sel[index] = true;
-                            root.selectedIndices = sel;
-                        }
+                    propagateComposedEvents: true
 
-                        var p = mapToItem(root, mouse.x, mouse.y);
-                        root.requestMenu(p.x, p.y);
+                    onPressed: mouse => {
+                        if (mouse.button === Qt.LeftButton && (mouse.modifiers & Qt.ControlModifier || mouse.modifiers & Qt.MetaModifier)) {
+                            if (Window.window) {
+                                Window.window.startSystemMove();
+                            }
+                            return;
+                        }
+                        mouse.accepted = false;
+                    }
+
+                    onClicked: mouse => {
+                        if (mouse.button === Qt.RightButton) {
+                            if (!parent.isSelected && !textEdit.activeFocus) {
+                                var sel = {};
+                                sel[index] = true;
+                                root.selectedIndices = sel;
+                            }
+                            var p = mapToItem(root, mouse.x, mouse.y);
+                            root.requestMenu(p.x, p.y);
+                        } else {
+                            mouse.accepted = false;
+                        }
                     }
                 }
             }

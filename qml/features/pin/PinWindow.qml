@@ -89,8 +89,19 @@ Window {
     }
 
     Shortcut {
-        sequence: StandardKey.Copy
+        sequences: [StandardKey.Copy]
         onActivated: menuActions.copy()
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Cancel]
+        onActivated: {
+            if (ocrOverlay.hasSelection || ocrOverlay.activeTextBlock) {
+                ocrOverlay.clearSelection();
+            } else {
+                pinWindow.close();
+            }
+        }
     }
 
     Item {
@@ -129,7 +140,7 @@ Window {
 
     MouseArea {
         id: mouseArea
-        anchors.fill: contentItem
+        anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
@@ -150,6 +161,13 @@ Window {
                 }
             }
         }
+    }
+
+    MouseArea {
+        id: wheelHandler
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        z: 100
 
         onWheel: wheel => {
             customMenu.visible = false;
