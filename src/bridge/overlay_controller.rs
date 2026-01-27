@@ -1,5 +1,5 @@
 use crate::core::geometry::{clamp_point, clamp_rect_move, clamp_rect_resize};
-use crate::core::window::{find_window_at, WindowInfo};
+use crate::core::window::{WindowInfo, find_window_at};
 use cxx_qt::{CxxQtType, QObject};
 use cxx_qt_lib::{QPointF, QRectF, QString};
 use std::pin::Pin;
@@ -203,15 +203,13 @@ impl qobject::OverlayController {
         let rect = self.selection_rect().clone();
         if rect.width() > 5.0 && rect.height() > 5.0 {
             self.as_mut().set_state(QString::from("LOCKED"));
+        } else if *self.has_target() {
+            let target = self.target_rect().clone();
+            self.as_mut().set_selection_rect(target);
+            self.as_mut().set_state(QString::from("LOCKED"));
         } else {
-            if *self.has_target() {
-                let target = self.target_rect().clone();
-                self.as_mut().set_selection_rect(target);
-                self.as_mut().set_state(QString::from("LOCKED"));
-            } else {
-                self.as_mut().set_state(QString::from("BROWSING"));
-                self.as_mut().set_selection_rect(QRectF::default());
-            }
+            self.as_mut().set_state(QString::from("BROWSING"));
+            self.as_mut().set_selection_rect(QRectF::default());
         }
     }
 
@@ -340,6 +338,7 @@ impl qobject::OverlayController {
         self.as_mut().set_has_target(false);
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn setup_window(self: Pin<&mut Self>, window: *mut QObject) {
         #[cfg(target_os = "macos")]
         {

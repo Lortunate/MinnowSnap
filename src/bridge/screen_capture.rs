@@ -123,16 +123,15 @@ pub mod qobject {
 }
 
 use crate::core::app::APP_NAME;
-use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
-use crate::core::capture::service::CaptureService;
 use crate::core::capture::SCROLL_CAPTURE;
+use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::capture::service::CaptureService;
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
-use crate::core::settings::{ShortcutSettings, SETTINGS};
-use arboard::Clipboard;
+use crate::core::settings::{SETTINGS, ShortcutSettings};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyManager};
+use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
 use image::RgbaImage;
 use log::{error, info};
 use notify_rust::Notification;
@@ -300,10 +299,10 @@ impl qobject::ScreenCapture {
     pub fn crop_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
         let path_str = self.rust().resolve_path(&path);
 
-        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
-            if let Some(saved_path) = CaptureService::save_temp(&cropped) {
-                return QString::from(&saved_path);
-            }
+        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height)
+            && let Some(saved_path) = CaptureService::save_temp(&cropped)
+        {
+            return QString::from(&saved_path);
         }
         QString::from("")
     }
@@ -330,21 +329,18 @@ impl qobject::ScreenCapture {
         let text_str = text.to_string();
         let qt_thread = self.qt_thread();
 
-        spawn_thread(move || match Clipboard::new() {
-            Ok(mut clipboard) => {
-                if let Err(e) = clipboard.set_text(text_str) {
-                    error!("Clipboard text error: {e}");
-                } else {
-                    qt_thread
-                        .queue(|_qobject| {
-                            let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                            let msg = crate::bridge::app::tr("ScreenCapture", "Text copied to clipboard");
-                            send_notification(&title.to_string(), &msg.to_string());
-                        })
-                        .ok();
-                }
+        spawn_thread(move || {
+            if crate::core::io::clipboard::copy_text_to_clipboard(text_str) {
+                qt_thread
+                    .queue(|_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                        let msg = crate::bridge::app::tr("ScreenCapture", "Text copied to clipboard");
+                        send_notification(&title.to_string(), &msg.to_string());
+                    })
+                    .ok();
+            } else {
+                error!("Failed to copy text to clipboard");
             }
-            Err(e) => error!("Failed to initialize clipboard: {e}"),
         });
     }
 
@@ -402,14 +398,12 @@ impl qobject::ScreenCapture {
             settings.shortcuts.quick_capture
         };
 
-        if let Some((manager, ids, screen_hk, quick_hk)) =
-            HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback)
-        {
+        if let Some(registration) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback) {
             let mut rust = self.as_mut().rust_mut();
-            rust.hotkey_manager = Some(manager);
-            rust.hotkey_ids = ids;
-            rust.current_screen_hotkey = screen_hk;
-            rust.current_quick_hotkey = quick_hk;
+            rust.hotkey_manager = Some(registration.manager);
+            rust.hotkey_ids = registration.ids;
+            rust.current_screen_hotkey = registration.screen_hotkey;
+            rust.current_quick_hotkey = registration.quick_hotkey;
         }
     }
 
@@ -431,16 +425,15 @@ impl qobject::ScreenCapture {
         let x_phys = (x as f64 * scale) as i32;
         let y_phys = (y as f64 * scale) as i32;
 
-        if let Ok(lock) = LAST_CAPTURE.lock() {
-            if let Some(img) = &*lock {
-                if let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys)) {
-                    if u_x < img.width() && u_y < img.height() {
-                        let pixel = img.get_pixel(u_x, u_y);
-                        let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
-                        return QString::from(&hex);
-                    }
-                }
-            }
+        if let Ok(lock) = LAST_CAPTURE.lock()
+            && let Some(img) = &*lock
+            && let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys))
+            && u_x < img.width()
+            && u_y < img.height()
+        {
+            let pixel = img.get_pixel(u_x, u_y);
+            let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
+            return QString::from(&hex);
         }
         QString::from("")
     }
@@ -494,10 +487,10 @@ impl ScreenCaptureRust {
 
     fn resolve_path(&self, path: &QString) -> String {
         let mut path_str = path.to_string();
-        if path_str.is_empty() || path_str.starts_with("image://minnow/preview") {
-            if let Some(last) = self.last_scroll_path.as_deref() {
-                path_str = last.to_string();
-            }
+        if (path_str.is_empty() || path_str.starts_with("image://minnow/preview"))
+            && let Some(last) = self.last_scroll_path.as_deref()
+        {
+            path_str = last.to_string();
         }
         path_str
     }

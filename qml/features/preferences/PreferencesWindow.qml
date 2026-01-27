@@ -65,7 +65,7 @@ Window {
                     clip: true
                     interactive: false
 
-                    model: [qsTr("General"), qsTr("Shortcuts"), qsTr("About")]
+                    model: [qsTr("General"), qsTr("Shortcuts"), qsTr("OCR"), qsTr("About")]
 
                     delegate: ItemDelegate {
                         id: delegateControl
@@ -163,6 +163,8 @@ Window {
                     ShortcutsPage {
                         screenCapture: preferencesWindow.screenCapture
                     }
+
+                    OcrPage {}
 
                     AboutPage {}
                 }

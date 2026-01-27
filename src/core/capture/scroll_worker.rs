@@ -2,8 +2,8 @@ use crate::core::capture::stitcher::{ScrollStitcher, StitchResult};
 use crate::core::capture::{get_primary_monitor, get_primary_monitor_scale, perform_crop};
 use image::RgbaImage;
 use log::{error, info};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 

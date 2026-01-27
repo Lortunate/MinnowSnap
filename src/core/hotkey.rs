@@ -1,4 +1,4 @@
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
+use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use log::{error, info};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -7,6 +7,13 @@ use std::sync::{Arc, Mutex};
 pub struct HotkeyIds {
     pub screen_capture: Option<u32>,
     pub quick_capture: Option<u32>,
+}
+
+pub struct HotkeyRegistration {
+    pub manager: GlobalHotKeyManager,
+    pub ids: Arc<Mutex<HotkeyIds>>,
+    pub screen_hotkey: Option<HotKey>,
+    pub quick_hotkey: Option<HotKey>,
 }
 
 pub fn parse_hotkey(shortcut: &str) -> Option<HotKey> {
@@ -30,7 +37,7 @@ impl HotkeyService {
         quick_shortcut: &str,
         screen_callback: F1,
         quick_callback: F2,
-    ) -> Option<(GlobalHotKeyManager, Arc<Mutex<HotkeyIds>>, Option<HotKey>, Option<HotKey>)>
+    ) -> Option<HotkeyRegistration>
     where
         F1: Fn() + Send + 'static,
         F2: Fn() + Send + 'static,
@@ -90,7 +97,12 @@ impl HotkeyService {
         });
 
         info!("Global hotkeys registered");
-        Some((manager, hotkey_ids, screen_hotkey, quick_hotkey))
+        Some(HotkeyRegistration {
+            manager,
+            ids: hotkey_ids,
+            screen_hotkey,
+            quick_hotkey,
+        })
     }
 
     pub fn update_hotkey_registration(

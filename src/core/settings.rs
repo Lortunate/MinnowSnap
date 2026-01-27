@@ -60,12 +60,29 @@ impl Default for OutputSettings {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct OcrSettings {
+    pub enabled: bool,
+    pub model_type: String,
+}
+
+impl Default for OcrSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model_type: "Mobile".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppSettings {
     pub general: GeneralSettings,
     pub shortcuts: ShortcutSettings,
     pub output: OutputSettings,
+    pub ocr: OcrSettings,
 }
 
 pub struct SettingsManager {
@@ -156,6 +173,10 @@ impl SettingsManager {
 
     pub fn set_quick_capture_shortcut(&mut self, shortcut: String) {
         self.update(|c| c.shortcuts.quick_capture = shortcut);
+    }
+
+    pub fn set_ocr_enabled(&mut self, enabled: bool) {
+        self.update(|c| c.ocr.enabled = enabled);
     }
 
     fn save(&self) {

@@ -68,6 +68,14 @@ Rectangle {
             },
         ], [
             {
+                "icon": "qrc:/resources/icons/text_fields.svg",
+                "text": qsTr("OCR"),
+                "action": "ocr",
+                "isTool": false,
+                "hoverColor": AppTheme.primary,
+                "visible": Config.enableOcr
+            },
+            {
                 "icon": "qrc:/resources/icons/scroll.svg",
                 "text": qsTr("Scroll"),
                 "action": "scroll",
@@ -147,6 +155,7 @@ Rectangle {
                         isActive: modelData.action === root.activeTool
                         showTooltip: root.showTooltips
                         tooltipText: modelData.text
+                        visible: modelData.visible === undefined ? true : modelData.visible
 
                         onClicked: {
                             if (modelData.action === "cancel") {

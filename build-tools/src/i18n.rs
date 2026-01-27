@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::path::Path;
 use std::process::Command;
 
@@ -55,7 +55,7 @@ pub fn compile_all_translations(i18n_dir: &Path) -> Result<()> {
     for entry in std::fs::read_dir(i18n_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "ts") {
+        if path.extension().is_some_and(|ext| ext == "ts") {
             let qm_path = path.with_extension("qm");
             compile_translations(&path, &qm_path)?;
         }

@@ -37,6 +37,7 @@ pub mod qobject {
         #[qml_singleton]
         #[qproperty(bool, oxipng_enabled, cxx_name = "oxipngEnabled")]
         #[qproperty(bool, auto_start, cxx_name = "autoStart")]
+        #[qproperty(bool, enable_ocr, cxx_name = "enableOcr")]
         #[qproperty(QString, save_path, cxx_name = "savePath")]
         #[qproperty(QString, font_family, cxx_name = "fontFamily")]
         #[qproperty(QString, theme)]
@@ -61,6 +62,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "updateAutoStart"]
         fn update_auto_start(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateEnableOcr"]
+        fn update_enable_ocr(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
         #[cxx_name = "updateSavePath"]
@@ -99,6 +104,7 @@ pub mod qobject {
 pub struct ConfigRust {
     oxipng_enabled: bool,
     auto_start: bool,
+    enable_ocr: bool,
     save_path: QString,
     font_family: QString,
     theme: QString,
@@ -120,6 +126,7 @@ impl ConfigRust {
         Self {
             oxipng_enabled: settings.output.oxipng_enabled,
             auto_start: settings.general.auto_start,
+            enable_ocr: settings.ocr.enabled,
             save_path: QString::from(settings.output.save_path.as_deref().unwrap_or("")),
             font_family: QString::from(settings.general.font_family.as_deref().unwrap_or("")),
             theme: QString::from(&settings.general.theme),
@@ -136,6 +143,7 @@ impl qobject::Config {
         let settings = SETTINGS.lock().unwrap().get();
         self.as_mut().set_oxipng_enabled(settings.output.oxipng_enabled);
         self.as_mut().set_auto_start(settings.general.auto_start);
+        self.as_mut().set_enable_ocr(settings.ocr.enabled);
         self.as_mut().set_theme(QString::from(&settings.general.theme));
         self.as_mut().set_language(QString::from(&settings.general.language));
         self.as_mut().set_version(QString::from(env!("CARGO_PKG_VERSION")));
@@ -161,6 +169,10 @@ impl qobject::Config {
         self.as_mut().set_auto_start(enabled);
         SETTINGS.lock().unwrap().set_auto_start(enabled);
         crate::core::app::set_auto_start(enabled);
+    }
+
+    pub fn update_enable_ocr(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, enable_ocr, set_enable_ocr, set_ocr_enabled, bool);
     }
 
     pub fn update_save_path(mut self: Pin<&mut Self>, path: QString) {
@@ -196,7 +208,13 @@ impl qobject::Config {
     }
 
     pub fn update_quick_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        update_prop!(self, shortcut, quick_capture_shortcut, set_quick_capture_shortcut, set_quick_capture_shortcut);
+        update_prop!(
+            self,
+            shortcut,
+            quick_capture_shortcut,
+            set_quick_capture_shortcut,
+            set_quick_capture_shortcut
+        );
     }
 
     pub fn get_system_fonts(&self) -> QStringList {

@@ -68,11 +68,11 @@ Item {
             screenCapture.copyImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
         } else if (action === "save") {
             screenCapture.saveImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-        } else if (action === "pin") {
+        } else if (action === "pin" || action === "ocr") {
             let path = screenCapture.cropImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
             if (path !== "") {
                 // path already contains "file://" from ScreenCapture.cropImage (via CaptureService::save_temp)
-                showPin(path, selectionRect);
+                showPin(path, selectionRect, action === "ocr");
             }
         }
         selectionMade(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
@@ -84,14 +84,14 @@ Item {
             screenCapture.copyImage(path, 0, 0, 0, 0);
         } else if (action === "save") {
             screenCapture.saveImage(path, 0, 0, 0, 0);
-        } else if (action === "pin") {
-            showPin(path, selectionRect);
+        } else if (action === "pin" || action === "ocr") {
+            showPin(path, selectionRect, action === "ocr");
         }
         selectionMade(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
         root.requestHide();
         root.requestResetState();
     }
-    function showPin(path, rect) {
+    function showPin(path, rect, autoOcr) {
         let component = Qt.createComponent("../pin/PinWindow.qml");
         if (component.status === Component.Ready) {
             let shadowMargin = 20;
@@ -101,7 +101,8 @@ Item {
                 "x": rect.x - shadowMargin,
                 "y": rect.y - shadowMargin,
                 "width": rect.width + (shadowMargin * 2),
-                "height": rect.height + (shadowMargin * 2)
+                "height": rect.height + (shadowMargin * 2),
+                "autoOcr": autoOcr === true
             });
 
             // Keep reference to prevent GC

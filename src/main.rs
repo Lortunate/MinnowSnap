@@ -14,6 +14,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 struct MinnowApp {
     app: UniquePtr<QGuiApplication>,
+    #[allow(dead_code)]
     engine: UniquePtr<QQmlApplicationEngine>,
 }
 

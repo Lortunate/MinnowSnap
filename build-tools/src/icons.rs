@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use ico::{IconDir, IconImage, ResourceType};
 use image::{
-    imageops::{self, FilterType}, DynamicImage,
-    RgbaImage,
+    DynamicImage, RgbaImage,
+    imageops::{self, FilterType},
 };
 use std::{env, fs, path::Path, process::Command};
 
@@ -69,7 +69,7 @@ pub fn generate_icons(src: &Path, out_dir: &Path) -> Result<()> {
         }
 
         let status = Command::new("iconutil")
-            .args(&["-c", "icns"])
+            .args(["-c", "icns"])
             .arg(&tmp_dir)
             .arg("-o")
             .arg(out_dir.join("icon.icns"))

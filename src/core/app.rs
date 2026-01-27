@@ -50,9 +50,7 @@ pub fn get_instance_id() -> String {
 
 pub fn set_auto_start(enabled: bool) {
     let app_name = "MinnowSnap";
-    let app_path = env::current_exe()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
+    let app_path = env::current_exe().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
 
     if app_path.is_empty() {
         error!("Failed to get current executable path for auto-start");
@@ -72,11 +70,9 @@ pub fn set_auto_start(enabled: bool) {
         } else {
             info!("Auto-start enabled");
         }
+    } else if let Err(e) = auto.disable() {
+        error!("Failed to disable auto-start: {}", e);
     } else {
-        if let Err(e) = auto.disable() {
-            error!("Failed to disable auto-start: {}", e);
-        } else {
-            info!("Auto-start disabled");
-        }
+        info!("Auto-start disabled");
     }
 }
