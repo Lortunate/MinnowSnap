@@ -136,7 +136,7 @@ Rectangle {
         id: toolbarRow
 
         anchors.centerIn: parent
-        spacing: 2
+        spacing: 4
 
         Repeater {
             model: root.buttons

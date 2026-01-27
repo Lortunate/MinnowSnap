@@ -61,7 +61,7 @@ Window {
                     Layout.fillWidth: true
                     Layout.topMargin: AppTheme.spacingMedium
                     Layout.bottomMargin: AppTheme.spacingMedium
-                    spacing: 2
+                    spacing: 4
                     clip: true
                     interactive: false
 

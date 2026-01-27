@@ -87,7 +87,7 @@ QtObject {
     readonly property int cardPadding: 12
 
     // Specialized Component Sizes
-    readonly property int toolbarButtonSize: 32
+    readonly property int toolbarButtonSize: 36
     readonly property int annotationHandleSize: 12
     readonly property int annotationPropertiesHeight: 36
     readonly property int comboBoxItemHeight: 36
