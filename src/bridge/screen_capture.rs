@@ -122,27 +122,24 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
+use crate::bridge::hotkey::{update_hotkey, HotkeyState};
 use crate::core::app::APP_NAME;
-use crate::core::capture::SCROLL_CAPTURE;
-use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
 use crate::core::capture::service::CaptureService;
-use crate::core::hotkey::{HotkeyIds, HotkeyService};
-use crate::core::settings::{SETTINGS, ShortcutSettings};
+use crate::core::capture::SCROLL_CAPTURE;
+use crate::core::hotkey::HotkeyService;
+use crate::core::settings::{ShortcutSettings, SETTINGS};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
 use image::RgbaImage;
 use log::{error, info};
 use notify_rust::Notification;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct ScreenCaptureRust {
-    hotkey_manager: Option<GlobalHotKeyManager>,
-    hotkey_ids: Arc<Mutex<HotkeyIds>>,
-    current_screen_hotkey: Option<HotKey>,
-    current_quick_hotkey: Option<HotKey>,
+    hotkey_state: HotkeyState,
     is_capturing: bool,
     pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
@@ -152,10 +149,7 @@ pub struct ScreenCaptureRust {
 impl Default for ScreenCaptureRust {
     fn default() -> Self {
         Self {
-            hotkey_manager: None,
-            hotkey_ids: Arc::new(Mutex::new(HotkeyIds::default())),
-            current_screen_hotkey: None,
-            current_quick_hotkey: None,
+            hotkey_state: HotkeyState::default(),
             is_capturing: false,
             pin_count: 0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
@@ -230,20 +224,32 @@ impl qobject::ScreenCapture {
         }
         self.as_mut().set_is_capturing(true);
 
-        let qt_thread = self.qt_thread();
+        let qt_thread_capture = self.qt_thread();
+        let qt_thread_windows = self.qt_thread();
 
         spawn_thread(move || {
-            let result = CaptureService::prepare_capture();
-
-            qt_thread
-                .queue(move |mut qobject| {
-                    if let Some((_image, json)) = result {
-                        qobject.as_mut().window_info_ready(QString::from(&json));
+            if CaptureService::capture_screen() {
+                qt_thread_capture
+                    .queue(move |mut qobject| {
                         qobject.as_mut().capture_ready();
-                    } else {
-                        error!("Failed to capture screen");
-                    }
-                    qobject.as_mut().set_is_capturing(false);
+                        qobject.as_mut().set_is_capturing(false);
+                    })
+                    .ok();
+            } else {
+                error!("Failed to capture screen");
+                qt_thread_capture
+                    .queue(move |mut qobject| {
+                        qobject.as_mut().set_is_capturing(false);
+                    })
+                    .ok();
+            }
+        });
+
+        spawn_thread(move || {
+            let json = CaptureService::fetch_windows_json();
+            qt_thread_windows
+                .queue(move |mut qobject| {
+                    qobject.as_mut().window_info_ready(QString::from(&json));
                 })
                 .ok();
         });
@@ -400,19 +406,21 @@ impl qobject::ScreenCapture {
 
         if let Some(registration) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback) {
             let mut rust = self.as_mut().rust_mut();
-            rust.hotkey_manager = Some(registration.manager);
-            rust.hotkey_ids = registration.ids;
-            rust.current_screen_hotkey = registration.screen_hotkey;
-            rust.current_quick_hotkey = registration.quick_hotkey;
+            rust.hotkey_state.manager = Some(registration.manager);
+            rust.hotkey_state.ids = registration.ids;
+            rust.hotkey_state.screen = registration.screen_hotkey;
+            rust.hotkey_state.quick = registration.quick_hotkey;
         }
     }
 
     pub fn set_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        self.as_mut().rust_mut().update_hotkey(shortcut, true);
+        let state = &mut self.as_mut().rust_mut().hotkey_state;
+        update_hotkey(state, shortcut, true);
     }
 
     pub fn set_quick_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        self.as_mut().rust_mut().update_hotkey(shortcut, false);
+        let state = &mut self.as_mut().rust_mut().hotkey_state;
+        update_hotkey(state, shortcut, false);
     }
 
     pub fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString {
@@ -467,24 +475,6 @@ impl qobject::ScreenCapture {
 }
 
 impl ScreenCaptureRust {
-    fn update_hotkey(&mut self, shortcut: QString, is_screen: bool) {
-        let mut shortcut_str = shortcut.to_string();
-        if shortcut_str.is_empty() {
-            let defaults = ShortcutSettings::default();
-            shortcut_str = if is_screen { defaults.capture } else { defaults.quick_capture };
-        }
-
-        if let Some(manager) = &self.hotkey_manager {
-            let current_hotkey = if is_screen {
-                &mut self.current_screen_hotkey
-            } else {
-                &mut self.current_quick_hotkey
-            };
-
-            HotkeyService::update_hotkey_registration(manager, current_hotkey, &shortcut_str, &self.hotkey_ids, is_screen);
-        }
-    }
-
     fn resolve_path(&self, path: &QString) -> String {
         let mut path_str = path.to_string();
         if (path_str.is_empty() || path_str.starts_with("image://minnow/preview"))

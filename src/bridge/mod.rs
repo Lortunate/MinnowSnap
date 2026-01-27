@@ -1,5 +1,6 @@
 pub mod app;
 pub mod config;
+pub mod hotkey;
 pub mod ocr;
 pub mod ocr_overlay;
 pub mod overlay_controller;

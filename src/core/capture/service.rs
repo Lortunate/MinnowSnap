@@ -1,4 +1,4 @@
-use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
+use crate::core::capture::{capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture, LAST_CAPTURE};
 use crate::core::io::clipboard::copy_image_to_clipboard;
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;
@@ -47,17 +47,19 @@ impl CaptureService {
         });
     }
 
-    pub fn prepare_capture() -> Option<(RgbaImage, String)> {
-        let windows = fetch_windows_data();
-        let json = serde_json::to_string(&windows).unwrap_or_else(|_| "[]".to_string());
-
+    pub fn capture_screen() -> bool {
         if let Some(image) = capture_primary_monitor() {
-            update_last_capture(image.clone());
-            Some((image, json))
+            update_last_capture(image);
+            true
         } else {
             error!("CaptureService: Failed to capture primary monitor");
-            None
+            false
         }
+    }
+
+    pub fn fetch_windows_json() -> String {
+        let windows = fetch_windows_data();
+        serde_json::to_string(&windows).unwrap_or_else(|_| "[]".to_string())
     }
 
     pub fn capture_region(x: i32, y: i32, width: i32, height: i32) -> Option<RgbaImage> {
