@@ -100,12 +100,13 @@ impl Recognizer {
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .unwrap_or((0, &0.0));
 
-            if max_idx > 0 && max_idx != last_index {
-                if let Some(key) = keys.get(max_idx - 1) {
-                    text.push_str(key);
-                    confidence_sum += max_val;
-                    conf_count += 1;
-                }
+            if max_idx > 0
+                && max_idx != last_index
+                && let Some(key) = keys.get(max_idx - 1)
+            {
+                text.push_str(key);
+                confidence_sum += max_val;
+                conf_count += 1;
             }
             last_index = max_idx;
         }

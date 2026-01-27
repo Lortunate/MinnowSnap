@@ -55,7 +55,7 @@ pub fn update_resources(qrc_path: &Path, resource_dir: &Path) -> Result<()> {
         }
     }
 
-    let blocks = vec![
+    let blocks = [
         ResourceBlock {
             prefix: "/".to_string(),
             files: root_files.into_iter().map(|p| ResourceFile { alias: None, path: p }).collect(),

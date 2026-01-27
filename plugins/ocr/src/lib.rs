@@ -10,7 +10,7 @@ pub use config::{OcrConfig, OcrModelType};
 pub use engine::{OcrEngine, OcrResult};
 pub use model_manager::ModelManager;
 
-use crate::config::{ModelSource, KEYS_NAME, KEYS_URL, MOBILE_MODELS, SERVER_MODELS};
+use crate::config::{KEYS_NAME, KEYS_URL, MOBILE_MODELS, ModelSource, SERVER_MODELS};
 use anyhow::Result;
 use image::DynamicImage;
 use std::path::Path;

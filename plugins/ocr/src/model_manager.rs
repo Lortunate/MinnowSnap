@@ -64,10 +64,10 @@ impl ModelManager {
             let chunk = chunk?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
-            if let Some(ref cb) = on_progress {
-                if total_size > 0 {
-                    cb(downloaded as f32 / total_size as f32);
-                }
+            if let Some(ref cb) = on_progress
+                && total_size > 0
+            {
+                cb(downloaded as f32 / total_size as f32);
             }
         }
 

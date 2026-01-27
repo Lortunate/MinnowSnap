@@ -1,7 +1,7 @@
 use ab_glyph::FontRef;
 use anyhow::{Context, Result};
 use log::info;
-use ocr::{visualization, OcrContext, OcrModelType};
+use ocr::{OcrContext, OcrModelType, visualization};
 use std::env;
 use std::path::Path;
 

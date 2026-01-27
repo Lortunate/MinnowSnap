@@ -307,6 +307,7 @@ impl ScrollStitcher {
         (0..len).map(|i| s1[start1 + i].abs_diff(s2[start2 + i])).sum()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn verify_pixels(&self, prev: &RgbaImage, next: &RgbaImage, overlap: u32, reverse: bool, f_top: u32, f_btm: u32, cols: &[usize]) -> bool {
         let raw_prev = prev.as_raw();
         let raw_next = next.as_raw();

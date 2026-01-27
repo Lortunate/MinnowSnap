@@ -1,7 +1,7 @@
 use crate::config::OcrConfig;
-use crate::utils::{create_onnx_session, get_bounding_rect, normalize_image, PPOCR_MEAN, PPOCR_STD};
+use crate::utils::{PPOCR_MEAN, PPOCR_STD, create_onnx_session, get_bounding_rect, normalize_image};
 use anyhow::Result;
-use image::{imageops::FilterType, DynamicImage, GenericImageView, GrayImage};
+use image::{DynamicImage, GenericImageView, GrayImage, imageops::FilterType};
 use imageproc::contours::find_contours;
 use log::debug;
 use ort::{inputs, session::Session, value::Value};
@@ -71,7 +71,7 @@ impl Detector {
                 let h = (max_y - min_y) as f32;
                 let area = w * h;
                 let perimeter = 2.0 * (w + h);
-                let offset = (area * unclip_ratio / perimeter) as f32;
+                let offset = area * unclip_ratio / perimeter;
                 let min_x_ex = (min_x as f32 - offset).max(0.0);
                 let min_y_ex = (min_y as f32 - offset).max(0.0);
                 let max_x_ex = (max_x as f32 + offset).min(out_w as f32);

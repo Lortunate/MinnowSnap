@@ -63,7 +63,11 @@ impl qobject::OcrViewModel {
 
         thread::spawn(move || {
             let result = (|| -> Result<String, String> {
-                let clean_path = if path_str.starts_with("file://") { &path_str[7..] } else { &path_str };
+                let clean_path = if let Some(stripped) = path_str.strip_prefix("file://") {
+                    stripped
+                } else {
+                    &path_str
+                };
 
                 info!("Loading image from: {}", clean_path);
                 let image = image::open(clean_path).map_err(|e| e.to_string())?;
