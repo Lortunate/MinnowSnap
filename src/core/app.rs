@@ -1,4 +1,4 @@
-use auto_launch::AutoLaunchBuilder;
+use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
 use log::{error, info};
 use single_instance::SingleInstance;
 use std::env;
@@ -60,7 +60,7 @@ pub fn set_auto_start(enabled: bool) {
     let auto = AutoLaunchBuilder::new()
         .set_app_name(app_name)
         .set_app_path(&app_path)
-        .set_use_launch_agent(true)
+        .set_macos_launch_mode(MacOSLaunchMode::LaunchAgent)
         .build()
         .expect("Failed to build AutoLaunch");
 

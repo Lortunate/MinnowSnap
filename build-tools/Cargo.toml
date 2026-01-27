@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0"
-image = "0.25"
-walkdir = "2.5"
-quick-xml = { version = "0.38", features = ["serialize"] }
-ico = "0.5"
-winres = "0.1"
+anyhow = { workspace = true }
+image = { workspace = true, features = ["default"] }
+walkdir = { workspace = true }
+quick-xml = { workspace = true }
+ico = { workspace = true }
+winres = { workspace = true }
