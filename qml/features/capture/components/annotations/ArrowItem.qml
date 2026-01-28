@@ -6,12 +6,10 @@ AnnotationBase {
 
     readonly property string type: "arrow"
 
-    // Config
     padding: Math.max(12, lineWidth * 3)
     maintainAspectRatio: false
     resizable: true
 
-    // Calculate bounding box based on p1, p2 and padding
     x: Math.min(p1.x, p2.x) - padding
     y: Math.min(p1.y, p2.y) - padding
     width: Math.abs(p1.x - p2.x) + (padding * 2)
@@ -28,9 +26,12 @@ AnnotationBase {
         };
     }
 
-    // Override isHit
     function isHit(mx, my) {
-        var threshold = 10; // Hit radius
+        if (drawingMode) {
+            return false;
+        }
+
+        var threshold = 10;
         var p1 = root.localP1;
         var p2 = root.localP2;
 
@@ -66,7 +67,6 @@ AnnotationBase {
             var ctx = getContext("2d");
             ctx.reset();
 
-            // Calculation
             var headLength = 12 + root.lineWidth * 3;
             var arrowAngle = Math.PI / 7;
             var indentRatio = 0.2;
@@ -131,16 +131,13 @@ AnnotationBase {
             ctx.closePath();
 
             if (root.hasOutline) {
-                // Outline mode: Always just a colored stroke (hollow)
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = root.color;
                 ctx.stroke();
             } else {
-                // Solid mode: Filled
                 ctx.fillStyle = root.color;
                 ctx.fill();
 
-                // Optional Border for Solid mode
                 if (root.hasStroke) {
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = "white";
@@ -150,25 +147,31 @@ AnnotationBase {
         }
 
         Connections {
+            target: root
+
             function onColorChanged() {
                 canvas.requestPaint();
             }
+
             function onHasOutlineChanged() {
                 canvas.requestPaint();
             }
+
             function onHasStrokeChanged() {
                 canvas.requestPaint();
             }
+
             function onLineWidthChanged() {
                 canvas.requestPaint();
             }
+
             function onP1Changed() {
                 canvas.requestPaint();
             }
+
             function onP2Changed() {
                 canvas.requestPaint();
             }
-            target: root
         }
     }
 }

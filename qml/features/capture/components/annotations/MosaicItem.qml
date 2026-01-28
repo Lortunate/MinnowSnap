@@ -28,6 +28,9 @@ AnnotationBase {
     }
 
     function isHit(mx, my) {
+        if (root.drawingMode) {
+            return false;
+        }
         return mx >= 0 && mx <= width && my >= 0 && my <= height;
     }
 

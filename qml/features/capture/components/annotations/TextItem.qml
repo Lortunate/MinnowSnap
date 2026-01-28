@@ -6,16 +6,14 @@ AnnotationBase {
 
     readonly property string type: "text"
 
-    // Properties specific to Text
     property int fontSize: 24
     property bool editing: false
     property string textContent: "Text"
 
     readonly property color textColor: !root.hasOutline ? ((root.color.r * 0.299 + root.color.g * 0.587 + root.color.b * 0.114) > 0.6 ? "black" : "white") : root.color
 
-    // Config
     resizable: false
-    draggable: !editing
+    draggable: !editing && !drawingMode
     maintainAspectRatio: true
 
     width: (root.editing ? textInput.width : textDisplay.width) + 16
@@ -23,10 +21,16 @@ AnnotationBase {
     x: p1.x
     y: p1.y
 
-    // Override handleResize
     function handleResize(delta) {
         var step = delta > 0 ? 2 : -2;
         root.fontSize = Math.max(12, Math.min(96, root.fontSize + step));
+    }
+
+    function isHit(mx, my) {
+        if (drawingMode) {
+            return false;
+        }
+        return mx >= 0 && mx <= width && my >= 0 && my <= height;
     }
 
     onSelectedChanged: {
@@ -38,7 +42,6 @@ AnnotationBase {
         }
     }
 
-    // Background/Selection Rect
     Rectangle {
         anchors.fill: parent
         border.color: root.selected ? AppTheme.primary : (root.hasStroke && !root.hasOutline && !root.editing ? "white" : "transparent")
@@ -61,7 +64,6 @@ AnnotationBase {
         }
     }
 
-    // Display Text
     Text {
         id: textDisplay
 
@@ -75,7 +77,6 @@ AnnotationBase {
         style: Text.Normal
     }
 
-    // Editable Text
     TextEdit {
         id: textInput
 
@@ -113,14 +114,15 @@ AnnotationBase {
                 textInput.selectAll();
             }
         }
+
         onEditingFinished: {
             root.editing = false;
         }
     }
 
-    // Use the mouseArea alias from Base to add double-click handling
     Connections {
         target: root.mouseArea
+
         function onDoubleClicked(mouse) {
             root.editing = true;
             textInput.forceActiveFocus();

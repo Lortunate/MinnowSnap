@@ -10,7 +10,7 @@ Rectangle {
     property rect rectProperty: Qt.rect(0, 0, 0, 0)
 
     border.color: overlayWindow ? overlayWindow.selectionColor : AppTheme.primary
-    border.width: bindToRect ? 3 : 2
+    border.width: 1
     color: bindToRect ? "transparent" : (overlayWindow ? overlayWindow.selectionFillColor : AppTheme.selectionFill)
     radius: AppTheme.radiusLarge
     visible: false
@@ -25,23 +25,34 @@ Rectangle {
             duration: AppTheme.durationSlow
         }
     }
-
-    // Inner highlight for depth effect
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: parent.border.width + 1
-        border.color: Qt.lighter(overlayWindow ? overlayWindow.selectionColor : AppTheme.primary, 1.4)
-        border.width: 1
-        color: "transparent"
-        radius: parent.radius - parent.border.width / 2
-        visible: bindToRect
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: AppTheme.durationNormal
-            }
+    Behavior on border.color {
+        ColorAnimation {
+            duration: AppTheme.durationNormal
         }
     }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 1
+        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, 1.6)
+        border.width: 0.5
+        color: "transparent"
+        radius: root.radius - 1
+        visible: root.bindToRect
+        opacity: 0.6
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 2
+        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, 2.0)
+        border.width: 0.3
+        color: "transparent"
+        radius: root.radius - 2
+        visible: root.bindToRect
+        opacity: 0.3
+    }
+
     Binding {
         property: "x"
         target: root
@@ -66,6 +77,7 @@ Rectangle {
         value: root.rectProperty.height
         when: root.bindToRect
     }
+
     ResizeHandle {
         corner: "top-left"
         cursorShape: Qt.SizeFDiagCursor

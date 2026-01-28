@@ -6,12 +6,10 @@ AnnotationBase {
 
     readonly property string type: "counter"
 
-    // Properties specific to Counter
     property int number: 1
     property int size: 32
 
-    // Config
-    resizable: false // No handles, uses wheel
+    resizable: false
     draggable: true
 
     width: size
@@ -19,11 +17,20 @@ AnnotationBase {
     x: p1.x - size / 2
     y: p1.y - size / 2
 
-    // Override handleResize
     function handleResize(delta) {
-        // Delta is +/- 1. We scale it up.
         var step = delta > 0 ? 4 : -4;
         root.size = Math.max(16, Math.min(64, root.size + step));
+    }
+
+    function isHit(mx, my) {
+        if (drawingMode) {
+            return false;
+        }
+        var dx = mx - width / 2;
+        var dy = my - height / 2;
+        var distSq = dx * dx + dy * dy;
+        var radiusSq = (width / 2) * (width / 2);
+        return distSq <= radiusSq;
     }
 
     Rectangle {
