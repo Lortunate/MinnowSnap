@@ -8,6 +8,13 @@ import "../../components"
 Window {
     id: overlayWindow
 
+    readonly property int toolbarPadding: 10
+    readonly property int toolbarSpacingAbove: 4
+    readonly property int toolbarSpacingBelow: 4
+    readonly property int defaultY: 40
+    readonly property int infoTooltipSpacing: 8
+    readonly property int resolutionTooltipSpacing: 8
+
     property string backgroundImageSource: ""
     property alias currentSelection: controller.selectionRect
     readonly property rect activeRect: {
@@ -74,16 +81,16 @@ Window {
 
     function constrainToolbarPos(targetX, targetY, targetW, targetH, itemW, itemH, isAbove) {
         let desiredX = targetX + targetW - itemW;
-        let x = Math.max(10, Math.min(overlayWindow.width - itemW - 10, desiredX));
+        let x = Math.max(toolbarPadding, Math.min(overlayWindow.width - itemW - toolbarPadding, desiredX));
 
         let y;
         if (isAbove) {
-            let aboveY = targetY - itemH - 8;
-            y = (aboveY >= 0) ? aboveY : (targetY + targetH + 8);
+            let aboveY = targetY - itemH - toolbarSpacingAbove;
+            y = (aboveY >= 0) ? aboveY : (targetY + targetH + toolbarSpacingAbove);
         } else {
-            let belowY = targetY + targetH + 8;
-            let aboveY = targetY - itemH - 8;
-            y = (belowY + itemH <= overlayWindow.height) ? belowY : (aboveY >= 0 ? aboveY : 40);
+            let belowY = targetY + targetH + toolbarSpacingBelow;
+            let aboveY = targetY - itemH - toolbarSpacingBelow;
+            y = (belowY + itemH <= overlayWindow.height) ? belowY : (aboveY >= 0 ? aboveY : defaultY);
         }
 
         return Qt.point(x, y);
@@ -335,20 +342,20 @@ Window {
                 visible: isBrowsingWithTarget
                 x: activeRect.x
                 y: {
-                    let val = activeRect.y - height - 8;
-                    return val < 0 ? activeRect.y + activeRect.height + 8 : val;
+                    let val = activeRect.y - height - infoTooltipSpacing;
+                    return val < 0 ? activeRect.y + activeRect.height + infoTooltipSpacing : val;
                 }
             }
 
             ResolutionTooltip {
                 id: resolutionBox
-                property bool showAbove: activeRect.y - height - 8 >= 0
+                property bool showAbove: activeRect.y - height - resolutionTooltipSpacing >= 0
 
                 heightValue: activeRect.height
                 visible: isLockedState || controller.state === states.dragging
                 widthValue: activeRect.width
                 x: activeRect.x
-                y: showAbove ? activeRect.y - height - 8 : activeRect.y + activeRect.height + 8
+                y: showAbove ? activeRect.y - height - resolutionTooltipSpacing : activeRect.y + activeRect.height + resolutionTooltipSpacing
             }
 
             BusyStatus {

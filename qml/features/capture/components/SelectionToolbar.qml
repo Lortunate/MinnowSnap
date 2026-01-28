@@ -9,6 +9,13 @@ Rectangle {
 
     property string activeTool: ""
     property bool showTooltips: true
+
+    readonly property int toolbarHeight: 36
+    readonly property int toolbarPadding: 12
+    readonly property int toolbarRowSpacing: 4
+    readonly property int buttonSize: 32
+    readonly property int iconSize: 20
+
     property var buttons: [[
             {
                 "icon": "qrc:/resources/icons/square.svg",
@@ -120,10 +127,10 @@ Rectangle {
     border.color: AppTheme.border
     border.width: 1
     color: AppTheme.surface
-    height: 36
+    height: toolbarHeight
     layer.enabled: true
     radius: AppTheme.radiusLarge
-    width: toolbarRow.width + 12
+    width: toolbarRow.width + toolbarPadding
 
     MouseArea {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -135,24 +142,24 @@ Rectangle {
     RowLayout {
         id: toolbarRow
         anchors.centerIn: parent
-        spacing: 4
+        spacing: toolbarRowSpacing
 
         Repeater {
             model: root.buttons
 
             delegate: RowLayout {
-                spacing: 4
+                spacing: toolbarRowSpacing
 
                 Repeater {
                     model: modelData
 
                     delegate: ToolbarButton {
-                        Layout.preferredHeight: 32
-                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: buttonSize
+                        Layout.preferredWidth: buttonSize
                         hoveredIconColor: modelData.hoverColor
-                        icon.height: 20
+                        icon.height: iconSize
                         icon.source: modelData.icon
-                        icon.width: 20
+                        icon.width: iconSize
                         isActive: modelData.action === root.activeTool
                         showTooltip: root.showTooltips
                         tooltipText: modelData.text

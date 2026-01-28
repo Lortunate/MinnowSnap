@@ -22,6 +22,53 @@ Rectangle {
 
     readonly property var colors: [AppTheme.danger, "#FF9500", "#FFCC00", "#4CD964", "#5AC8FA", "#007AFF", "#5856D6", "#000000", "#FFFFFF"]
 
+    readonly property real colorEqualThreshold: 0.001
+    readonly property int mainLayoutSpacing: 12
+    readonly property int colorRowSpacing: 6
+    readonly property int styleRowSpacing: 2
+    readonly property int sliderLayoutSpacing: 12
+    readonly property int separatorWidth: 1
+    readonly property int separatorHeight: 16
+    readonly property int colorDotSize: 16
+    readonly property int colorDotRadius: 8
+    readonly property int colorSelectionRingSize: 22
+    readonly property int colorSelectionRingRadius: 11
+    readonly property real colorSelectionRingBorderWidth: 1.5
+    readonly property real colorSelectionRingOpacity: 0.8
+    readonly property int buttonPadding: 0
+    readonly property int styleButtonSpacing: 2
+    readonly property int colorPickerZIndex: 100
+    readonly property int colorPickerBottomMargin: 12
+    readonly property int comboBoxWidth: 100
+    readonly property int comboBoxHeight: 28
+    readonly property int comboBoxDelegateHeight: 28
+    readonly property int comboBoxHorizontalPadding: 8
+    readonly property int comboBoxPopupYOffset: 4
+    readonly property int comboBoxPopupPadding: 4
+    readonly property int comboBoxIndicatorPadding: 2
+    readonly property int sliderControlWidth: 80
+    readonly property int sliderSpacing: 8
+    readonly property int sliderBackgroundHeight: 4
+    readonly property int sliderBackgroundRadius: 2
+    readonly property int sliderHandleSize: 12
+    readonly property int sliderHandleRadius: 6
+    readonly property int sliderHandleMarginTop: 1
+    readonly property int opacitySliderLabelWidth: 32
+    readonly property real opacityMinValue: 0.1
+    readonly property real opacityMaxValue: 1.0
+    readonly property real opacityStep: 0.1
+    readonly property int popupTransitionDuration: 100
+    readonly property int shadowTopMargin: 2
+    readonly property int shadowZIndex: -1
+    readonly property int contentMarginTop: 2
+    readonly property int contentPadding: 8
+    readonly property int contentItemHeight: 28
+    readonly property int contentItemLeftPadding: 8
+    readonly property int contentItemRightPadding: 24
+    readonly property int contentItemTopMargin: 1
+    readonly property int tooltipDelay: 500
+    readonly property real shadowOpacity: 0.2
+
     signal requestColorChange(color c)
     signal requestSizeChange(int size)
     signal requestOutlineChange(bool enabled)
@@ -29,7 +76,7 @@ Rectangle {
     signal requestMosaicTypeChange(string type)
 
     function areColorsEqual(c1, c2) {
-        const e = 0.001;
+        const e = colorEqualThreshold;
         return Math.abs(c1.r - c2.r) < e && Math.abs(c1.g - c2.g) < e && Math.abs(c1.b - c2.b) < e;
     }
 
@@ -40,11 +87,10 @@ Rectangle {
     border.color: AppTheme.border
     border.width: 1
 
-    // Soft Shadow
     Rectangle {
         anchors.fill: parent
-        anchors.topMargin: 2
-        z: -1
+        anchors.topMargin: shadowTopMargin
+        z: shadowZIndex
         radius: AppTheme.radiusLarge
         color: AppTheme.shadowColor
     }
@@ -52,12 +98,11 @@ Rectangle {
     RowLayout {
         id: mainLayout
         anchors.centerIn: parent
-        spacing: 12
+        spacing: mainLayoutSpacing
 
-        // Color Selection
         Row {
             visible: !root.isMosaic
-            spacing: 6
+            spacing: colorRowSpacing
             Layout.alignment: Qt.AlignVCenter
 
             Repeater {
@@ -86,15 +131,13 @@ Rectangle {
             visible: !root.isMosaic
         }
 
-        // Style / Type Selection
         Row {
             spacing: AppTheme.spacingSmall
             Layout.alignment: Qt.AlignVCenter
 
-            // Shape Style (Fill/Outline)
             Row {
                 visible: !root.isMosaic
-                spacing: 2
+                spacing: styleRowSpacing
 
                 StyleButton {
                     iconSource: "qrc:/resources/icons/square.svg"
@@ -110,7 +153,6 @@ Rectangle {
                 }
             }
 
-            // Stroke Toggle
             StyleButton {
                 visible: !root.isMosaic && !root.hasOutline
                 iconSource: "qrc:/resources/icons/border_all.svg"
@@ -119,7 +161,6 @@ Rectangle {
                 onClicked: root.requestStrokeChange(!root.hasStroke)
             }
 
-            // Mosaic Type
             MosaicTypeComboBox {
                 visible: root.isMosaic
                 selectedType: root.mosaicType
@@ -131,9 +172,8 @@ Rectangle {
             visible: !root.isMosaic
         }
 
-        // Sliders (Size / Opacity)
         RowLayout {
-            spacing: 12
+            spacing: sliderLayoutSpacing
             Layout.alignment: Qt.AlignVCenter
 
             ValueSlider {
@@ -148,11 +188,11 @@ Rectangle {
             ValueSlider {
                 visible: !root.isMosaic
                 label: Math.round(sliderValue * 100) + "%"
-                labelWidth: 32
+                labelWidth: opacitySliderLabelWidth
                 sliderValue: root.activeColor.a
-                fromValue: 0.1
-                toValue: 1.0
-                step: 0.1
+                fromValue: opacityMinValue
+                toValue: opacityMaxValue
+                step: opacityStep
                 onMoved: v => {
                     let c = root.activeColor;
                     c.a = v;
@@ -165,10 +205,10 @@ Rectangle {
     CustomColorPicker {
         id: colorPicker
         visible: false
-        z: 100
+        z: colorPickerZIndex
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.top
-        anchors.bottomMargin: 12
+        anchors.bottomMargin: colorPickerBottomMargin
 
         onAccepted: c => {
             let alpha = root.activeColor.a;
@@ -181,8 +221,8 @@ Rectangle {
     }
 
     component Separator: Rectangle {
-        width: 1
-        height: 16
+        width: separatorWidth
+        height: separatorHeight
         color: AppTheme.border
     }
 
@@ -193,32 +233,31 @@ Rectangle {
         property bool isAddButton: false
         signal clicked
 
-        width: 16
-        height: 16
-        radius: 8
+        width: colorDotSize
+        height: colorDotSize
+        radius: colorDotRadius
         color: isAddButton ? "transparent" : dotColor
         border.width: 1
         border.color: isAddButton ? AppTheme.subText : "transparent"
 
-        // Selection Ring
         Rectangle {
             anchors.centerIn: parent
-            width: 22
-            height: 22
-            radius: 11
+            width: colorSelectionRingSize
+            height: colorSelectionRingSize
+            radius: colorSelectionRingRadius
             color: "transparent"
             border.color: AppTheme.text
-            border.width: 1.5
+            border.width: colorSelectionRingBorderWidth
             visible: dot.selected && !dot.isAddButton
-            opacity: 0.8
+            opacity: colorSelectionRingOpacity
         }
 
         Basic.Button {
             visible: dot.isAddButton
             anchors.centerIn: parent
-            width: 16
-            height: 16
-            padding: 0
+            width: colorDotSize
+            height: colorDotSize
+            padding: buttonPadding
             background: null
             display: AbstractButton.IconOnly
             icon.source: "qrc:/resources/icons/add.svg"
@@ -242,7 +281,7 @@ Rectangle {
 
         width: AppTheme.buttonHeight
         height: AppTheme.buttonHeight
-        padding: 0
+        padding: buttonPadding
         display: AbstractButton.IconOnly
 
         icon.source: iconSource
@@ -260,7 +299,7 @@ Rectangle {
         Basic.ToolTip {
             visible: btn.hovered
             text: btn.tooltip
-            delay: 500
+            delay: tooltipDelay
         }
     }
 
@@ -273,7 +312,7 @@ Rectangle {
         property int labelWidth: 24
         signal moved(real value)
 
-        spacing: 8
+        spacing: sliderSpacing
 
         Text {
             Layout.preferredWidth: labelWidth
@@ -286,7 +325,7 @@ Rectangle {
 
         Basic.Slider {
             id: sliderControl
-            Layout.preferredWidth: 80
+            Layout.preferredWidth: sliderControlWidth
             from: fromValue
             to: toValue
             stepSize: step
@@ -296,33 +335,33 @@ Rectangle {
                 x: sliderControl.leftPadding
                 y: sliderControl.topPadding + sliderControl.availableHeight / 2 - height / 2
                 width: sliderControl.availableWidth
-                height: 4
-                radius: 2
+                height: sliderBackgroundHeight
+                radius: sliderBackgroundRadius
                 color: AppTheme.itemHover
 
                 Rectangle {
                     width: sliderControl.visualPosition * parent.width
                     height: parent.height
                     color: AppTheme.primary
-                    radius: 2
+                    radius: sliderBackgroundRadius
                 }
             }
 
             handle: Rectangle {
                 x: sliderControl.leftPadding + sliderControl.visualPosition * (sliderControl.availableWidth - width)
                 y: sliderControl.topPadding + sliderControl.availableHeight / 2 - height / 2
-                implicitWidth: 12
-                implicitHeight: 12
-                radius: 6
+                implicitWidth: sliderHandleSize
+                implicitHeight: sliderHandleSize
+                radius: sliderHandleRadius
                 color: "white"
 
                 Rectangle {
                     anchors.fill: parent
-                    anchors.topMargin: 1
-                    radius: 6
+                    anchors.topMargin: sliderHandleMarginTop
+                    radius: sliderHandleRadius
                     color: "black"
-                    opacity: 0.2
-                    z: -1
+                    opacity: shadowOpacity
+                    z: shadowZIndex
                 }
             }
 
@@ -335,8 +374,8 @@ Rectangle {
         property string selectedType: "mosaic"
         signal typePicked(string type)
 
-        Layout.preferredWidth: 100
-        Layout.preferredHeight: 28
+        Layout.preferredWidth: comboBoxWidth
+        Layout.preferredHeight: comboBoxHeight
 
         model: [qsTr("Pixelate"), qsTr("Blur")]
         currentIndex: selectedType === "mosaic" ? 0 : 1
@@ -351,8 +390,8 @@ Rectangle {
         delegate: ItemDelegate {
             id: itemDelegate
             width: combo.width
-            height: 28
-            horizontalPadding: 8
+            height: comboBoxDelegateHeight
+            horizontalPadding: comboBoxHorizontalPadding
 
             contentItem: Text {
                 text: model.modelData
@@ -361,7 +400,7 @@ Rectangle {
                 font.weight: combo.currentIndex === index ? Font.DemiBold : Font.Normal
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
-                leftPadding: 8
+                leftPadding: contentItemLeftPadding
             }
 
             background: Rectangle {
@@ -386,16 +425,16 @@ Rectangle {
             font.weight: Font.Medium
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
-            leftPadding: 8
-            rightPadding: 24
+            leftPadding: contentItemLeftPadding
+            rightPadding: contentItemRightPadding
         }
 
         indicator: Basic.Button {
-            x: combo.width - width - 2
+            x: combo.width - width - comboBoxIndicatorPadding
             y: (combo.height - height) / 2
             width: AppTheme.iconSizeLarge
             height: AppTheme.iconSizeLarge
-            padding: 0
+            padding: buttonPadding
             enabled: true
             background: null
 
@@ -408,10 +447,10 @@ Rectangle {
         }
 
         popup: Popup {
-            y: combo.height + 4
+            y: combo.height + comboBoxPopupYOffset
             width: combo.width
-            implicitHeight: contentItem.implicitHeight + 8
-            padding: 4
+            implicitHeight: contentItem.implicitHeight + contentPadding * 2
+            padding: comboBoxPopupPadding
 
             background: Rectangle {
                 radius: AppTheme.radiusLarge
@@ -421,8 +460,8 @@ Rectangle {
 
                 Rectangle {
                     anchors.fill: parent
-                    anchors.topMargin: 2
-                    z: -1
+                    anchors.topMargin: contentMarginTop
+                    z: shadowZIndex
                     radius: AppTheme.radiusLarge
                     color: AppTheme.shadowColor
                 }
@@ -441,12 +480,12 @@ Rectangle {
                     property: "opacity"
                     from: 0
                     to: 1
-                    duration: 100
+                    duration: popupTransitionDuration
                 }
                 NumberAnimation {
                     property: "y"
                     from: combo.height
-                    to: combo.height + 4
+                    to: combo.height + comboBoxPopupYOffset
                     duration: AppTheme.durationFast
                 }
             }
@@ -455,7 +494,7 @@ Rectangle {
                     property: "opacity"
                     from: 1
                     to: 0
-                    duration: 100
+                    duration: popupTransitionDuration
                 }
             }
         }

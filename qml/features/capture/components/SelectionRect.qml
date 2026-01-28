@@ -9,8 +9,19 @@ Rectangle {
     property var overlayWindow: null
     property rect rectProperty: Qt.rect(0, 0, 0, 0)
 
+    readonly property int handleSize: 20
+    readonly property int handleOffset: 10
+    readonly property int innerBorderMargin: 1
+    readonly property int outerBorderMargin: 2
+    readonly property real innerBorderWidth: 0.5
+    readonly property real outerBorderWidth: 0.3
+    readonly property real lightnerRatio1: 1.6
+    readonly property real lightnerRatio2: 2.0
+    readonly property real innerBorderOpacity: 0.6
+    readonly property real outerBorderOpacity: 0.3
+
     border.color: overlayWindow ? overlayWindow.selectionColor : AppTheme.primary
-    border.width: 1
+    border.width: 2
     color: bindToRect ? "transparent" : (overlayWindow ? overlayWindow.selectionFillColor : AppTheme.selectionFill)
     radius: AppTheme.radiusLarge
     visible: false
@@ -33,24 +44,24 @@ Rectangle {
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: 1
-        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, 1.6)
-        border.width: 0.5
+        anchors.margins: root.innerBorderMargin
+        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, root.lightnerRatio1)
+        border.width: root.innerBorderWidth
         color: "transparent"
-        radius: root.radius - 1
+        radius: root.radius - root.innerBorderMargin
         visible: root.bindToRect
-        opacity: 0.6
+        opacity: root.innerBorderOpacity
     }
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: 2
-        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, 2.0)
-        border.width: 0.3
+        anchors.margins: root.outerBorderMargin
+        border.color: Qt.lighter(root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary, root.lightnerRatio2)
+        border.width: root.outerBorderWidth
         color: "transparent"
-        radius: root.radius - 2
+        radius: root.radius - root.outerBorderMargin
         visible: root.bindToRect
-        opacity: 0.3
+        opacity: root.outerBorderOpacity
     }
 
     Binding {
@@ -83,71 +94,71 @@ Rectangle {
         cursorShape: Qt.SizeFDiagCursor
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        x: -10
-        y: -10
+        x: -root.handleOffset
+        y: -root.handleOffset
     }
     ResizeHandle {
         corner: "top-right"
         cursorShape: Qt.SizeBDiagCursor
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        x: parent.width - 10
-        y: -10
+        x: parent.width - root.handleOffset
+        y: -root.handleOffset
     }
     ResizeHandle {
         corner: "bottom-left"
         cursorShape: Qt.SizeBDiagCursor
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        x: -10
-        y: parent.height - 10
+        x: -root.handleOffset
+        y: parent.height - root.handleOffset
     }
     ResizeHandle {
         corner: "bottom-right"
         cursorShape: Qt.SizeFDiagCursor
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        x: parent.width - 10
-        y: parent.height - 10
+        x: parent.width - root.handleOffset
+        y: parent.height - root.handleOffset
     }
     ResizeHandle {
         corner: "left"
         cursorShape: Qt.SizeHorCursor
-        height: parent.height - 20
+        height: parent.height - root.handleSize
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        width: 20
-        x: -10
-        y: 10
+        width: root.handleSize
+        x: -root.handleOffset
+        y: root.handleOffset
     }
     ResizeHandle {
         corner: "right"
         cursorShape: Qt.SizeHorCursor
-        height: parent.height - 20
+        height: parent.height - root.handleSize
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        width: 20
-        x: parent.width - 10
-        y: 10
+        width: root.handleSize
+        x: parent.width - root.handleOffset
+        y: root.handleOffset
     }
     ResizeHandle {
         corner: "top"
         cursorShape: Qt.SizeVerCursor
-        height: 20
+        height: root.handleSize
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        width: parent.width - 20
-        x: 10
-        y: -10
+        width: parent.width - root.handleSize
+        x: root.handleOffset
+        y: -root.handleOffset
     }
     ResizeHandle {
         corner: "bottom"
         cursorShape: Qt.SizeVerCursor
-        height: 20
+        height: root.handleSize
         overlayWindow: root.overlayWindow
         visible: root.bindToRect && root.enableHandles
-        width: parent.width - 20
-        x: 10
-        y: parent.height - 10
+        width: parent.width - root.handleSize
+        x: root.handleOffset
+        y: parent.height - root.handleOffset
     }
 }
