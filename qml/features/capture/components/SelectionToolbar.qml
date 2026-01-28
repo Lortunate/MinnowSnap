@@ -65,7 +65,7 @@ Rectangle {
                 "action": "redo",
                 "isTool": false,
                 "hoverColor": AppTheme.primary
-            },
+            }
         ], [
             {
                 "icon": "qrc:/resources/icons/text_fields.svg",
@@ -102,7 +102,7 @@ Rectangle {
                 "action": "copy",
                 "isTool": false,
                 "hoverColor": AppTheme.primary
-            },
+            }
         ], [
             {
                 "icon": "qrc:/resources/icons/close.svg",
@@ -129,14 +129,11 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         anchors.fill: parent
         cursorShape: Qt.ArrowCursor
-
-        onPressed: function (mouse) {
-            mouse.accepted = true;
-        }
+        onPressed: mouse.accepted = true
     }
+
     RowLayout {
         id: toolbarRow
-
         anchors.centerIn: parent
         spacing: 4
 
@@ -144,16 +141,18 @@ Rectangle {
             model: root.buttons
 
             delegate: RowLayout {
+                spacing: 4
+
                 Repeater {
                     model: modelData
 
                     delegate: ToolbarButton {
-                        Layout.preferredHeight: AppTheme.toolbarButtonSize
-                        Layout.preferredWidth: AppTheme.toolbarButtonSize
+                        Layout.preferredHeight: 32
+                        Layout.preferredWidth: 32
                         hoveredIconColor: modelData.hoverColor
-                        icon.height: 24
+                        icon.height: 20
                         icon.source: modelData.icon
-                        icon.width: 24
+                        icon.width: 20
                         isActive: modelData.action === root.activeTool
                         showTooltip: root.showTooltips
                         tooltipText: modelData.text
@@ -163,7 +162,7 @@ Rectangle {
                             if (modelData.action === "cancel") {
                                 root.canceled();
                             } else if (modelData.isTool) {
-                                root.activeTool = (root.activeTool === modelData.action ? "" : modelData.action);
+                                root.activeTool = root.activeTool === modelData.action ? "" : modelData.action;
                                 root.toolChanged(root.activeTool);
                             } else {
                                 root.actionConfirmed(modelData.action);
@@ -171,6 +170,7 @@ Rectangle {
                         }
                     }
                 }
+
                 ToolbarSeparator {
                     visible: index < root.buttons.length - 1
                 }
