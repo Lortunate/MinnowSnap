@@ -130,7 +130,9 @@ Rectangle {
         anchors.fill: parent
         cursorShape: Qt.ArrowCursor
 
-        onPressed: mouse.accepted = true
+        onPressed: function (mouse) {
+            mouse.accepted = true;
+        }
     }
     RowLayout {
         id: toolbarRow

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import com.lortunate.minnow
 
 MouseArea {
@@ -8,13 +9,14 @@ MouseArea {
     property var overlayWindow: null
 
     height: 20
-    scale: pressed ? 0.9 : 1.0
+    scale: pressed ? 1.1 : 1.0
     width: 20
     z: 1
 
     Behavior on scale {
         NumberAnimation {
             duration: AppTheme.durationFast
+            easing.type: Easing.OutCubic
         }
     }
 
@@ -39,28 +41,50 @@ MouseArea {
 
     Rectangle {
         anchors.centerIn: parent
-        border.color: Qt.rgba((overlayWindow ? overlayWindow.selectionColor : AppTheme.primary).r, (overlayWindow ? overlayWindow.selectionColor : AppTheme.primary).g, (overlayWindow ? overlayWindow.selectionColor : AppTheme.primary).b, 0.3)
-        border.width: 2
-        color: "transparent"
+        width: 20
         height: 20
         radius: 10
-        width: 20
+        color: "transparent"
+        border.color: Qt.rgba((root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary).r, (root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary).g, (root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary).b, 0.15)
+        border.width: 1
+        visible: root.containsMouse
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: AppTheme.durationNormal
+            }
+        }
     }
+
     Rectangle {
         anchors.centerIn: parent
-        border.color: overlayWindow ? overlayWindow.selectionColor : AppTheme.primary
-        border.width: 2
-        color: "white"
-        height: 14
-        radius: 7
-        width: 14
+        width: 12
+        height: 12
+        radius: 6
+        color: "#FFFFFF"
+        border.color: root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary
+        border.width: 1.5
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: AppTheme.durationNormal
+            }
+        }
 
         Rectangle {
             anchors.centerIn: parent
-            color: Qt.lighter(overlayWindow ? overlayWindow.selectionColor : AppTheme.primary, 1.4)
-            height: 6
-            radius: 3
-            width: 6
+            width: 4
+            height: 4
+            radius: 2
+            color: root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary
+        }
+
+        layer.enabled: root.pressed
+        layer.effect: MultiEffect {
+            shadowColor: Qt.rgba(0, 0, 0, 0.3)
+            shadowHorizontalOffset: 0
+            shadowVerticalOffset: 2
+            shadowBlur: 4
         }
     }
 }
