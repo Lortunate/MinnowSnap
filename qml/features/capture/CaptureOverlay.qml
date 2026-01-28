@@ -39,6 +39,7 @@ Window {
         resetState();
         cancelled();
     }
+
     function confirmSelection(action) {
         if (processing)
             return;
@@ -57,9 +58,9 @@ Window {
             return;
         }
 
-        // Delegate to Compositor
         captureCompositor.capture(currentSelection, action);
     }
+
     function endResize() {
         controller.endResize();
     }
@@ -72,20 +73,16 @@ Window {
     }
 
     function constrainToolbarPos(targetX, targetY, targetW, targetH, itemW, itemH, isAbove) {
-        // Center X relative to target, clamped to screen bounds with padding
         let desiredX = targetX + targetW - itemW;
         let x = Math.max(10, Math.min(overlayWindow.width - itemW - 10, desiredX));
 
-        // Y positioning
         let y;
         if (isAbove) {
             let aboveY = targetY - itemH - 8;
-            // If not enough space above, try below, else force to top edge
             y = (aboveY >= 0) ? aboveY : (targetY + targetH + 8);
         } else {
             let belowY = targetY + targetH + 8;
             let aboveY = targetY - itemH - 8;
-            // Prefer below, if not enough space, go above, else force to padding
             y = (belowY + itemH <= overlayWindow.height) ? belowY : (aboveY >= 0 ? aboveY : 40);
         }
 
@@ -95,6 +92,7 @@ Window {
     function startResize(corner, mouseX, mouseY) {
         controller.startResize(corner, mouseX, mouseY);
     }
+
     function updateResize(mouseX, mouseY) {
         controller.updateResize(mouseX, mouseY);
     }
@@ -174,15 +172,19 @@ Window {
         Keys.onPressed: event => {
             if (!isLockedState && controller.state !== states.dragging) {
                 if (event.key === Qt.Key_C) {
-                    colorPicker.copyColor();
-                    event.accepted = true;
+                    if (colorPicker.visible) {
+                        colorPicker.copyColor();
+                        event.accepted = true;
+                    }
                 }
                 if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
-                    colorPicker.cycleFormat();
+                    if (colorPicker.visible) {
+                        colorPicker.cycleFormat();
+                        event.accepted = true;
+                    }
                 }
             }
 
-            // Ctrl+Z / Cmd+Z to Undo
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
                     if (event.modifiers & Qt.ShiftModifier) {
@@ -208,7 +210,10 @@ Window {
             source: overlayWindow.backgroundImageSource
             verticalAlignment: Image.AlignTop
             layer.enabled: true
+            cache: true
+            asynchronous: false
         }
+
         SelectionMask {
             activeH: activeRect.height
             activeW: activeRect.width
@@ -218,6 +223,7 @@ Window {
             maskColor: overlayWindow.maskColor
             visible: hasSelection
         }
+
         Rectangle {
             anchors.fill: parent
             color: overlayWindow.maskColor
@@ -236,6 +242,9 @@ Window {
                     }
                     return Qt.ArrowCursor;
                 }
+                if (colorPicker.visible) {
+                    return Qt.CrossCursor;
+                }
                 return (controller.state === states.browsing && controller.hasTarget) ? Qt.PointingHandCursor : Qt.CrossCursor;
             }
             hoverEnabled: true
@@ -247,16 +256,21 @@ Window {
             onPositionChanged: mouse => {
                 if (controller.state === states.browsing) {
                     controller.updateHover(mouse.x, mouse.y);
+                    if (colorPicker.visible) {
+                        colorPicker.mouseX = mouse.x;
+                        colorPicker.mouseY = mouse.y;
+                    }
                 } else if (controller.state === states.dragging) {
                     controller.updateSelection(mouse.x, mouse.y);
                 } else if (controller.state === states.moving) {
                     controller.updateMove(mouse.x, mouse.y);
                 }
             }
+
             onPressed: mouse => {
                 if (mouse.button === Qt.RightButton) {
                     if (controller.state === states.locked) {
-                        controller.reset(); // Go back to browsing
+                        controller.reset();
                     } else {
                         cancelCapture();
                     }
@@ -265,7 +279,6 @@ Window {
 
                 if (controller.state === states.locked) {
                     annotationLayer.deselectAll();
-                    // Check if clicking inside selection to move it
                     if (containsMouseInRect(mouse.x, mouse.y)) {
                         controller.startMove(mouse.x, mouse.y);
                     }
@@ -273,6 +286,7 @@ Window {
                     controller.startSelection(mouse.x, mouse.y);
                 }
             }
+
             onReleased: mouse => {
                 if (controller.state === states.dragging) {
                     controller.endSelection();
@@ -290,17 +304,14 @@ Window {
             SelectionRect {
                 id: unifiedSelectionRect
 
-                // If locked, we bind strictly to the rectProperty (and enable handles).
-                // If not locked (browsing/dragging), we manually update x/y/w/h via direct binding to activeRect.
                 bindToRect: isLockedState
 
-                // When not bound, follow activeRect
                 x: !bindToRect ? activeRect.x : 0
                 y: !bindToRect ? activeRect.y : 0
                 width: !bindToRect ? activeRect.width : 0
                 height: !bindToRect ? activeRect.height : 0
 
-                rectProperty: overlayWindow.currentSelection // Used when bindToRect is true
+                rectProperty: overlayWindow.currentSelection
                 overlayWindow: overlayWindow
                 visible: hasSelection || isBrowsingWithTarget
 
@@ -347,6 +358,7 @@ Window {
 
             ColorPicker {
                 id: colorPicker
+
                 imageSource: overlayWindow.backgroundImageSource
                 mouseX: mouseArea.mouseX
                 mouseY: mouseArea.mouseY
@@ -354,6 +366,8 @@ Window {
                 surfaceWidth: overlayWindow.width
                 surfaceHeight: overlayWindow.height
                 visible: !isLockedState && controller.state !== states.dragging
+                z: 1000
+
                 onColorCopied: cancelCapture()
             }
         }
@@ -366,16 +380,17 @@ Window {
             visible: controller.state === states.locked
             x: pos.x
             y: pos.y
+            z: 999
 
             onActionConfirmed: action => overlayWindow.confirmSelection(action)
             onCanceled: {
                 cancelCapture();
             }
         }
+
         AnnotationProperties {
             id: propBar
 
-            // For props, we target the Toolbar
             property point pos: constrainToolbarPos(toolbar.x, toolbar.y, toolbar.width, toolbar.height, width, height, false)
 
             activeColor: annotationLayer.activeColor
@@ -413,6 +428,7 @@ Window {
 
             x: pos.x
             y: pos.y
+            z: 999
 
             onRequestColorChange: c => annotationLayer.activeColor = c
             onRequestOutlineChange: enabled => annotationLayer.activeHasOutline = enabled
@@ -440,11 +456,12 @@ Window {
         onRequestReset: resetState()
         onRequestShow: overlayWindow.show()
     }
+
     CaptureCompositor {
         id: captureCompositor
 
         annotationLayer: annotationLayer
-        lockedSelectionRect: unifiedSelectionRect // Updated reference
+        lockedSelectionRect: unifiedSelectionRect
         overlayWindow: overlayWindow
         screenCapture: overlayWindow.screenCapture
 
