@@ -6,7 +6,6 @@ AnnotationBase {
 
     readonly property string type: "rectangle"
 
-    // Config
     padding: Math.max(12, lineWidth * 2)
     maintainAspectRatio: true
     resizable: true
@@ -16,24 +15,25 @@ AnnotationBase {
     width: Math.abs(p1.x - p2.x) + (padding * 2)
     height: Math.abs(p1.y - p2.y) + (padding * 2)
 
-    // Override isHit
     function isHit(mx, my) {
+        if (drawingMode) {
+            return false;
+        }
+
         var threshold = 10;
         var l = Math.min(localP1.x, localP2.x);
         var r = Math.max(localP1.x, localP2.x);
         var t = Math.min(localP1.y, localP2.y);
         var b = Math.max(localP1.y, localP2.y);
 
-        // If filled, hit if inside
         if (!hasOutline) {
             return mx >= l && mx <= r && my >= t && my <= b;
         }
 
-        // If outline, hit if near border
-        var d1 = Math.abs(my - t); // Top
-        var d2 = Math.abs(my - b); // Bottom
-        var d3 = Math.abs(mx - l); // Left
-        var d4 = Math.abs(mx - r); // Right
+        var d1 = Math.abs(my - t);
+        var d2 = Math.abs(my - b);
+        var d3 = Math.abs(mx - l);
+        var d4 = Math.abs(mx - r);
 
         var onH = (mx >= l - threshold && mx <= r + threshold);
         var onV = (my >= t - threshold && my <= b + threshold);

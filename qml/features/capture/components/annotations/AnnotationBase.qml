@@ -9,20 +9,18 @@ Item {
     property bool hasStroke: false
     property int lineWidth: 4
     property bool selected: false
+    property bool drawingMode: false
 
-    // Geometry
     property point p1: Qt.point(0, 0)
     property point p2: Qt.point(0, 0)
 
-    // Computed properties for handles and drawing
     readonly property point localP1: Qt.point(p1.x - x, p1.y - y)
     readonly property point localP2: Qt.point(p2.x - x, p2.y - y)
 
-    // Configuration
     property bool draggable: true
-    property bool resizable: true // Whether to show handles
-    property bool maintainAspectRatio: false // For handles
-    property int padding: 0 // For bounding box calculation
+    property bool resizable: true
+    property bool maintainAspectRatio: false
+    property int padding: 0
 
     signal interactionEnded
     signal interactionStarted
@@ -44,7 +42,7 @@ Item {
         property point dragStartParent: Qt.point(0, 0)
 
         anchors.fill: parent
-        enabled: root.draggable
+        enabled: root.draggable && !root.drawingMode
         hoverEnabled: true
 
         cursorShape: {

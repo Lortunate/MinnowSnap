@@ -17,8 +17,6 @@ Item {
     readonly property bool hasAnnotations: annotations.children.length > 0
     property var selectedItem: null
     property Item sourceImage: null
-
-    // Global position of the layer (e.g. from parent SelectionRect)
     property real layerX: 0
     property real layerY: 0
 
@@ -43,6 +41,25 @@ Item {
         }
     }
 
+    function updateDrawingMode(isDrawing) {
+        for (var i = 0; i < annotations.children.length; i++) {
+            var child = annotations.children[i];
+            if (child.drawingMode !== undefined) {
+                child.drawingMode = isDrawing;
+            }
+        }
+    }
+
+    function bringToFront(item) {
+        var maxZ = 0;
+        for (var i = 0; i < annotations.children.length; i++) {
+            if (annotations.children[i].z > maxZ) {
+                maxZ = annotations.children[i].z;
+            }
+        }
+        item.z = maxZ + 1;
+    }
+
     function createAnnotationItem(componentName, props) {
         var component = Qt.createComponent(componentName);
         if (component.status === Component.Ready) {
@@ -50,11 +67,11 @@ Item {
 
             item.requestRemove.connect(function () {
                 item.destroy();
-                // If the destroyed item was selected, clear selection reference
                 if (root.selectedItem === item) {
                     root.selectedItem = null;
                 }
             });
+
             item.requestSelect.connect(function () {
                 if (root.activeTool !== "") {
                     root.requestSetTool("");
@@ -62,8 +79,10 @@ Item {
                 root.deselectAll();
                 item.selected = true;
                 root.selectedItem = item;
+                root.bringToFront(item);
             });
 
+            root.bringToFront(item);
             return item;
         } else {
             console.error("Error creating " + componentName + ":", component.errorString());
@@ -79,6 +98,7 @@ Item {
         }
         selectedItem = null;
     }
+
     function redo() {
         for (var i = 0; i < annotations.children.length; i++) {
             var item = annotations.children[i];
@@ -88,6 +108,7 @@ Item {
             }
         }
     }
+
     function undo() {
         for (var i = annotations.children.length - 1; i >= 0; i--) {
             var item = annotations.children[i];
@@ -102,6 +123,9 @@ Item {
     }
 
     onActiveToolChanged: {
+        var isDrawing = activeTool !== "";
+        updateDrawingMode(isDrawing);
+
         if (activeTool !== "") {
             deselectAll();
             if (activeTool === "counter" || activeTool === "arrow") {
@@ -109,21 +133,25 @@ Item {
             }
         }
     }
+
     onActiveColorChanged: {
         if (selectedItem && selectedItem.color !== activeColor) {
             selectedItem.color = activeColor;
         }
     }
+
     onActiveHasOutlineChanged: {
         if (selectedItem && selectedItem.hasOutline !== activeHasOutline) {
             selectedItem.hasOutline = activeHasOutline;
         }
     }
+
     onActiveHasStrokeChanged: {
         if (selectedItem && selectedItem.hasStroke !== activeHasStroke) {
             selectedItem.hasStroke = activeHasStroke;
         }
     }
+
     onSelectedItemChanged: {
         if (selectedItem) {
             if (activeColor !== selectedItem.color) {
@@ -136,7 +164,6 @@ Item {
                 activeHasStroke = selectedItem.hasStroke;
             }
 
-            // Sync Size
             if (selectedItem.type === "counter") {
                 activeCounterSize = selectedItem.size;
             } else if (selectedItem.type === "text") {
@@ -148,11 +175,7 @@ Item {
                 activeLineWidth = selectedItem.lineWidth;
             }
 
-            // Bring to front
-            for (var i = 0; i < annotations.children.length; i++) {
-                annotations.children[i].z = 0;
-            }
-            selectedItem.z = 1;
+            bringToFront(selectedItem);
         }
     }
 
@@ -161,49 +184,48 @@ Item {
             selectedItem.lineWidth = activeLineWidth;
         }
     }
+
     onActiveIntensityChanged: {
         if (selectedItem && selectedItem.type === "mosaic") {
             selectedItem.intensity = activeIntensity;
         }
     }
+
     onActiveMosaicTypeChanged: {
         if (selectedItem && selectedItem.type === "mosaic") {
             selectedItem.mosaicType = activeMosaicType;
         }
     }
+
     onActiveCounterSizeChanged: {
         if (selectedItem && selectedItem.type === "counter") {
             selectedItem.size = activeCounterSize;
         }
     }
+
     onActiveFontSizeChanged: {
         if (selectedItem && selectedItem.type === "text") {
             selectedItem.fontSize = activeFontSize;
         }
     }
 
-    // Input area for creating new annotations (Background)
     MouseArea {
         property var currentItem: null
         property point startPoint: Qt.point(0, 0)
 
         anchors.fill: parent
         cursorShape: root.activeTool === "text" ? Qt.IBeamCursor : Qt.CrossCursor
-        // Only enabled when a drawing tool is active.
-        // When disabled (Selection Mode), clicks pass through to the underlying CaptureOverlay handles/movers.
         enabled: root.activeTool !== ""
 
         onPositionChanged: mouse => {
             if (currentItem) {
                 var p2 = Qt.point(mouse.x, mouse.y);
 
-                // Shift key constraint for Rectangle and Circle (Square and Standard Circle)
                 if ((mouse.modifiers & Qt.ShiftModifier) && (root.activeTool === "circle" || root.activeTool === "rectangle")) {
                     var dx = p2.x - currentItem.p1.x;
                     var dy = p2.y - currentItem.p1.y;
                     var size = Math.max(Math.abs(dx), Math.abs(dy));
 
-                    // Determine direction
                     var sx = dx >= 0 ? 1 : -1;
                     var sy = dy >= 0 ? 1 : -1;
 
@@ -215,6 +237,7 @@ Item {
                 }
             }
         }
+
         onPressed: mouse => {
             startPoint = Qt.point(mouse.x, mouse.y);
 
@@ -227,7 +250,8 @@ Item {
                 "p1": startPoint,
                 "hasOutline": root.activeHasOutline,
                 "hasStroke": root.activeHasStroke,
-                "lineWidth": root.activeLineWidth
+                "lineWidth": root.activeLineWidth,
+                "drawingMode": true
             };
 
             var componentMap = {
@@ -263,6 +287,7 @@ Item {
             var item = root.createAnnotationItem(componentName, props);
 
             if (item) {
+                root.bringToFront(item);
                 if (root.activeTool === "counter") {
                     root.nextCounterValue++;
                     root.selectedItem = item;
@@ -271,13 +296,16 @@ Item {
                 } else {
                     currentItem = item;
                 }
+                mouse.accepted = true;
             }
         }
+
         onReleased: mouse => {
             if (currentItem) {
                 if (Math.abs(currentItem.p1.x - currentItem.p2.x) < 5 && Math.abs(currentItem.p1.y - currentItem.p2.y) < 5) {
                     currentItem.destroy();
                 } else {
+                    currentItem.drawingMode = false;
                     currentItem.selected = true;
                     root.selectedItem = currentItem;
                 }
@@ -286,10 +314,8 @@ Item {
         }
     }
 
-    // Container for annotations (Foreground)
     Item {
         id: annotations
-
         anchors.fill: parent
     }
 

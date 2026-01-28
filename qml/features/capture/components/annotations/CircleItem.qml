@@ -6,7 +6,6 @@ AnnotationBase {
 
     readonly property string type: "circle"
 
-    // Config
     padding: Math.max(12, lineWidth * 2)
     maintainAspectRatio: true
     resizable: true
@@ -16,8 +15,11 @@ AnnotationBase {
     width: Math.abs(p1.x - p2.x) + (padding * 2)
     height: Math.abs(p1.y - p2.y) + (padding * 2)
 
-    // Override isHit
     function isHit(mx, my) {
+        if (drawingMode) {
+            return false;
+        }
+
         var threshold = 10;
         var l = Math.min(localP1.x, localP2.x);
         var r = Math.max(localP1.x, localP2.x);
@@ -38,10 +40,8 @@ AnnotationBase {
         var dy = my - cy;
 
         if (!hasOutline) {
-            // Filled
             return ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)) <= 1.0;
         } else {
-            // Outline
             var rx_out = rx + threshold;
             var ry_out = ry + threshold;
             var dist_out = (dx * dx) / (rx_out * rx_out) + (dy * dy) / (ry_out * ry_out);
