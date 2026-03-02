@@ -8,9 +8,15 @@
 #include <QQmlEngine>
 #include <QList>
 #include <QtQml>
+#include <QIcon>
 #include <QWindow>
 #include <string>
 #include "rust/cxx.h"
+
+inline void set_window_icon() {
+    QIcon icon(":/resources/logo.png");
+    QGuiApplication::setWindowIcon(icon);
+}
 
 inline void set_quit_on_last_window_closed() {
     QGuiApplication::setQuitOnLastWindowClosed(false);

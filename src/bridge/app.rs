@@ -6,6 +6,7 @@ mod ffi {
         type QString = cxx_qt_lib::QString;
 
         unsafe fn set_quit_on_last_window_closed();
+        unsafe fn set_window_icon();
         unsafe fn install_translator(locale: &str);
         unsafe fn retranslate_all();
         fn translate(context: &str, source_text: &str) -> QString;
@@ -14,6 +15,10 @@ mod ffi {
 
 pub fn set_quit_on_last_window_closed() {
     unsafe { ffi::set_quit_on_last_window_closed() }
+}
+
+pub fn set_window_icon() {
+    unsafe { ffi::set_window_icon() }
 }
 
 pub fn install_translator(locale: &str) {

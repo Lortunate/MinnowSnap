@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 pub mod bridge;
 pub mod core;
 
@@ -21,6 +23,7 @@ struct MinnowApp {
 impl MinnowApp {
     fn new() -> Self {
         let app = QGuiApplication::new();
+        bridge::app::set_window_icon();
         bridge::app::set_quit_on_last_window_closed();
 
         let settings = core::settings::SETTINGS.lock().unwrap().get();
