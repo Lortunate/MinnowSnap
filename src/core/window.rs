@@ -63,7 +63,12 @@ impl Rect {
 pub fn fetch_windows_data() -> Vec<WindowInfo> {
     let windows = Window::all().unwrap_or_default();
     let monitors = Monitor::all().unwrap_or_default();
-    debug!("Fetching window data, total windows found: {}", windows.len());
+    let scale_factor = monitors.first().and_then(|m| m.scale_factor().ok()).unwrap_or(1.0);
+    debug!(
+        "Fetching window data, total windows found: {}, scale_factor: {}",
+        windows.len(),
+        scale_factor
+    );
 
     let screen_rect = if monitors.is_empty() {
         Rect {
@@ -117,10 +122,10 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
 
             Some(WindowInfo {
                 title: window.title().unwrap_or_else(|_| "Unknown".to_string()),
-                x,
-                y,
-                width: w,
-                height: h,
+                x: (x as f32 / scale_factor) as i32,
+                y: (y as f32 / scale_factor) as i32,
+                width: (w as f32 / scale_factor) as u32,
+                height: (h as f32 / scale_factor) as u32,
                 app_name,
             })
         })
