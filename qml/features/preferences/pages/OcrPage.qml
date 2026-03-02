@@ -27,7 +27,7 @@ Item {
                     title: qsTr("Enable OCR")
                     description: qsTr("Enable Optical Character Recognition to detect text in screenshots.")
 
-                    control: Switch {
+                    control: StyledSwitch {
                         checked: ocrManager.enabled
                         onCheckedChanged: ocrManager.setOcrEnabledPersist(checked)
                     }

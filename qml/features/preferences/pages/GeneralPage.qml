@@ -44,7 +44,7 @@ Item {
                     title: qsTr("Launch at login")
                     description: qsTr("Automatically start the application when you log in.")
 
-                    control: Switch {
+                    control: StyledSwitch {
                         checked: Config.autoStart
                         onCheckedChanged: Config.updateAutoStart(checked)
                     }
@@ -126,7 +126,7 @@ Item {
                     title: qsTr("Image Compression")
                     description: qsTr("Optimize saved images using Oxipng. Disabling this improves saving speed but increases file size.")
 
-                    control: Switch {
+                    control: StyledSwitch {
                         checked: Config.oxipngEnabled
                         onCheckedChanged: Config.updateOxipngEnabled(checked)
                     }
