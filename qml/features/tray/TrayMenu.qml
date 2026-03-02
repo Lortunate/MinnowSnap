@@ -15,8 +15,8 @@ Window {
 
     flags: Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint
     visible: false
-    width: Math.min(Math.max(160, layout.implicitWidth + AppTheme.spacingSmall * 2), 300)
-    height: layout.height + AppTheme.spacingTiny * 2
+    width: layout.implicitWidth + 16
+    height: layout.height + 16
     color: "transparent"
 
     function popup(geometry) {
@@ -145,11 +145,9 @@ Window {
 
         ColumnLayout {
             id: layout
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.margins: AppTheme.spacingTiny
-            spacing: 1
+            anchors.centerIn: parent
+            width: parent.width - 16
+            spacing: 2
 
             TrayMenuItem {
                 action: root.preferencesAction
@@ -162,12 +160,12 @@ Window {
             }
 
             TrayMenuItem {
-                action: root.quickCaptureAction
+                action: root.screenCaptureAction
                 onClicked: root.visible = false
             }
 
             TrayMenuItem {
-                action: root.screenCaptureAction
+                action: root.quickCaptureAction
                 onClicked: root.visible = false
             }
 
@@ -187,9 +185,11 @@ Window {
         id: control
 
         Layout.fillWidth: true
+        implicitWidth: contentItem.implicitWidth + 32
+        implicitHeight: AppTheme.buttonHeight + 4
 
         background: Rectangle {
-            implicitHeight: AppTheme.buttonHeight
+            implicitHeight: control.implicitHeight
             color: control.hovered ? AppTheme.itemHover : "transparent"
             radius: AppTheme.radiusSmall
         }
@@ -200,8 +200,8 @@ Window {
             font.family: AppTheme.fontFamily
             font.pixelSize: AppTheme.fontSizeBody
             verticalAlignment: Text.AlignVCenter
-            leftPadding: 12
-            rightPadding: AppTheme.spacingSmall
+            leftPadding: 16
+            rightPadding: 16
             elide: Text.ElideRight
         }
     }
