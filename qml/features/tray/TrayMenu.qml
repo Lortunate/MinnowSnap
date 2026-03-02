@@ -15,41 +15,119 @@ Window {
 
     flags: Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint
     visible: false
-    width: 130
-    height: layout.height + 10
+    width: Math.min(Math.max(160, layout.implicitWidth + AppTheme.spacingSmall * 2), 300)
+    height: layout.height + AppTheme.spacingTiny * 2
     color: "transparent"
 
     function popup(geometry) {
-        if (!geometry)
+        if (!geometry) {
+            if (Qt.application.screens.length > 0) {
+                var s = Qt.application.screens[0];
+                x = s.virtualX + (s.width - width) / 2;
+                y = s.virtualY + (s.height - height) / 2;
+                show();
+            }
             return;
-
-        var screenW = Screen.width;
-        var screenH = Screen.height;
-
-        var iconCenterX = geometry.x + (geometry.width / 2);
-        var targetX = iconCenterX - (width / 2);
-        var targetY = geometry.y + geometry.height + 5;
-
-        if (geometry.y > screenH / 2) {
-            targetY = geometry.y - height - 5;
         }
 
-        if (targetX < 5)
-            targetX = 5;
-        if (targetX + width > screenW - 5)
-            targetX = screenW - width - 5;
+        var rect = _getLogicalGeometry(geometry);
+        var currentScreen = _findScreen(rect);
+        
+        if (!currentScreen) return;
 
-        if (targetY < 5)
-            targetY = 5;
-        if (targetY + height > screenH - 5)
-            targetY = screenH - height - 5;
-
-        x = targetX;
-        y = targetY;
+        var targetPos = _calculatePosition(rect, currentScreen);
+        
+        x = targetPos.x;
+        y = targetPos.y;
 
         show();
         raise();
         requestActivate();
+    }
+
+    function _getLogicalGeometry(geometry) {
+        var rect = {
+            x: geometry.x,
+            y: geometry.y,
+            width: geometry.width,
+            height: geometry.height
+        };
+
+        if (Qt.platform.os !== "windows") return rect;
+
+        var screens = Qt.application.screens;
+        var isLogical = false;
+
+        for (var i = 0; i < screens.length; i++) {
+            var s = screens[i];
+            if (rect.x >= s.virtualX && rect.x < s.virtualX + s.width &&
+                rect.y >= s.virtualY && rect.y < s.virtualY + s.height) {
+                isLogical = true;
+                break;
+            }
+        }
+
+        if (!isLogical) {
+            for (var j = 0; j < screens.length; j++) {
+                var sc = screens[j];
+                var dpr = sc.devicePixelRatio;
+                var px = rect.x / dpr;
+                var py = rect.y / dpr;
+                if (px >= sc.virtualX && px < sc.virtualX + sc.width &&
+                    py >= sc.virtualY && py < sc.virtualY + sc.height) {
+                    rect.x = px;
+                    rect.y = py;
+                    rect.width /= dpr;
+                    rect.height /= dpr;
+                    break;
+                }
+            }
+        }
+        return rect;
+    }
+
+    function _findScreen(rect) {
+        var cx = rect.x + (rect.width / 2);
+        var cy = rect.y + (rect.height / 2);
+        var screens = Qt.application.screens;
+        
+        for (var i = 0; i < screens.length; i++) {
+            var s = screens[i];
+            if (cx >= s.virtualX && cx < s.virtualX + s.width &&
+                cy >= s.virtualY && cy < s.virtualY + s.height) {
+                return s;
+            }
+        }
+        return screens.length > 0 ? screens[0] : null;
+    }
+
+    function _calculatePosition(rect, screen) {
+        var cy = rect.y + (rect.height / 2);
+        
+        var targetX = rect.x;
+        var targetY = rect.y + rect.height + 5;
+
+        if (cy > screen.virtualY + (screen.height / 2)) {
+            targetY = rect.y - height - 5;
+        }
+
+        var padding = 6;
+        
+        if (targetX + width > screen.virtualX + screen.width - padding) {
+            targetX = screen.virtualX + screen.width - width - padding;
+        }
+        if (targetX < screen.virtualX + padding) {
+            targetX = screen.virtualX + padding;
+        }
+
+        if (targetY + height > screen.virtualY + screen.height - padding) {
+            targetY = screen.virtualY + screen.height - height - padding;
+        }
+        if (targetY < screen.virtualY + padding) {
+            targetY = screen.virtualY + padding;
+        }
+
+        return { x: targetX, y: targetY };
     }
 
     onActiveChanged: {
