@@ -1,4 +1,4 @@
-use crate::core::capture::{capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture, LAST_CAPTURE};
+use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::io::clipboard::copy_image_to_clipboard;
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;

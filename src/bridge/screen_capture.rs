@@ -122,21 +122,24 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
-use crate::bridge::hotkey::{update_hotkey, HotkeyState};
+use crate::bridge::hotkey::{HotkeyState, update_hotkey};
 use crate::core::app::APP_NAME;
-use crate::core::capture::scroll_worker::{start_scroll_capture_thread, ScrollObserver};
-use crate::core::capture::service::CaptureService;
 use crate::core::capture::SCROLL_CAPTURE;
+use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
+use crate::core::capture::service::CaptureService;
 use crate::core::hotkey::HotkeyService;
-use crate::core::settings::{ShortcutSettings, SETTINGS};
+use crate::core::settings::{SETTINGS, ShortcutSettings};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
 use image::RgbaImage;
 use log::{error, info};
+#[cfg(not(target_os = "windows"))]
 use notify_rust::Notification;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_os = "windows")]
+use tauri_winrt_notification::{IconCrop, Toast};
 
 pub struct ScreenCaptureRust {
     hotkey_state: HotkeyState,
@@ -166,6 +169,23 @@ where
 }
 
 fn send_notification(title: &str, message: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        let toast = if let Some(icon_path) = crate::core::app::windows_notification_icon_path() {
+            Toast::new(crate::core::app::APP_ID)
+                .icon(icon_path.as_path(), IconCrop::Circular, APP_NAME)
+                .title(title)
+                .text1(message)
+        } else {
+            Toast::new(crate::core::app::APP_ID).title(title).text1(message)
+        };
+
+        if let Err(e) = toast.show() {
+            error!("Failed to send notification: {}", e);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
     if let Err(e) = Notification::new().summary(title).body(message).appname(APP_NAME).show() {
         error!("Failed to send notification: {}", e);
     }

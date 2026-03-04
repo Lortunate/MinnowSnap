@@ -83,6 +83,10 @@ rdev = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { workspace = true }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+tauri-winrt-notification = "0.7.2"
+winreg = "0.55"
+
 [build-dependencies]
 cxx-qt-build = { workspace = true }
 cc = { workspace = true }

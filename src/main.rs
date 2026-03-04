@@ -3,11 +3,15 @@
 pub mod bridge;
 pub mod core;
 
-use crate::core::app::{APP_ID, QML_MAIN, ensure_single_instance, get_instance_id, init_logger};
+#[cfg(target_os = "macos")]
+use crate::core::app::APP_ID;
+use crate::core::app::{QML_MAIN, ensure_single_instance, get_instance_id, init_logger};
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
-use log::{error, info};
+#[cfg(target_os = "macos")]
+use log::error;
+use log::info;
 use mimalloc::MiMalloc;
 use std::pin::Pin;
 
@@ -61,6 +65,9 @@ fn main() {
         info!("Another instance is running, exiting.");
         return;
     }
+
+    #[cfg(target_os = "windows")]
+    core::app::init_windows_notification_app_id();
 
     #[cfg(target_os = "macos")]
     if let Err(e) = notify_rust::set_application(APP_ID) {

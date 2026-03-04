@@ -1,7 +1,7 @@
 use crate::core::hotkey::{HotkeyIds, HotkeyService};
 use crate::core::settings::ShortcutSettings;
 use cxx_qt_lib::QString;
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyManager};
+use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
 use std::sync::{Arc, Mutex};
 
 pub struct HotkeyState {
