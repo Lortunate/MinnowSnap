@@ -54,11 +54,14 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
         return;
     }
 
-    match type_ {
-        NotificationType::Copy if !settings.notification.copy_notification => return,
-        NotificationType::Save if !settings.notification.save_notification => return,
-        NotificationType::QrCode if !settings.notification.qr_code_notification => return,
-        _ => {}
+    let allowed = match type_ {
+        NotificationType::Copy => settings.notification.copy_notification,
+        NotificationType::Save => settings.notification.save_notification,
+        NotificationType::QrCode => settings.notification.qr_code_notification,
+        _ => true,
+    };
+    if !allowed {
+        return;
     }
 
     #[cfg(target_os = "windows")]

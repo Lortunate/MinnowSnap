@@ -139,7 +139,7 @@ use crate::core::notify::NotificationType;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use image::{RgbaImage, DynamicImage};
+use image::{DynamicImage, RgbaImage};
 use log::{error, info};
 use std::pin::Pin;
 use std::sync::{
@@ -376,12 +376,10 @@ impl qobject::ScreenCapture {
         let path_str = self.rust().resolve_path(&path);
 
         if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
-            let gray = DynamicImage::ImageRgba8(cropped).to_luma8();
+            let gray = image::imageops::grayscale(&cropped);
             let (w, h) = gray.dimensions();
 
-            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| {
-                gray.get_pixel(x as u32, y as u32)[0]
-            });
+            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
 
             let grids = img.detect_grids();
             if let Some(grid) = grids.first() {
