@@ -1,10 +1,9 @@
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Controls.Basic as Basic
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import com.lortunate.minnow
 
-Basic.ComboBox {
+ComboBox {
     id: control
 
     property bool previewFonts: false
@@ -218,7 +217,7 @@ Basic.ComboBox {
             model: control.popup.visible ? control.delegateModel : null
             boundsBehavior: Flickable.StopAtBounds
 
-            ScrollBar.vertical: Basic.ScrollBar {
+            ScrollBar.vertical: ScrollBar {
                 id: scrollBar
                 width: 6
                 policy: ScrollBar.AsNeeded

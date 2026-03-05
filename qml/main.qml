@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import Qt.labs.platform
 import com.lortunate.minnow
 import "features/capture"

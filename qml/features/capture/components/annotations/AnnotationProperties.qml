@@ -1,7 +1,6 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import QtQuick.Controls.Basic as Basic
 import com.lortunate.minnow
 
 Rectangle {
@@ -252,7 +251,7 @@ Rectangle {
             opacity: colorSelectionRingOpacity
         }
 
-        Basic.Button {
+        Button {
             visible: dot.isAddButton
             anchors.centerIn: parent
             width: colorDotSize
@@ -273,7 +272,7 @@ Rectangle {
         }
     }
 
-    component StyleButton: Basic.Button {
+    component StyleButton: Button {
         id: btn
         property bool isActive: false
         property string iconSource: ""
@@ -296,7 +295,7 @@ Rectangle {
             border.color: btn.isActive ? AppTheme.primary : "transparent"
         }
 
-        Basic.ToolTip {
+        ToolTip {
             visible: btn.hovered
             text: btn.tooltip
             delay: tooltipDelay
@@ -323,7 +322,7 @@ Rectangle {
             horizontalAlignment: Text.AlignRight
         }
 
-        Basic.Slider {
+        Slider {
             id: sliderControl
             Layout.preferredWidth: sliderControlWidth
             from: fromValue
@@ -369,7 +368,7 @@ Rectangle {
         }
     }
 
-    component MosaicTypeComboBox: Basic.ComboBox {
+    component MosaicTypeComboBox: ComboBox {
         id: combo
         property string selectedType: "mosaic"
         signal typePicked(string type)
@@ -429,7 +428,7 @@ Rectangle {
             rightPadding: contentItemRightPadding
         }
 
-        indicator: Basic.Button {
+        indicator: Button {
             x: combo.width - width - comboBoxIndicatorPadding
             y: (combo.height - height) / 2
             width: AppTheme.iconSizeLarge
