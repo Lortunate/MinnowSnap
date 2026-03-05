@@ -27,26 +27,6 @@ impl CaptureService {
         }
     }
 
-    fn play_shutter_sound() {
-        crate::core::RUNTIME.spawn_blocking(|| {
-            let sound_data = include_bytes!("../../../resources/raw/capture.mp3");
-            let cursor = std::io::Cursor::new(&sound_data[..]);
-            match rodio::OutputStreamBuilder::open_default_stream() {
-                Ok(stream_handle) => {
-                    let sink = rodio::Sink::connect_new(stream_handle.mixer());
-                    match rodio::Decoder::new(cursor) {
-                        Ok(source) => {
-                            sink.append(source);
-                            sink.sleep_until_end();
-                        }
-                        Err(e) => log::error!("Failed to decode audio stream: {}", e),
-                    }
-                }
-                Err(e) => log::error!("Failed to open default audio stream: {}", e),
-            }
-        });
-    }
-
     pub fn capture_screen() -> bool {
         if let Some(image) = capture_primary_monitor() {
             update_last_capture(image);
@@ -101,7 +81,7 @@ impl CaptureService {
         let img = Self::resolve_and_crop(path, x, y, width, height).ok_or_else(|| "Failed to resolve or crop image for clipboard".to_string())?;
 
         if copy_image_to_clipboard(&img) {
-            Self::play_shutter_sound();
+            crate::core::notify::play_shutter();
             Ok(())
         } else {
             Err("Failed to copy image to clipboard".to_string())
@@ -115,14 +95,14 @@ impl CaptureService {
 
         let result = save_image_to_user_dir(&img, settings.output.oxipng_enabled, settings.output.save_path);
         if result.is_some() {
-            Self::play_shutter_sound();
+            crate::core::notify::play_shutter();
         }
         result.ok_or_else(|| "Failed to save image to disk".to_string())
     }
 
     pub fn run_quick_capture_workflow(x: i32, y: i32, width: i32, height: i32) -> Option<(String, Option<String>)> {
         let image = Self::capture_region(x, y, width, height)?;
-        Self::play_shutter_sound();
+        crate::core::notify::play_shutter();
         let temp_path = Self::save_temp(&image)?;
 
         let mut final_save_path = None;
