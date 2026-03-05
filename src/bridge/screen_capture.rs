@@ -82,6 +82,10 @@ pub mod qobject {
         #[cxx_name = "decrementPinCount"]
         fn decrement_pin_count(self: Pin<&mut Self>);
 
+        #[qinvokable]
+        #[cxx_name = "detectQrcode"]
+        fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString;
+
         #[qsignal]
         #[cxx_name = "screenCaptureShortcutTriggered"]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
@@ -132,7 +136,7 @@ use crate::core::settings::{SETTINGS, ShortcutSettings};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use image::RgbaImage;
+use image::{RgbaImage, DynamicImage};
 use log::{error, info};
 #[cfg(not(target_os = "windows"))]
 use notify_rust::Notification;
@@ -491,6 +495,27 @@ impl qobject::ScreenCapture {
         if count > 0 {
             self.as_mut().set_pin_count(count - 1);
         }
+    }
+
+    pub fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
+        let path_str = self.rust().resolve_path(&path);
+
+        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
+            let gray = DynamicImage::ImageRgba8(cropped).to_luma8();
+            let (w, h) = gray.dimensions();
+
+            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| {
+                gray.get_pixel(x as u32, y as u32)[0]
+            });
+
+            let grids = img.detect_grids();
+            if let Some(grid) = grids.first() {
+                if let Ok((_meta, content)) = grid.decode() {
+                    return QString::from(&content);
+                }
+            }
+        }
+        QString::from("")
     }
 }
 
