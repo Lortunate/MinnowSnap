@@ -82,6 +82,7 @@ pub struct NotificationSettings {
     pub enabled: bool,
     pub save_notification: bool,
     pub copy_notification: bool,
+    pub qr_code_notification: bool,
     pub shutter_sound: bool,
 }
 
@@ -91,6 +92,7 @@ impl Default for NotificationSettings {
             enabled: true,
             save_notification: true,
             copy_notification: true,
+            qr_code_notification: true,
             shutter_sound: true,
         }
     }
@@ -210,6 +212,10 @@ impl SettingsManager {
 
     pub fn set_copy_notification(&mut self, enabled: bool) {
         self.update(|c| c.notification.copy_notification = enabled);
+    }
+
+    pub fn set_qr_code_notification(&mut self, enabled: bool) {
+        self.update(|c| c.notification.qr_code_notification = enabled);
     }
 
     pub fn set_shutter_sound(&mut self, enabled: bool) {

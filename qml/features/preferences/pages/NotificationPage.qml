@@ -62,6 +62,18 @@ Item {
                             onCheckedChanged: Config.updateCopyNotification(checked)
                         }
                     }
+
+                    Divider {}
+
+                    SettingItem {
+                        title: qsTr("QR Code Notification")
+                        description: qsTr("Show notification when QR code is recognized.")
+
+                        control: StyledSwitch {
+                            checked: Config.qrCodeNotification
+                            onCheckedChanged: Config.updateQrCodeNotification(checked)
+                        }
+                    }
                 }
             }
 

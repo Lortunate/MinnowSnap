@@ -43,6 +43,10 @@ pub mod qobject {
         fn copy_text(self: Pin<&mut Self>, text: QString);
 
         #[qinvokable]
+        #[cxx_name = "copyQrcodeResult"]
+        fn copy_qrcode_result(self: Pin<&mut Self>, text: QString);
+
+        #[qinvokable]
         #[cxx_name = "saveImage"]
         fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList;
 
@@ -349,6 +353,46 @@ impl qobject::ScreenCapture {
         });
     }
 
+    pub fn copy_qrcode_result(self: Pin<&mut Self>, text: QString) {
+        let text_str = text.to_string();
+        let qt_thread = self.qt_thread();
+
+        spawn_thread(move || {
+            if crate::core::io::clipboard::copy_text_to_clipboard(text_str) {
+                qt_thread
+                    .queue(|_qobject| {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
+                        let msg = crate::bridge::app::tr("ScreenCapture", "QR Code content copied to clipboard");
+                        crate::core::notify::show(&title.to_string(), &msg.to_string(), NotificationType::QrCode);
+                    })
+                    .ok();
+            } else {
+                error!("Failed to copy QR code text to clipboard");
+            }
+        });
+    }
+
+    pub fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
+        let path_str = self.rust().resolve_path(&path);
+
+        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
+            let gray = DynamicImage::ImageRgba8(cropped).to_luma8();
+            let (w, h) = gray.dimensions();
+
+            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| {
+                gray.get_pixel(x as u32, y as u32)[0]
+            });
+
+            let grids = img.detect_grids();
+            if let Some(grid) = grids.first() {
+                if let Ok((_meta, content)) = grid.decode() {
+                    return QString::from(&content);
+                }
+            }
+        }
+        QString::from("")
+    }
+
     pub fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList {
         let path_str = self.rust().resolve_path(&path);
         let qt_thread = self.qt_thread();
@@ -470,27 +514,6 @@ impl qobject::ScreenCapture {
         if count > 0 {
             self.as_mut().set_pin_count(count - 1);
         }
-    }
-
-    pub fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
-        let path_str = self.rust().resolve_path(&path);
-
-        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
-            let gray = DynamicImage::ImageRgba8(cropped).to_luma8();
-            let (w, h) = gray.dimensions();
-
-            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| {
-                gray.get_pixel(x as u32, y as u32)[0]
-            });
-
-            let grids = img.detect_grids();
-            if let Some(grid) = grids.first() {
-                if let Ok((_meta, content)) = grid.decode() {
-                    return QString::from(&content);
-                }
-            }
-        }
-        QString::from("")
     }
 }
 

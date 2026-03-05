@@ -241,6 +241,14 @@
         <translation>内容复制到剪贴板时显示通知。</translation>
     </message>
     <message>
+        <source>QR Code Notification</source>
+        <translation>二维码通知</translation>
+    </message>
+    <message>
+        <source>Show notification when QR code is recognized.</source>
+        <translation>识别二维码成功时显示通知。</translation>
+    </message>
+    <message>
         <source>Shutter Sound</source>
         <translation>快门音效</translation>
     </message>
@@ -315,7 +323,15 @@
     </message>
     <message>
         <source>Image copied to clipboard</source>
-        <translation type="vanished">图片已复制到剪贴板</translation>
+        <translation>图片已复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>Text copied to clipboard</source>
+        <translation>文本已复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>QR Code content copied to clipboard</source>
+        <translation>二维码内容已复制到剪贴板</translation>
     </message>
     <message>
         <source>Saved</source>

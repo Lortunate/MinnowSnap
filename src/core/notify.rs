@@ -11,6 +11,7 @@ use tauri_winrt_notification::{IconCrop, Toast};
 pub enum NotificationType {
     Save,
     Copy,
+    QrCode,
     Info,
 }
 
@@ -56,6 +57,7 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
     match type_ {
         NotificationType::Copy if !settings.notification.copy_notification => return,
         NotificationType::Save if !settings.notification.save_notification => return,
+        NotificationType::QrCode if !settings.notification.qr_code_notification => return,
         _ => {}
     }
 
