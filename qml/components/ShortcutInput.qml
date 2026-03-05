@@ -29,12 +29,16 @@ Rectangle {
         if (!isRecording)
             return;
 
-        var result = helper.getKeySequence(event.key, event.modifiers, event.text);
-
-        if (result === "DELETE_Request") {
+        if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
             root.isRecording = false;
             root.committed("");
-        } else if (result !== "") {
+            event.accepted = true;
+            return;
+        }
+
+        const result = helper.getKeySequence(event.key, event.modifiers);
+
+        if (result !== "") {
             root.isRecording = false;
             root.committed(result);
         }
