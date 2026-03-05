@@ -65,6 +65,15 @@ Window {
             return;
         }
 
+        if (action === "qrcode") {
+            let text = screenCapture.detectQrcode(overlayWindow.backgroundImageSource, currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
+            if (text !== "") {
+                screenCapture.copyText(text);
+                cancelCapture();
+            }
+            return;
+        }
+
         captureCompositor.capture(currentSelection, action);
     }
 
