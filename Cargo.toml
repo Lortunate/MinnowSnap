@@ -78,6 +78,7 @@ ocr = { path = "plugins/ocr" }
 tokio = { workspace = true }
 once_cell = { workspace = true }
 rdev = { workspace = true }
+rqrr = "0.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { workspace = true }

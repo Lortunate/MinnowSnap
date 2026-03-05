@@ -83,6 +83,13 @@ Rectangle {
                 "visible": Config.enableOcr
             },
             {
+                "icon": "qrc:/resources/icons/crop_free.svg",
+                "text": qsTr("QR Code"),
+                "action": "qrcode",
+                "isTool": false,
+                "hoverColor": AppTheme.primary
+            },
+            {
                 "icon": "qrc:/resources/icons/scroll.svg",
                 "text": qsTr("Scroll"),
                 "action": "scroll",

@@ -38,6 +38,11 @@ pub mod qobject {
         #[qproperty(bool, oxipng_enabled, cxx_name = "oxipngEnabled")]
         #[qproperty(bool, auto_start, cxx_name = "autoStart")]
         #[qproperty(bool, enable_ocr, cxx_name = "enableOcr")]
+        #[qproperty(bool, notification_enabled, cxx_name = "notificationEnabled")]
+        #[qproperty(bool, save_notification, cxx_name = "saveNotification")]
+        #[qproperty(bool, copy_notification, cxx_name = "copyNotification")]
+        #[qproperty(bool, qr_code_notification, cxx_name = "qrCodeNotification")]
+        #[qproperty(bool, shutter_sound, cxx_name = "shutterSound")]
         #[qproperty(QString, save_path, cxx_name = "savePath")]
         #[qproperty(QString, font_family, cxx_name = "fontFamily")]
         #[qproperty(QString, theme)]
@@ -66,6 +71,26 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "updateEnableOcr"]
         fn update_enable_ocr(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateNotificationEnabled"]
+        fn update_notification_enabled(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateSaveNotification"]
+        fn update_save_notification(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateCopyNotification"]
+        fn update_copy_notification(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateQrCodeNotification"]
+        fn update_qr_code_notification(self: Pin<&mut Self>, enabled: bool);
+
+        #[qinvokable]
+        #[cxx_name = "updateShutterSound"]
+        fn update_shutter_sound(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
         #[cxx_name = "updateSavePath"]
@@ -105,6 +130,11 @@ pub struct ConfigRust {
     oxipng_enabled: bool,
     auto_start: bool,
     enable_ocr: bool,
+    notification_enabled: bool,
+    save_notification: bool,
+    copy_notification: bool,
+    qr_code_notification: bool,
+    shutter_sound: bool,
     save_path: QString,
     font_family: QString,
     theme: QString,
@@ -127,6 +157,11 @@ impl ConfigRust {
             oxipng_enabled: settings.output.oxipng_enabled,
             auto_start: settings.general.auto_start,
             enable_ocr: settings.ocr.enabled,
+            notification_enabled: settings.notification.enabled,
+            save_notification: settings.notification.save_notification,
+            copy_notification: settings.notification.copy_notification,
+            qr_code_notification: settings.notification.qr_code_notification,
+            shutter_sound: settings.notification.shutter_sound,
             save_path: QString::from(settings.output.save_path.as_deref().unwrap_or("")),
             font_family: QString::from(settings.general.font_family.as_deref().unwrap_or("")),
             theme: QString::from(&settings.general.theme),
@@ -144,6 +179,11 @@ impl qobject::Config {
         self.as_mut().set_oxipng_enabled(settings.output.oxipng_enabled);
         self.as_mut().set_auto_start(settings.general.auto_start);
         self.as_mut().set_enable_ocr(settings.ocr.enabled);
+        self.as_mut().set_notification_enabled(settings.notification.enabled);
+        self.as_mut().set_save_notification(settings.notification.save_notification);
+        self.as_mut().set_copy_notification(settings.notification.copy_notification);
+        self.as_mut().set_qr_code_notification(settings.notification.qr_code_notification);
+        self.as_mut().set_shutter_sound(settings.notification.shutter_sound);
         self.as_mut().set_theme(QString::from(&settings.general.theme));
         self.as_mut().set_language(QString::from(&settings.general.language));
         self.as_mut().set_version(QString::from(env!("CARGO_PKG_VERSION")));
@@ -173,6 +213,26 @@ impl qobject::Config {
 
     pub fn update_enable_ocr(mut self: Pin<&mut Self>, enabled: bool) {
         update_prop!(self, enabled, enable_ocr, set_enable_ocr, set_ocr_enabled, bool);
+    }
+
+    pub fn update_notification_enabled(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, notification_enabled, set_notification_enabled, set_notification_enabled, bool);
+    }
+
+    pub fn update_save_notification(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, save_notification, set_save_notification, set_save_notification, bool);
+    }
+
+    pub fn update_copy_notification(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, copy_notification, set_copy_notification, set_copy_notification, bool);
+    }
+
+    pub fn update_qr_code_notification(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, qr_code_notification, set_qr_code_notification, set_qr_code_notification, bool);
+    }
+
+    pub fn update_shutter_sound(mut self: Pin<&mut Self>, enabled: bool) {
+        update_prop!(self, enabled, shutter_sound, set_shutter_sound, set_shutter_sound, bool);
     }
 
     pub fn update_save_path(mut self: Pin<&mut Self>, path: QString) {

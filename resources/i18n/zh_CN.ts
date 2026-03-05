@@ -215,6 +215,49 @@
     </message>
 </context>
 <context>
+    <name>NotificationPage</name>
+    <message>
+        <source>Enable Notifications</source>
+        <translation>启用通知</translation>
+    </message>
+    <message>
+        <source>Show system notifications for all actions.</source>
+        <translation>显示所有操作的系统通知。</translation>
+    </message>
+    <message>
+        <source>Save Notification</source>
+        <translation>保存通知</translation>
+    </message>
+    <message>
+        <source>Show notification when image is saved.</source>
+        <translation>保存图片时显示通知。</translation>
+    </message>
+    <message>
+        <source>Copy Notification</source>
+        <translation>复制通知</translation>
+    </message>
+    <message>
+        <source>Show notification when content is copied to clipboard.</source>
+        <translation>内容复制到剪贴板时显示通知。</translation>
+    </message>
+    <message>
+        <source>QR Code Notification</source>
+        <translation>二维码通知</translation>
+    </message>
+    <message>
+        <source>Show notification when QR code is recognized.</source>
+        <translation>识别二维码成功时显示通知。</translation>
+    </message>
+    <message>
+        <source>Shutter Sound</source>
+        <translation>快门音效</translation>
+    </message>
+    <message>
+        <source>Play a sound effect when capturing.</source>
+        <translation>截图时播放音效。</translation>
+    </message>
+</context>
+<context>
     <name>PinWindow</name>
     <message>
         <location filename="../../qml/features/pin/PinWindow.qml" line="120"/>
@@ -255,6 +298,10 @@
         <translation>快捷键</translation>
     </message>
     <message>
+        <source>Notifications</source>
+        <translation>通知</translation>
+    </message>
+    <message>
         <location filename="../../qml/features/preferences/PreferencesWindow.qml" line="68"/>
         <source>About</source>
         <translation>关于</translation>
@@ -276,7 +323,15 @@
     </message>
     <message>
         <source>Image copied to clipboard</source>
-        <translation type="vanished">图片已复制到剪贴板</translation>
+        <translation>图片已复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>Text copied to clipboard</source>
+        <translation>文本已复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>QR Code content copied to clipboard</source>
+        <translation>二维码内容已复制到剪贴板</translation>
     </message>
     <message>
         <source>Saved</source>

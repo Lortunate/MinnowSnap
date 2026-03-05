@@ -76,6 +76,28 @@ impl Default for OcrSettings {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct NotificationSettings {
+    pub enabled: bool,
+    pub save_notification: bool,
+    pub copy_notification: bool,
+    pub qr_code_notification: bool,
+    pub shutter_sound: bool,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            save_notification: true,
+            copy_notification: true,
+            qr_code_notification: true,
+            shutter_sound: true,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppSettings {
@@ -83,6 +105,7 @@ pub struct AppSettings {
     pub shortcuts: ShortcutSettings,
     pub output: OutputSettings,
     pub ocr: OcrSettings,
+    pub notification: NotificationSettings,
 }
 
 pub struct SettingsManager {
@@ -177,6 +200,26 @@ impl SettingsManager {
 
     pub fn set_ocr_enabled(&mut self, enabled: bool) {
         self.update(|c| c.ocr.enabled = enabled);
+    }
+
+    pub fn set_notification_enabled(&mut self, enabled: bool) {
+        self.update(|c| c.notification.enabled = enabled);
+    }
+
+    pub fn set_save_notification(&mut self, enabled: bool) {
+        self.update(|c| c.notification.save_notification = enabled);
+    }
+
+    pub fn set_copy_notification(&mut self, enabled: bool) {
+        self.update(|c| c.notification.copy_notification = enabled);
+    }
+
+    pub fn set_qr_code_notification(&mut self, enabled: bool) {
+        self.update(|c| c.notification.qr_code_notification = enabled);
+    }
+
+    pub fn set_shutter_sound(&mut self, enabled: bool) {
+        self.update(|c| c.notification.shutter_sound = enabled);
     }
 
     fn save(&self) {
