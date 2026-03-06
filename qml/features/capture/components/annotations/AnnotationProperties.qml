@@ -352,7 +352,7 @@ Rectangle {
                 implicitWidth: sliderHandleSize
                 implicitHeight: sliderHandleSize
                 radius: sliderHandleRadius
-                color: "white"
+                color: AppTheme.handleFill
 
                 Rectangle {
                     anchors.fill: parent

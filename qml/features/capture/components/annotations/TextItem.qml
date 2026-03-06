@@ -44,9 +44,9 @@ AnnotationBase {
 
     Rectangle {
         anchors.fill: parent
-        border.color: root.selected ? AppTheme.primary : (root.hasStroke && !root.hasOutline && !root.editing ? "white" : "transparent")
+        border.color: root.selected ? AppTheme.primary : (root.hasStroke && !root.hasOutline && !root.editing ? AppTheme.handleFill : "transparent")
         border.width: root.selected || (root.hasStroke && !root.hasOutline) ? 1 : 0
-        color: root.editing ? "#80000000" : (!root.hasOutline ? root.color : "transparent")
+        color: root.editing ? AppTheme.selectionMask : (!root.hasOutline ? root.color : "transparent")
         radius: AppTheme.radiusSmall
 
         Canvas {

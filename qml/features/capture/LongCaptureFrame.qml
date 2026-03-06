@@ -5,10 +5,8 @@ import com.lortunate.minnow
 Window {
     id: root
 
-    // Mask Color
-    readonly property color maskColor: "#80000000" // Semi-transparent black
+    readonly property color maskColor: AppTheme.overlayMask
 
-    // Padding to ensure visual elements are not captured
     readonly property int padding: 4
     property int selectionHeight: 0
     property int selectionWidth: 0
@@ -22,16 +20,13 @@ Window {
 
     color: "transparent"
 
-    // Make the window purely visual and pass all input to windows below
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput | Qt.Tool
     height: Screen.height
     width: Screen.width
 
-    // Full screen to provide dim mask
     x: Screen.virtualX
     y: Screen.virtualY
 
-    // Top Mask
     Rectangle {
         color: maskColor
         height: selectionY - padding
@@ -39,7 +34,6 @@ Window {
         x: 0
         y: 0
     }
-    // Bottom Mask
     Rectangle {
         color: maskColor
         height: parent.height - (selectionY + selectionHeight + padding)
@@ -47,7 +41,6 @@ Window {
         x: 0
         y: selectionY + selectionHeight + padding
     }
-    // Left Mask
     Rectangle {
         color: maskColor
         height: selectionHeight + (padding * 2)
@@ -55,7 +48,6 @@ Window {
         x: 0
         y: selectionY - padding
     }
-    // Right Mask
     Rectangle {
         color: maskColor
         height: selectionHeight + (padding * 2)
@@ -64,8 +56,6 @@ Window {
         y: selectionY - padding
     }
 
-    // Border Frame (Visual Feedback)
-    // Draw border in the padded area (outside selection)
     Rectangle {
         id: borderRect
 
@@ -96,7 +86,6 @@ Window {
             }
         }
 
-        // Success Flash
         Rectangle {
             id: successFlash
 
@@ -117,7 +106,6 @@ Window {
             }
         }
 
-        // Warning Bubble
         Rectangle {
             anchors.bottom: parent.top
             anchors.bottomMargin: 12

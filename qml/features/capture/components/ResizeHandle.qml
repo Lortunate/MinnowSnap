@@ -61,7 +61,7 @@ MouseArea {
         width: 12
         height: 12
         radius: 6
-        color: "#FFFFFF"
+        color: AppTheme.handleFill
         border.color: root.overlayWindow ? root.overlayWindow.selectionColor : AppTheme.primary
         border.width: 1.5
 
@@ -81,7 +81,7 @@ MouseArea {
 
         layer.enabled: root.pressed
         layer.effect: MultiEffect {
-            shadowColor: Qt.rgba(0, 0, 0, 0.3)
+            shadowColor: AppTheme.handleShadow
             shadowHorizontalOffset: 0
             shadowVerticalOffset: 2
             shadowBlur: 4

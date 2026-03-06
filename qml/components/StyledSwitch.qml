@@ -15,8 +15,8 @@ Switch {
         x: control.leftPadding
         y: parent.height / 2 - height / 2
         radius: height / 2
-        color: control.checked ? AppTheme.primary : (AppTheme.isDark ? "#3A3A3C" : "#E5E5EA")
-        border.color: control.checked ? AppTheme.primary : (AppTheme.isDark ? "#505050" : "#D1D1D6")
+        color: control.checked ? AppTheme.primary : AppTheme.switchTrackOff
+        border.color: control.checked ? AppTheme.primary : AppTheme.switchBorderOff
         border.width: 1
 
         Behavior on color {
