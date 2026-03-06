@@ -30,7 +30,6 @@ Window {
         contextMenu.requestActivate();
     }
 
-    // Background & Shadow
     Rectangle {
         anchors.fill: parent
         color: AppTheme.surface
@@ -42,12 +41,11 @@ Window {
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowBlur: 8
-            shadowColor: "#000000"
-            shadowOpacity: 0.2
+            shadowColor: AppTheme.contextMenuShadow
+            shadowOpacity: 1.0
         }
     }
 
-    // Menu Items
     Column {
         id: menuColumn
         width: parent.width
@@ -99,7 +97,6 @@ Window {
                     }
                 }
 
-                // Divider
                 Item {
                     width: parent.width
                     height: AppTheme.spacingSmall

@@ -132,7 +132,7 @@ Window {
         anchors.fill: contentItem
         source: contentItem
         shadowEnabled: true
-        shadowColor: "#000000"
+        shadowColor: AppTheme.shadowColor
         shadowOpacity: 0.5
         shadowBlur: 1.0
         shadowVerticalOffset: 4

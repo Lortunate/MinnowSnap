@@ -28,7 +28,6 @@ Rectangle {
     radius: AppTheme.radiusLarge
     width: 200
 
-    // Shadow
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 2
@@ -39,25 +38,22 @@ Rectangle {
     }
     MouseArea {
         anchors.fill: parent
-    } // Block click-through
+    }
 
     Column {
         anchors.centerIn: parent
         spacing: 12
 
-        // Saturation-Value Box
         Item {
             height: 110
             width: 180
 
-            // Base Hue
             Rectangle {
                 anchors.fill: parent
                 color: Qt.hsva(root.hue, 1, 1, 1)
                 radius: 4
             }
 
-            // Saturation Gradient
             Rectangle {
                 anchors.fill: parent
                 radius: 4
@@ -76,7 +72,6 @@ Rectangle {
                 }
             }
 
-            // Value Gradient
             Rectangle {
                 anchors.fill: parent
                 radius: AppTheme.radiusSmall
@@ -95,9 +90,8 @@ Rectangle {
                 }
             }
 
-            // Handle
             Rectangle {
-                border.color: "white"
+                border.color: AppTheme.handleFill
                 border.width: 1
                 color: "transparent"
                 height: 12
@@ -108,7 +102,7 @@ Rectangle {
 
                 Rectangle {
                     anchors.centerIn: parent
-                    border.color: "black"
+                    border.color: AppTheme.handleInner
                     border.width: 1
                     color: "transparent"
                     height: 10
@@ -129,7 +123,6 @@ Rectangle {
             }
         }
 
-        // Hue Slider
         Item {
             height: 10
             width: 180
@@ -172,15 +165,13 @@ Rectangle {
                 }
             }
 
-            // Handle
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
-                border.color: "white"
+                border.color: AppTheme.handleFill
                 border.width: 2
                 color: Qt.hsva(root.hue, 1, 1, 1)
                 height: 14
 
-                // Shadow
                 layer.enabled: true
                 radius: 7
                 width: 14
@@ -198,12 +189,10 @@ Rectangle {
             }
         }
 
-        // Actions
         RowLayout {
             spacing: 8
             width: 180
 
-            // Preview
             Rectangle {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: 24
@@ -216,7 +205,6 @@ Rectangle {
                 Layout.fillWidth: true
             }
 
-            // Cancel Button
             Rectangle {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: 50
@@ -240,7 +228,6 @@ Rectangle {
                 }
             }
 
-            // Confirm Button
             Rectangle {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: 50
@@ -249,7 +236,7 @@ Rectangle {
 
                 Text {
                     anchors.centerIn: parent
-                    color: "white"
+                    color: AppTheme.primaryText
                     font.bold: true
                     font.pixelSize: 11
                     text: qsTr("OK")

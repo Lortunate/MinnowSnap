@@ -5,7 +5,7 @@ Item {
     property int activeW: 0
     property int activeX: 0
     property int activeY: 0
-    property color maskColor: "#66000000"
+    property color maskColor: AppTheme.selectionMask
 
     Rectangle {
         color: parent.maskColor

@@ -247,7 +247,7 @@ Item {
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowBlur: 12
-            shadowColor: "#50000000"
+            shadowColor: AppTheme.shadowHeavy
             shadowVerticalOffset: 4
             shadowHorizontalOffset: 0
         }
@@ -263,7 +263,7 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: "#1a1a1a"
+                    color: AppTheme.checkerboardDark
                 }
 
                 Image {
@@ -285,7 +285,7 @@ Item {
                     Rectangle {
                         width: 1
                         height: parent.height
-                        color: "#30606060"
+                        color: AppTheme.gridLine
                         x: Math.floor((parent.width - root.zoomLevel) / 2) + (index - 17) * root.zoomLevel
                     }
                 }
@@ -294,7 +294,7 @@ Item {
                     Rectangle {
                         height: 1
                         width: parent.width
-                        color: "#30606060"
+                        color: AppTheme.gridLine
                         y: Math.floor((parent.height - root.zoomLevel) / 2) + (index - 17) * root.zoomLevel
                     }
                 }
@@ -312,7 +312,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: -1
                         color: "transparent"
-                        border.color: "#50000000"
+                        border.color: AppTheme.shadowHeavy
                         border.width: 1
                         z: -1
                     }

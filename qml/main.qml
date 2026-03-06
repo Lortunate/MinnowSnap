@@ -34,7 +34,6 @@ ApplicationWindow {
             item.requestActivate();
         }
 
-        // Unload the window when closed to reset state
         Connections {
             function onVisibleChanged() {
                 if (!preferencesLoader.item.visible) {
@@ -126,12 +125,10 @@ ApplicationWindow {
 
     SystemTrayIcon {
         id: trayIcon
-
-        icon.mask: true
-        icon.source: "qrc:/resources/tray.svg"
+        icon.mask: Qt.platform.os === "osx"
+        icon.source: Qt.platform.os === "osx" ? "qrc:/resources/tray_black.svg" : (AppTheme.systemIsDark ? "qrc:/resources/tray_white.svg" : "qrc:/resources/tray_black.svg")
         tooltip: qsTr("MinnowSnap - Screen Capture Tool")
         visible: true
-
         menu: Qt.platform.os === "osx" ? nativeMenu : null
 
         onActivated: function (reason) {
