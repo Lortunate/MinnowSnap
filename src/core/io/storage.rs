@@ -1,10 +1,10 @@
 use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, ImageEncoder, RgbaImage};
-use log::{error, info};
 use std::fs;
 use std::io::BufWriter;
 use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tracing::{error, info};
 
 #[must_use]
 pub fn get_default_save_path() -> String {

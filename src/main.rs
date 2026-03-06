@@ -9,11 +9,11 @@ use crate::core::app::{QML_MAIN, ensure_single_instance, get_instance_id, init_l
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
-#[cfg(target_os = "macos")]
-use log::error;
-use log::info;
 use mimalloc::MiMalloc;
 use std::pin::Pin;
+#[cfg(target_os = "macos")]
+use tracing::error;
+use tracing::info;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -58,7 +58,7 @@ impl MinnowApp {
 }
 
 fn main() {
-    init_logger();
+    let _guard = init_logger();
     info!("Starting MinnowSnap...");
 
     if !ensure_single_instance(&get_instance_id()) {
@@ -67,7 +67,7 @@ fn main() {
     }
 
     #[cfg(target_os = "windows")]
-    core::app::init_windows_notification_app_id();
+    core::notify::init_windows_notification_app_id();
 
     #[cfg(target_os = "macos")]
     if let Err(e) = notify_rust::set_application(APP_ID) {

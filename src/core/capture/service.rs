@@ -4,7 +4,7 @@ use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
 use image::RgbaImage;
-use log::{error, info};
+use tracing::{error, info};
 
 pub struct CaptureService;
 

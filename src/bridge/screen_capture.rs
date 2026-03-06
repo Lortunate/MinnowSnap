@@ -140,12 +140,12 @@ use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
 use image::{DynamicImage, RgbaImage};
-use log::{error, info};
 use std::pin::Pin;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
+use tracing::{error, info};
 
 pub struct ScreenCaptureRust {
     hotkey_state: HotkeyState,

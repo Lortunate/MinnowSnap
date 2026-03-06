@@ -1,7 +1,7 @@
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
-use log::{error, info};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use tracing::{error, info};
 
 #[derive(Default)]
 pub struct HotkeyIds {

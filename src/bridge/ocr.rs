@@ -1,10 +1,10 @@
 use crate::core::settings::SETTINGS;
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
-use log::error;
 use ocr::OcrModelType;
 use std::pin::Pin;
 use std::sync::Arc;
+use tracing::error;
 
 #[cxx_qt::bridge]
 mod qobject {

@@ -1,11 +1,21 @@
-use crate::core::app::APP_NAME;
+use crate::core::app::{APP_ID, APP_NAME};
 use crate::core::settings::SETTINGS;
-use log::error;
+use tracing::error;
 
 #[cfg(not(target_os = "windows"))]
 use notify_rust::Notification;
 #[cfg(target_os = "windows")]
 use tauri_winrt_notification::{IconCrop, Toast};
+
+#[cfg(target_os = "windows")]
+use std::{fs, path::PathBuf};
+#[cfg(target_os = "windows")]
+use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
+#[cfg(target_os = "windows")]
+const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
+#[cfg(target_os = "windows")]
+const WINDOWS_TOAST_ICON_BYTES: &[u8] = include_bytes!("../../resources/logo.png");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationType {
@@ -36,12 +46,57 @@ pub fn play_shutter() {
                         player.append(source);
                         player.sleep_until_end();
                     }
-                    Err(e) => log::error!("Failed to decode audio stream: {}", e),
+                    Err(e) => tracing::error!("Failed to decode audio stream: {}", e),
                 }
             }
-            Err(e) => log::error!("Failed to open default audio stream: {}", e),
+            Err(e) => tracing::error!("Failed to open default audio stream: {}", e),
         }
     });
+}
+
+#[cfg(target_os = "windows")]
+fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
+    let path = std::env::temp_dir().join(WINDOWS_TOAST_ICON_FILE);
+    
+    let needs_update = fs::metadata(&path)
+        .map(|m| m.len() != WINDOWS_TOAST_ICON_BYTES.len() as u64)
+        .unwrap_or(true);
+
+    if needs_update {
+        if let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
+            error!("Failed to write toast icon file: {}", e);
+            return None;
+        }
+    }
+    
+    Some(path)
+}
+
+#[cfg(target_os = "windows")]
+pub fn init_windows_notification_app_id() {
+    let key_path = format!(r"Software\Classes\AppUserModelId\{APP_ID}");
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    
+    let Ok((key, _)) = hkcu.create_subkey(&key_path) else {
+        error!("Failed to create AppUserModelId registry key: {}", key_path);
+        return;
+    };
+    
+    if let Err(e) = key.set_value("DisplayName", &APP_NAME) {
+        error!("Failed to set DisplayName for AppUserModelId: {}", e);
+    }
+    if let Err(e) = key.set_value("IconBackgroundColor", &"0") {
+        error!("Failed to set IconBackgroundColor for AppUserModelId: {}", e);
+    }
+
+    if let Some(path) = ensure_windows_toast_icon_file() {
+        let icon_uri = path.to_string_lossy();
+        if let Err(e) = key.set_value("IconUri", &icon_uri.as_ref()) {
+            error!("Failed to set IconUri for AppUserModelId: {}", e);
+        }
+    } else {
+        error!("Failed to prepare toast icon file for IconUri");
+    }
 }
 
 pub fn show(title: &str, message: &str, type_: NotificationType) {
@@ -66,13 +121,13 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
 
     #[cfg(target_os = "windows")]
     {
-        let toast = if let Some(icon_path) = crate::core::app::windows_notification_icon_path() {
-            Toast::new(crate::core::app::APP_ID)
+        let toast = if let Some(icon_path) = ensure_windows_toast_icon_file() {
+            Toast::new(APP_ID)
                 .icon(icon_path.as_path(), IconCrop::Circular, APP_NAME)
                 .title(title)
                 .text1(message)
         } else {
-            Toast::new(crate::core::app::APP_ID).title(title).text1(message)
+            Toast::new(APP_ID).title(title).text1(message)
         };
 
         if let Err(e) = toast.show() {

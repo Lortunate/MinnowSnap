@@ -1,11 +1,11 @@
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
-use log::{error, info};
 use ocr::{OcrContext, OcrModelType};
 use serde::Serialize;
 use std::f64::consts::PI;
 use std::pin::Pin;
 use std::thread;
+use tracing::{error, info};
 
 #[derive(Serialize)]
 struct OcrBlock {

@@ -1,10 +1,10 @@
 use config::{Config, File};
 use directories::ProjectDirs;
-use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
+use tracing::{error, info};
 
 pub static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
 

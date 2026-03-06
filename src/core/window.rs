@@ -1,5 +1,5 @@
-use log::debug;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use xcap::{Monitor, Window};
 
 #[derive(Debug, Clone, Copy)]
