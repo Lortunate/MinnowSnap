@@ -28,13 +28,13 @@ pub fn play_shutter() {
     crate::core::RUNTIME.spawn_blocking(|| {
         let sound_data = include_bytes!("../../resources/raw/capture.mp3");
         let cursor = std::io::Cursor::new(&sound_data[..]);
-        match rodio::OutputStreamBuilder::open_default_stream() {
-            Ok(stream_handle) => {
-                let sink = rodio::Sink::connect_new(stream_handle.mixer());
+        match rodio::DeviceSinkBuilder::open_default_sink() {
+            Ok(handle) => {
+                let player = rodio::Player::connect_new(handle.mixer());
                 match rodio::Decoder::new(cursor) {
                     Ok(source) => {
-                        sink.append(source);
-                        sink.sleep_until_end();
+                        player.append(source);
+                        player.sleep_until_end();
                     }
                     Err(e) => log::error!("Failed to decode audio stream: {}", e),
                 }

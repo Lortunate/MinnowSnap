@@ -9,10 +9,14 @@ pub const PPOCR_MEAN: [f32; 3] = [0.5, 0.5, 0.5];
 pub const PPOCR_STD: [f32; 3] = [0.5, 0.5, 0.5];
 
 pub fn create_onnx_session<P: AsRef<Path>>(model_path: P, threads: usize) -> Result<Session> {
-    Ok(Session::builder()?
-        .with_optimization_level(GraphOptimizationLevel::Level3)?
-        .with_intra_threads(threads)?
-        .commit_from_file(model_path)?)
+    Session::builder()
+        .map_err(|e| anyhow::anyhow!("Failed to create session builder: {}", e))?
+        .with_optimization_level(GraphOptimizationLevel::Level3)
+        .map_err(|e| anyhow::anyhow!("Failed to set optimization level: {}", e))?
+        .with_intra_threads(threads)
+        .map_err(|e| anyhow::anyhow!("Failed to set intra threads: {}", e))?
+        .commit_from_file(model_path)
+        .map_err(|e| anyhow::anyhow!("Failed to commit session from file: {}", e))
 }
 
 #[inline(always)]
