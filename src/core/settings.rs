@@ -144,7 +144,10 @@ impl SettingsManager {
 
         match s {
             Ok(s) => match s.try_deserialize() {
-                Ok(c) => (c, config_path),
+                Ok(c) => {
+                    info!("Config loaded successfully from {:?}", config_path);
+                    (c, config_path)
+                }
                 Err(e) => {
                     error!("Failed to parse config file: {}", e);
                     (AppSettings::default(), config_path)

@@ -2,7 +2,6 @@ use crate::config::OcrConfig;
 use crate::utils::{create_onnx_session, preprocess_batch};
 use anyhow::{Context, Result};
 use image::DynamicImage;
-use log::debug;
 use ndarray::ArrayView2;
 use ort::{inputs, session::Session, value::Value};
 use rayon::prelude::*;
@@ -10,6 +9,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Instant;
+use tracing::{debug, warn};
 
 pub struct Recognizer {
     session: Session,
@@ -69,11 +69,12 @@ impl Recognizer {
 
         let start_decode = Instant::now();
 
+        let batch_stride = time_steps * num_classes;
+
         let results: Vec<(String, f32)> = data
-            .par_chunks(time_steps * num_classes)
+            .par_chunks(batch_stride)
             .map(|batch_data| {
                 let view = ArrayView2::from_shape((time_steps, num_classes), batch_data).expect("Data shape mismatch during decoding");
-
                 Self::ctc_decode(&self.keys, view)
             })
             .collect();
@@ -81,7 +82,7 @@ impl Recognizer {
         debug!("Recognizer decode time: {:?}", start_decode.elapsed());
 
         if results.len() != batch_size {
-            log::warn!("Recognizer output count mismatch: expected {}, got {}", batch_size, results.len());
+            warn!("Recognizer output count mismatch: expected {}, got {}", batch_size, results.len());
         }
 
         Ok(results)
@@ -94,19 +95,18 @@ impl Recognizer {
         let mut last_index = 0;
 
         for row in output.outer_iter() {
-            let (max_idx, max_val) = row
+            let (max_idx, &max_val) = row
                 .iter()
                 .enumerate()
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .unwrap_or((0, &0.0));
 
-            if max_idx > 0
-                && max_idx != last_index
-                && let Some(key) = keys.get(max_idx - 1)
-            {
-                text.push_str(key);
-                confidence_sum += max_val;
-                conf_count += 1;
+            if max_idx > 0 && max_idx != last_index {
+                if let Some(key) = keys.get(max_idx - 1) {
+                    text.push_str(key);
+                    confidence_sum += max_val;
+                    conf_count += 1;
+                }
             }
             last_index = max_idx;
         }

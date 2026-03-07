@@ -51,6 +51,8 @@ winres = "0.1"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication"] }
 rqrr = "0.10"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [dependencies]
 mimalloc = { workspace = true }
@@ -79,8 +81,8 @@ tokio = { workspace = true }
 once_cell = { workspace = true }
 rdev = { workspace = true }
 rqrr = { workspace = true }
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 tracing-appender = "0.2.4"
 tracing-log = "0.2.0"
 

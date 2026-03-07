@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::info;
 use xcap::{Monitor, Window};
 
 #[derive(Debug, Clone, Copy)]
@@ -64,7 +64,7 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
     let windows = Window::all().unwrap_or_default();
     let monitors = Monitor::all().unwrap_or_default();
     let scale_factor = monitors.first().and_then(|m| m.scale_factor().ok()).unwrap_or(1.0);
-    debug!(
+    info!(
         "Fetching window data, total windows found: {}, scale_factor: {}",
         windows.len(),
         scale_factor
@@ -131,7 +131,7 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
         })
         .collect();
 
-    debug!("Filtered visible windows: {}", results.len());
+    info!("Filtered visible windows: {}", results.len());
     results
 }
 

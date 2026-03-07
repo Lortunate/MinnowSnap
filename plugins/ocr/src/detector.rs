@@ -3,10 +3,10 @@ use crate::utils::{PPOCR_MEAN, PPOCR_STD, create_onnx_session, get_bounding_rect
 use anyhow::Result;
 use image::{DynamicImage, GenericImageView, GrayImage, imageops::FilterType};
 use imageproc::contours::find_contours;
-use log::debug;
 use ort::{inputs, session::Session, value::Value};
 use rayon::prelude::*;
 use std::time::Instant;
+use tracing::debug;
 
 type BoxPoints = Vec<(i32, i32)>;
 

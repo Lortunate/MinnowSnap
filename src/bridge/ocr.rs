@@ -4,7 +4,7 @@ use cxx_qt_lib::QString;
 use ocr::OcrModelType;
 use std::pin::Pin;
 use std::sync::Arc;
-use tracing::error;
+use tracing::{error, info};
 
 #[cxx_qt::bridge]
 mod qobject {
@@ -55,10 +55,12 @@ impl qobject::OcrManager {
     pub fn init(mut self: Pin<&mut Self>) {
         let settings = SETTINGS.lock().unwrap().get();
         self.as_mut().set_enabled(settings.ocr.enabled);
+        info!("OCR Manager initialized. Enabled: {}", settings.ocr.enabled);
         self.check_status();
     }
 
     pub fn set_ocr_enabled_persist(mut self: Pin<&mut Self>, enabled: bool) {
+        info!("Setting OCR enabled to: {}", enabled);
         self.as_mut().set_enabled(enabled);
         SETTINGS.lock().unwrap().set_ocr_enabled(enabled);
         if enabled {
@@ -84,6 +86,7 @@ impl qobject::OcrManager {
         self.as_mut().set_is_downloading(true);
         self.as_mut().set_download_progress(0.0);
         self.as_mut().set_status_message(QString::from("Starting download..."));
+        info!("Starting OCR model download...");
 
         let qt_thread = self.qt_thread();
 
@@ -108,6 +111,7 @@ impl qobject::OcrManager {
                 qobject.as_mut().set_is_downloading(false);
                 match result {
                     Ok(_) => {
+                        info!("OCR model download completed successfully");
                         qobject.as_mut().set_is_model_ready(true);
                         qobject.as_mut().set_download_progress(1.0);
                         qobject.as_mut().set_status_message(QString::from("Download complete"));
