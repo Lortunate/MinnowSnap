@@ -1,7 +1,7 @@
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
-use log::{error, info};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use tracing::{error, info};
 
 #[derive(Default)]
 pub struct HotkeyIds {
@@ -135,18 +135,21 @@ impl HotkeyService {
                 let mut ids = hotkey_ids.lock().unwrap();
                 if is_screen {
                     ids.screen_capture = Some(hotkey.id());
+                    info!("Screen capture hotkey updated to: {new_shortcut}");
                 } else {
                     ids.quick_capture = Some(hotkey.id());
+                    info!("Quick capture hotkey updated to: {new_shortcut}");
                 }
-                info!("Hotkey updated to: {new_shortcut}");
             }
         } else {
             *current_hotkey = None;
             let mut ids = hotkey_ids.lock().unwrap();
             if is_screen {
                 ids.screen_capture = None;
+                info!("Screen capture hotkey cleared");
             } else {
                 ids.quick_capture = None;
+                info!("Quick capture hotkey cleared");
             }
         }
     }

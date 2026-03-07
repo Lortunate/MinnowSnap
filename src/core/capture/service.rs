@@ -4,7 +4,7 @@ use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
 use image::RgbaImage;
-use log::{error, info};
+use tracing::{error, info};
 
 pub struct CaptureService;
 
@@ -28,8 +28,10 @@ impl CaptureService {
     }
 
     pub fn capture_screen() -> bool {
+        info!("Starting screen capture...");
         if let Some(image) = capture_primary_monitor() {
             update_last_capture(image);
+            info!("Screen capture successful");
             true
         } else {
             error!("CaptureService: Failed to capture primary monitor");
@@ -43,6 +45,7 @@ impl CaptureService {
     }
 
     pub fn capture_region(x: i32, y: i32, width: i32, height: i32) -> Option<RgbaImage> {
+        info!("Capturing region: x={}, y={}, w={}, h={}", x, y, width, height);
         let scale_factor = get_primary_monitor_scale();
 
         if width > 0 && height > 0 {

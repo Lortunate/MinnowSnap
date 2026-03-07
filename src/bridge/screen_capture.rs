@@ -140,12 +140,12 @@ use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
 use image::{DynamicImage, RgbaImage};
-use log::{error, info};
 use std::pin::Pin;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
+use tracing::{error, info};
 
 pub struct ScreenCaptureRust {
     hotkey_state: HotkeyState,
@@ -223,8 +223,10 @@ impl ScrollObserver for QtScrollObserver {
 impl qobject::ScreenCapture {
     pub fn prepare_capture(mut self: Pin<&mut Self>) {
         if *self.is_capturing() {
+            info!("Capture already in progress, skipping prepare_capture");
             return;
         }
+        info!("Preparing screen capture...");
         self.as_mut().set_is_capturing(true);
 
         let qt_thread_capture = self.qt_thread();
@@ -260,8 +262,10 @@ impl qobject::ScreenCapture {
 
     pub fn quick_capture(mut self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32) {
         if *self.is_capturing() {
+            info!("Capture already in progress, skipping quick_capture");
             return;
         }
+        info!("Starting quick capture region: {},{} {}x{}", x, y, width, height);
         self.as_mut().set_is_capturing(true);
 
         let qt_thread = self.qt_thread();
@@ -318,6 +322,7 @@ impl qobject::ScreenCapture {
 
     pub fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) {
         let path_str = self.rust().resolve_path(&path);
+        info!("Copying image to clipboard from: {}", path_str);
         let qt_thread = self.qt_thread();
 
         spawn_thread(move || match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
@@ -393,6 +398,7 @@ impl qobject::ScreenCapture {
 
     pub fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList {
         let path_str = self.rust().resolve_path(&path);
+        info!("Saving image from: {}", path_str);
         let qt_thread = self.qt_thread();
 
         spawn_thread(move || match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {

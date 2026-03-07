@@ -3,8 +3,8 @@ pub mod service;
 pub mod stitcher;
 
 use image::RgbaImage;
-use log::{debug, error};
 use std::sync::{LazyLock, Mutex};
+use tracing::{debug, error};
 use xcap::Monitor;
 
 pub static LAST_CAPTURE: LazyLock<Mutex<Option<RgbaImage>>> = LazyLock::new(|| Mutex::new(None));

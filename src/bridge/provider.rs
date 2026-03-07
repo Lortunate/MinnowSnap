@@ -1,7 +1,7 @@
 use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
 use cxx_qt_lib::{QImage, QQmlApplicationEngine, QString};
-use log::info;
 use std::pin::Pin;
+use tracing::info;
 
 #[cxx::bridge]
 mod ffi {

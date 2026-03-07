@@ -1,9 +1,9 @@
 use ab_glyph::FontRef;
 use anyhow::{Context, Result};
-use log::info;
 use ocr::{OcrContext, OcrModelType, visualization};
 use std::env;
 use std::path::Path;
+use tracing::info;
 
 const IMAGE_URL: &str = "https://raw.githubusercontent.com/RapidAI/RapidOCR/main/python/tests/test_files/ch_en_num.jpg";
 const IMAGE_PATH: &str = "./er/test_image.jpg";
@@ -12,7 +12,9 @@ const FONT_PATH: &str = "./er/SimHei.ttf";
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+        .init();
 
     let args: Vec<String> = env::args().collect();
     let model_type = if args.len() > 1 && args[1] == "mobile" {

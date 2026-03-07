@@ -1,7 +1,7 @@
 use arboard::{Clipboard, ImageData};
 use image::RgbaImage;
-use log::{error, info};
 use std::borrow::Cow;
+use tracing::{error, info};
 
 pub fn copy_image_to_clipboard(image: &RgbaImage) -> bool {
     info!("Copying image ({}x{}) to clipboard...", image.width(), image.height());

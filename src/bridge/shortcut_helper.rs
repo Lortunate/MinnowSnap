@@ -1,7 +1,7 @@
 use cxx_qt_lib::QString;
 use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
-use log::{error, info};
 use std::str::FromStr;
+use tracing::{error, info};
 
 #[cxx_qt::bridge]
 pub mod qobject {

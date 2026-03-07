@@ -4,9 +4,9 @@ use crate::recognizer::Recognizer;
 use crate::utils::crop_image_by_box;
 use anyhow::Result;
 use image::DynamicImage;
-use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use tracing::{debug, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OcrResult {

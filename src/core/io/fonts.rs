@@ -1,6 +1,6 @@
-use log::{error, info};
 use std::sync::{LazyLock, Mutex};
 use std::time::Instant;
+use tracing::{error, info};
 
 static FONTS_CACHE: LazyLock<Mutex<Option<Vec<String>>>> = LazyLock::new(|| Mutex::new(None));
 

@@ -1,10 +1,10 @@
 use config::{Config, File};
 use directories::ProjectDirs;
-use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
+use tracing::{error, info};
 
 pub static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
 
@@ -144,7 +144,10 @@ impl SettingsManager {
 
         match s {
             Ok(s) => match s.try_deserialize() {
-                Ok(c) => (c, config_path),
+                Ok(c) => {
+                    info!("Config loaded successfully from {:?}", config_path);
+                    (c, config_path)
+                }
                 Err(e) => {
                     error!("Failed to parse config file: {}", e);
                     (AppSettings::default(), config_path)

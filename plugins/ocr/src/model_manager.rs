@@ -1,10 +1,10 @@
 use crate::config::{APP_DATA_DIR, MODEL_DIR};
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
-use log::info;
 use std::path::{Path, PathBuf};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
+use tracing::info;
 
 pub struct ModelManager {
     save_dir: PathBuf,
@@ -44,7 +44,12 @@ impl ModelManager {
         }
 
         info!("Downloading model from {} to {:?}", url, file_path);
-        self.download_file(url, &file_path, on_progress).await?;
+        if let Err(e) = self.download_file(url, &file_path, on_progress).await {
+            if let Err(remove_err) = fs::remove_file(&file_path).await {
+                tracing::error!("Failed to remove partially downloaded file {:?}: {}", file_path, remove_err);
+            }
+            return Err(e);
+        }
 
         Ok(file_path)
     }

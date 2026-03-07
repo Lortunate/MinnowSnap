@@ -8,6 +8,7 @@ pub mod capture;
 pub mod geometry;
 pub mod hotkey;
 pub mod io;
+pub mod logging;
 pub mod notify;
 pub mod settings;
 pub mod window;
