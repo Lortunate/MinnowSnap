@@ -475,6 +475,7 @@ Window {
 
     CaptureCompositor {
         id: captureCompositor
+        z: -1
 
         annotationLayer: annotationLayer
         lockedSelectionRect: unifiedSelectionRect

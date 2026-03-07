@@ -59,6 +59,10 @@ Item {
                     root.requestHide();
                     root.requestResetState();
                 }
+
+                compositor.width = 0;
+                compositor.height = 0;
+
                 processing = false;
             }, Qt.size(outW, outH));
             return;
@@ -123,7 +127,9 @@ Item {
     Item {
         id: compositor
 
-        visible: true // Must be visible for grabToImage
+        visible: true
+        width: 0
+        height: 0
 
         z: -100
 
