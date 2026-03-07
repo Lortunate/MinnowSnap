@@ -45,7 +45,9 @@ impl ModelManager {
 
         info!("Downloading model from {} to {:?}", url, file_path);
         if let Err(e) = self.download_file(url, &file_path, on_progress).await {
-            let _ = fs::remove_file(&file_path).await;
+            if let Err(remove_err) = fs::remove_file(&file_path).await {
+                tracing::error!("Failed to remove partially downloaded file {:?}: {}", file_path, remove_err);
+            }
             return Err(e);
         }
 
