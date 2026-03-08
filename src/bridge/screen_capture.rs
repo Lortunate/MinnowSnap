@@ -274,14 +274,10 @@ impl qobject::ScreenCapture {
 
             qt_thread
                 .queue(move |mut qobject| {
-                    if let Some((temp_path, saved_path)) = result {
-                        qobject.as_mut().screenshot_captured(QString::from(&temp_path));
-
-                        if let Some(saved) = saved_path {
-                            let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
-                            let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
-                            crate::core::notify::show(&title.to_string(), &msg, NotificationType::Save);
-                        }
+                    if let Some(saved) = result {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
+                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
+                        crate::core::notify::show(&title.to_string(), &msg, NotificationType::Save);
                     }
                     qobject.as_mut().set_is_capturing(false);
                 })

@@ -96,21 +96,26 @@ impl CaptureService {
         result.ok_or_else(|| "Failed to save image to disk".to_string())
     }
 
-    pub fn run_quick_capture_workflow(x: i32, y: i32, width: i32, height: i32) -> Option<(String, Option<String>)> {
+    pub fn run_quick_capture_workflow(x: i32, y: i32, width: i32, height: i32) -> Option<String> {
+        info!("Starting quick capture workflow");
         let image = Self::capture_region(x, y, width, height)?;
         crate::core::notify::play_shutter();
-        let temp_path = Self::save_temp(&image)?;
 
-        let mut final_save_path = None;
-        let settings_guard = SETTINGS.lock().ok()?;
-        let settings = settings_guard.get();
+        let settings = SETTINGS.lock().ok()?.get();
+        let configured_path = settings.output.save_path.clone();
 
-        if let Some(saved) = save_image_to_user_dir(&image, settings.output.oxipng_enabled, settings.output.save_path.clone()) {
-            info!("Quick capture auto-saved to: {}", saved);
-            final_save_path = Some(saved);
+        info!("Retrieved configured save path: {:?}", configured_path);
+
+        match save_image_to_user_dir(&image, settings.output.oxipng_enabled, configured_path) {
+            Some(saved) => {
+                info!("Quick capture auto-saved to: {}", saved);
+                Some(saved)
+            }
+            None => {
+                error!("Failed to save quick capture image");
+                None
+            }
         }
-
-        Some((temp_path, final_save_path))
     }
 
     pub fn generate_temp_path(extension: &str) -> String {
