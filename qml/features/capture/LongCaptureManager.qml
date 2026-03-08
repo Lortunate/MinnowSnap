@@ -39,8 +39,9 @@ Item {
             } else if (pendingScrollAction === "pin") {
                 let component = Qt.createComponent("../pin/PinWindow.qml");
                 if (component.status === Component.Ready) {
+                    let finalPath = PathUtils.toUrl(path);
                     let win = component.createObject(null, {
-                        "imageSource": path,
+                        "imageSource": finalPath,
                         "screenCapture": root.screenCapture,
                         "x": 100,
                         "y": 100

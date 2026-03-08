@@ -11,20 +11,13 @@ Item {
 
     property var screenCapture
 
-    function stripFileProtocol(path) {
-        if (path.startsWith("file://")) {
-            return path.substring(7);
-        }
-        return path;
-    }
-
     FolderDialog {
         id: folderDialog
-        currentFolder: Config.savePath !== "" ? "file://" + Config.savePath : StandardPaths.standardLocations(StandardPaths.PicturesLocation)[0]
+        currentFolder: PathUtils.toUrl(Config.savePath !== "" ? Config.savePath : StandardPaths.standardLocations(StandardPaths.PicturesLocation)[0])
         title: qsTr("Select Save Directory")
 
         onAccepted: {
-            var path = stripFileProtocol(folderDialog.folder.toString());
+            var path = PathUtils.toLocalPath(folderDialog.folder.toString());
             Config.updateSavePath(path);
         }
     }

@@ -71,6 +71,10 @@ pub fn update_resources(qrc_path: &Path, resource_dir: &Path) -> Result<()> {
                     alias: Some("AppTheme.qml".to_string()),
                     path: "qml/AppTheme.qml".to_string(),
                 },
+                ResourceFile {
+                    alias: Some("utils/PathUtils.qml".to_string()),
+                    path: "qml/utils/PathUtils.qml".to_string(),
+                },
             ],
         },
     ];

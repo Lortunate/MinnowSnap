@@ -204,9 +204,8 @@ impl ScrollObserver for QtScrollObserver {
             if let Some(path) = CaptureService::save_temp(&final_img) {
                 self.qt_thread
                     .queue(move |mut qobject| {
-                        let path_val = path.strip_prefix("file://").unwrap_or(&path).to_string();
-                        qobject.as_mut().rust_mut().last_scroll_path = Some(path);
-                        qobject.as_mut().scroll_capture_finished(QString::from(&path_val));
+                        qobject.as_mut().rust_mut().last_scroll_path = Some(path.clone());
+                        qobject.as_mut().scroll_capture_finished(QString::from(&path));
                     })
                     .ok();
             }
@@ -529,6 +528,7 @@ impl ScreenCaptureRust {
         {
             path_str = last.to_string();
         }
-        path_str
+        
+        crate::core::io::storage::clean_url_path(&path_str)
     }
 }

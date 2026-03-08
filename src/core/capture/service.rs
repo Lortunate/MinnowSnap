@@ -17,11 +17,10 @@ impl CaptureService {
             return Some(cached_img.clone());
         }
 
-        let file_path = path_str.strip_prefix("file://").unwrap_or(path_str);
-        match image::open(file_path) {
+        match image::open(path_str) {
             Ok(img) => Some(img.to_rgba8()),
             Err(e) => {
-                error!("Failed to load source image '{file_path}': {e}");
+                error!("Failed to load source image '{path_str}': {e}");
                 None
             }
         }
@@ -71,13 +70,7 @@ impl CaptureService {
     }
 
     pub fn save_temp(image: &RgbaImage) -> Option<String> {
-        save_image_to_unique_temp(image, false).map(|path| {
-            let mut p = path.replace('\\', "/");
-            if cfg!(target_os = "windows") && !p.starts_with('/') {
-                p = format!("/{}", p);
-            }
-            format!("file://{}", p)
-        })
+        save_image_to_unique_temp(image, false).map(|path| path.replace('\\', "/"))
     }
 
     pub fn copy_region_to_clipboard(path: &str, x: i32, y: i32, width: i32, height: i32) -> Result<(), String> {

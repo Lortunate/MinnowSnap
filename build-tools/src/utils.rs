@@ -12,7 +12,8 @@ pub fn collect_qml_files(dir: &Path) -> Vec<String> {
 
             if entry.file_type().is_file() {
                 let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("qml") {
+                let ext = path.extension().and_then(|s| s.to_str());
+                if ext == Some("qml") {
                     let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
                     if file_name != "AppTheme.qml" {
                         files.push(path.to_string_lossy().into_owned());

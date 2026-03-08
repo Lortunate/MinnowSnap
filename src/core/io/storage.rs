@@ -11,7 +11,7 @@ pub fn get_default_save_path() -> String {
     if let Some(mut d) = dirs::picture_dir() {
         d.push("MinnowSnap");
         let path_str = d.to_string_lossy();
-        return format!("file://{path_str}");
+        return path_str.into();
     }
     String::new()
 }

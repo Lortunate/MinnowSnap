@@ -86,7 +86,7 @@ Window {
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
             mipmap: true
             smooth: true
-            source: "image://minnow/scroll?t=" + root.updateCounter
+            source: PathUtils.addTimestamp("image://minnow/scroll", root.updateCounter)
             sourceSize.width: parent.width * Screen.devicePixelRatio
             verticalAlignment: Image.AlignBottom
 

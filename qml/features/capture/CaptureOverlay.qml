@@ -151,7 +151,7 @@ Window {
     Connections {
         function onScreenshotCaptured(path) {
             if (path !== "") {
-                overlayWindow.backgroundImageSource = path + "?t=" + Date.now();
+                overlayWindow.backgroundImageSource = PathUtils.addTimestamp(PathUtils.toUrl(path));
                 overlayWindow.show();
                 overlayWindow.raise();
                 overlayWindow.requestActivate();
@@ -162,7 +162,7 @@ Window {
             controller.updateWindowList(json);
         }
         function onCaptureReady() {
-            overlayWindow.backgroundImageSource = "image://minnow/preview?t=" + Date.now();
+            overlayWindow.backgroundImageSource = PathUtils.addTimestamp("image://minnow/preview");
             overlayWindow.show();
             overlayWindow.raise();
             overlayWindow.requestActivate();

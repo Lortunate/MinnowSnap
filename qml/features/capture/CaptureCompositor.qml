@@ -43,8 +43,7 @@ Item {
             let outW = Math.ceil(selectionRect.width * dpr);
             let outH = Math.ceil(selectionRect.height * dpr);
 
-            let tempPath = screenCapture.generateTempPath("png");
-            let savePath = tempPath.startsWith("file://") ? tempPath.substring(7) : tempPath;
+            let savePath = screenCapture.generateTempPath("png");
 
             compositor.grabToImage(function (result) {
                 if (lockedSelectionRect) {
@@ -53,7 +52,7 @@ Item {
                 }
 
                 if (result.saveToFile(savePath)) {
-                    processResult(action, "file://" + savePath, selectionRect);
+                    processResult(action, savePath, selectionRect);
                 } else {
                     console.error("Failed to save composite image");
                     root.requestHide();
@@ -75,7 +74,6 @@ Item {
         } else if (action === "pin" || action === "ocr") {
             let path = screenCapture.cropImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
             if (path !== "") {
-                // path already contains "file://" from ScreenCapture.cropImage (via CaptureService::save_temp)
                 showPin(path, selectionRect, action === "ocr");
             }
         }
@@ -99,8 +97,10 @@ Item {
         let component = Qt.createComponent("../pin/PinWindow.qml");
         if (component.status === Component.Ready) {
             let shadowMargin = 20;
+            let finalPath = PathUtils.toUrl(path);
+
             let win = component.createObject(null, {
-                "imageSource": path,
+                "imageSource": finalPath,
                 "screenCapture": root.screenCapture,
                 "x": rect.x - shadowMargin,
                 "y": rect.y - shadowMargin,

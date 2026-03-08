@@ -236,12 +236,15 @@ impl qobject::Config {
     }
 
     pub fn update_save_path(mut self: Pin<&mut Self>, path: QString) {
-        if self.save_path() == &path {
+        let path_str = path.to_string();
+        let clean_path = clean_url_path(&path_str);
+        
+        if self.save_path().to_string() == clean_path {
             return;
         }
-        let path_str = clean_url_path(&path.to_string());
-        self.as_mut().set_save_path(path);
-        SETTINGS.lock().unwrap().set_save_path(path_str);
+
+        self.as_mut().set_save_path(QString::from(&clean_path));
+        SETTINGS.lock().unwrap().set_save_path(clean_path);
     }
 
     pub fn update_font_family(mut self: Pin<&mut Self>, family: QString) {

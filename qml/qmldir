@@ -1,2 +1,3 @@
 module com.lortunate.minnow
 singleton AppTheme 1.0 AppTheme.qml
+singleton PathUtils 1.0 utils/PathUtils.qml

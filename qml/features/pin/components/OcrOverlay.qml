@@ -21,7 +21,7 @@ Item {
 
     function recognize() {
         if (sourcePath)
-            ocrModel.recognizeImage(sourcePath);
+            ocrModel.recognizeImage(PathUtils.toLocalPath(sourcePath));
     }
 
     function clearSelection() {

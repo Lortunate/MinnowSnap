@@ -1,8 +1,8 @@
+use crate::core::geometry::normalize_polygon;
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
 use ocr::{OcrContext, OcrModelType};
 use serde::Serialize;
-use std::f64::consts::PI;
 use std::pin::Pin;
 use std::thread;
 use tracing::{error, info};
@@ -63,14 +63,9 @@ impl qobject::OcrViewModel {
 
         thread::spawn(move || {
             let result = (|| -> Result<String, String> {
-                let clean_path = if let Some(stripped) = path_str.strip_prefix("file://") {
-                    stripped
-                } else {
-                    &path_str
-                };
-
+                let clean_path = crate::core::io::storage::clean_url_path(&path_str);
                 info!("Loading image from: {}", clean_path);
-                let image = image::open(clean_path).map_err(|e| e.to_string())?;
+                let image = image::open(&clean_path).map_err(|e| e.to_string())?;
                 let (img_w, img_h) = (image.width() as f64, image.height() as f64);
 
                 let rt = tokio::runtime::Builder::new_current_thread()
@@ -96,70 +91,15 @@ impl qobject::OcrViewModel {
                 let blocks: Vec<OcrBlock> = ocr_results
                     .into_iter()
                     .map(|res| {
-                        let pts = &res.box_points;
-                        if pts.len() != 4 {
-                            let mut min_x = i32::MAX;
-                            let mut min_y = i32::MAX;
-                            let mut max_x = i32::MIN;
-                            let mut max_y = i32::MIN;
-                            for (x, y) in pts {
-                                if *x < min_x {
-                                    min_x = *x;
-                                }
-                                if *x > max_x {
-                                    max_x = *x;
-                                }
-                                if *y < min_y {
-                                    min_y = *y;
-                                }
-                                if *y > max_y {
-                                    max_y = *y;
-                                }
-                            }
-                            let x = min_x as f64;
-                            let y = min_y as f64;
-                            let w = (max_x - min_x) as f64;
-                            let h = (max_y - min_y) as f64;
-
-                            return OcrBlock {
-                                text: res.text,
-                                cx: (x + w / 2.0) / img_w,
-                                cy: (y + h / 2.0) / img_h,
-                                width: w / img_w,
-                                height: h / img_h,
-                                angle: 0.0,
-                                percentage_coordinates: true,
-                            };
-                        }
-
-                        let p0 = (pts[0].0 as f64, pts[0].1 as f64);
-                        let p1 = (pts[1].0 as f64, pts[1].1 as f64);
-                        let p2 = (pts[2].0 as f64, pts[2].1 as f64);
-                        let p3 = (pts[3].0 as f64, pts[3].1 as f64);
-
-                        let w_top = ((p1.0 - p0.0).powi(2) + (p1.1 - p0.1).powi(2)).sqrt();
-                        let w_bot = ((p2.0 - p3.0).powi(2) + (p2.1 - p3.1).powi(2)).sqrt();
-                        let w = (w_top + w_bot) / 2.0;
-
-                        let h_left = ((p3.0 - p0.0).powi(2) + (p3.1 - p0.1).powi(2)).sqrt();
-                        let h_right = ((p2.0 - p1.0).powi(2) + (p2.1 - p1.1).powi(2)).sqrt();
-                        let h = (h_left + h_right) / 2.0;
-
-                        let cx = (p0.0 + p1.0 + p2.0 + p3.0) / 4.0;
-                        let cy = (p0.1 + p1.1 + p2.1 + p3.1) / 4.0;
-
-                        let dx = p1.0 - p0.0;
-                        let dy = p1.1 - p0.1;
-                        let angle_rad = dy.atan2(dx);
-                        let angle_deg = angle_rad * 180.0 / PI;
+                        let rect = normalize_polygon(&res.box_points, img_w, img_h);
 
                         OcrBlock {
                             text: res.text,
-                            cx: cx / img_w,
-                            cy: cy / img_h,
-                            width: w / img_w,
-                            height: h / img_h,
-                            angle: angle_deg,
+                            cx: rect.cx,
+                            cy: rect.cy,
+                            width: rect.width,
+                            height: rect.height,
+                            angle: rect.angle,
                             percentage_coordinates: true,
                         }
                     })
