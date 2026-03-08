@@ -135,16 +135,12 @@ use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
 use crate::core::hotkey::HotkeyService;
-use crate::core::notify::NotificationType;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use image::{DynamicImage, RgbaImage};
+use image::RgbaImage;
 use std::pin::Pin;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use tracing::{error, info};
 
 pub struct ScreenCaptureRust {
@@ -167,13 +163,6 @@ impl Default for ScreenCaptureRust {
     }
 }
 
-fn spawn_thread<F>(f: F)
-where
-    F: FnOnce() + Send + 'static,
-{
-    crate::core::RUNTIME.spawn_blocking(f);
-}
-
 struct QtScrollObserver {
     qt_thread: cxx_qt::CxxQtThread<qobject::ScreenCapture>,
 }
@@ -183,38 +172,30 @@ impl ScrollObserver for QtScrollObserver {
         if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
             *cache = Some(thumbnail);
         }
-        self.qt_thread
-            .queue(move |mut qobject| {
-                qobject.as_mut().scroll_capture_updated(height);
-            })
-            .ok();
+        let _ = self.qt_thread.queue(move |mut qobject| {
+            qobject.as_mut().scroll_capture_updated(height);
+        });
     }
 
     fn on_warning(&self, message: String) {
         let msg = QString::from(&message);
-        self.qt_thread
-            .queue(move |mut qobject| {
-                qobject.as_mut().scroll_capture_warning(msg);
-            })
-            .ok();
+        let _ = self.qt_thread.queue(move |mut qobject| {
+            qobject.as_mut().scroll_capture_warning(msg);
+        });
     }
 
     fn on_finished(&self, final_image: Option<RgbaImage>) {
         if let Some(final_img) = final_image {
             if let Some(path) = CaptureService::save_temp(&final_img) {
-                self.qt_thread
-                    .queue(move |mut qobject| {
-                        qobject.as_mut().rust_mut().last_scroll_path = Some(path.clone());
-                        qobject.as_mut().scroll_capture_finished(QString::from(&path));
-                    })
-                    .ok();
+                let _ = self.qt_thread.queue(move |mut qobject| {
+                    qobject.as_mut().rust_mut().last_scroll_path = Some(path.clone());
+                    qobject.as_mut().scroll_capture_finished(QString::from(&path));
+                });
             }
         } else {
-            self.qt_thread
-                .queue(move |mut qobject| {
-                    qobject.as_mut().scroll_capture_finished(QString::from(""));
-                })
-                .ok();
+            let _ = self.qt_thread.queue(move |mut qobject| {
+                qobject.as_mut().scroll_capture_finished(QString::from(""));
+            });
         }
     }
 }
@@ -228,34 +209,21 @@ impl qobject::ScreenCapture {
         info!("Preparing screen capture...");
         self.as_mut().set_is_capturing(true);
 
-        let qt_thread_capture = self.qt_thread();
-        let qt_thread_windows = self.qt_thread();
-
-        spawn_thread(move || {
-            if CaptureService::capture_screen() {
-                qt_thread_capture
-                    .queue(move |mut qobject| {
-                        qobject.as_mut().capture_ready();
-                        qobject.as_mut().set_is_capturing(false);
-                    })
-                    .ok();
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(|| CaptureService::capture_screen()).await.unwrap_or(false)
+        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, success| {
+            if success {
+                qobject.as_mut().capture_ready();
             } else {
                 error!("Failed to capture screen");
-                qt_thread_capture
-                    .queue(move |mut qobject| {
-                        qobject.as_mut().set_is_capturing(false);
-                    })
-                    .ok();
             }
+            qobject.as_mut().set_is_capturing(false);
         });
 
-        spawn_thread(move || {
-            let json = CaptureService::fetch_windows_json();
-            qt_thread_windows
-                .queue(move |mut qobject| {
-                    qobject.as_mut().window_info_ready(QString::from(&json));
-                })
-                .ok();
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(|| CaptureService::fetch_windows_json()).await.unwrap_or_default()
+        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, json| {
+            qobject.as_mut().window_info_ready(QString::from(&json));
         });
     }
 
@@ -267,21 +235,17 @@ impl qobject::ScreenCapture {
         info!("Starting quick capture region: {},{} {}x{}", x, y, width, height);
         self.as_mut().set_is_capturing(true);
 
-        let qt_thread = self.qt_thread();
-
-        spawn_thread(move || {
-            let result = CaptureService::run_quick_capture_workflow(x, y, width, height);
-
-            qt_thread
-                .queue(move |mut qobject| {
-                    if let Some(saved) = result {
-                        let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
-                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
-                        crate::core::notify::show(&title.to_string(), &msg, NotificationType::Save);
-                    }
-                    qobject.as_mut().set_is_capturing(false);
-                })
-                .ok();
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(move || {
+                CaptureService::run_quick_capture_workflow(x, y, width, height)
+            }).await.unwrap_or(None)
+        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
+            if let Some(saved) = result {
+                let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
+                let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
+                crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+            }
+            qobject.as_mut().set_is_capturing(false);
         });
     }
 
@@ -318,58 +282,26 @@ impl qobject::ScreenCapture {
     pub fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) {
         let path_str = self.rust().resolve_path(&path);
         info!("Copying image to clipboard from: {}", path_str);
-        let qt_thread = self.qt_thread();
 
-        spawn_thread(move || match CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height) {
-            Ok(_) => {
-                qt_thread
-                    .queue(|_qobject| {
-                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                        let msg = crate::bridge::app::tr("ScreenCapture", "Image copied to clipboard");
-                        crate::core::notify::show(&title.to_string(), &msg.to_string(), NotificationType::Copy);
-                    })
-                    .ok();
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(move || {
+                CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height)
+            }).await.unwrap()
+        }, |_qobject: Pin<&mut qobject::ScreenCapture>, result| {
+            if let Err(e) = result {
+                error!("Clipboard error: {e}");
+            } else {
+                crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
             }
-            Err(e) => error!("Clipboard error: {e}"),
         });
     }
 
     pub fn copy_text(self: Pin<&mut Self>, text: QString) {
-        let text_str = text.to_string();
-        let qt_thread = self.qt_thread();
-
-        spawn_thread(move || {
-            if crate::core::io::clipboard::copy_text_to_clipboard(text_str) {
-                qt_thread
-                    .queue(|_qobject| {
-                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                        let msg = crate::bridge::app::tr("ScreenCapture", "Text copied to clipboard");
-                        crate::core::notify::show(&title.to_string(), &msg.to_string(), NotificationType::Copy);
-                    })
-                    .ok();
-            } else {
-                error!("Failed to copy text to clipboard");
-            }
-        });
+        crate::spawn_clipboard_copy!(self, text, "Text copied to clipboard", Copy);
     }
 
     pub fn copy_qrcode_result(self: Pin<&mut Self>, text: QString) {
-        let text_str = text.to_string();
-        let qt_thread = self.qt_thread();
-
-        spawn_thread(move || {
-            if crate::core::io::clipboard::copy_text_to_clipboard(text_str) {
-                qt_thread
-                    .queue(|_qobject| {
-                        let title = crate::bridge::app::tr("ScreenCapture", "Success");
-                        let msg = crate::bridge::app::tr("ScreenCapture", "QR Code content copied to clipboard");
-                        crate::core::notify::show(&title.to_string(), &msg.to_string(), NotificationType::QrCode);
-                    })
-                    .ok();
-            } else {
-                error!("Failed to copy QR code text to clipboard");
-            }
-        });
+        crate::spawn_clipboard_copy!(self, text, "QR Code content copied to clipboard", QrCode);
     }
 
     pub fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
@@ -394,19 +326,20 @@ impl qobject::ScreenCapture {
     pub fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList {
         let path_str = self.rust().resolve_path(&path);
         info!("Saving image from: {}", path_str);
-        let qt_thread = self.qt_thread();
 
-        spawn_thread(move || match CaptureService::save_region_to_user_dir(&path_str, x, y, width, height) {
-            Ok(saved_path) => {
-                qt_thread
-                    .queue(move |_qobject| {
-                        let title = crate::bridge::app::tr("ScreenCapture", "Saved");
-                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                        crate::core::notify::show(&title.to_string(), &msg, NotificationType::Save);
-                    })
-                    .ok();
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(move || {
+                CaptureService::save_region_to_user_dir(&path_str, x, y, width, height)
+            }).await.unwrap()
+        }, |_qobject: Pin<&mut qobject::ScreenCapture>, result| {
+            match result {
+                Ok(saved_path) => {
+                    let title = crate::bridge::app::tr("ScreenCapture", "Saved");
+                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
+                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+                }
+                Err(e) => error!("Save error: {e}"),
             }
-            Err(e) => error!("Save error: {e}"),
         });
 
         QStringList::default()
@@ -415,20 +348,16 @@ impl qobject::ScreenCapture {
     pub fn register_hotkeys(mut self: Pin<&mut Self>) {
         let qt_thread_screen = self.qt_thread();
         let screen_callback = move || {
-            qt_thread_screen
-                .queue(|mut qobject| {
-                    qobject.as_mut().screen_capture_shortcut_triggered();
-                })
-                .ok();
+            let _ = qt_thread_screen.queue(|mut qobject| {
+                qobject.as_mut().screen_capture_shortcut_triggered();
+            });
         };
 
         let qt_thread_quick = self.qt_thread();
         let quick_callback = move || {
-            qt_thread_quick
-                .queue(|mut qobject| {
-                    qobject.as_mut().quick_capture_shortcut_triggered();
-                })
-                .ok();
+            let _ = qt_thread_quick.queue(|mut qobject| {
+                qobject.as_mut().quick_capture_shortcut_triggered();
+            });
         };
 
         let settings = SETTINGS.lock().unwrap().get();
@@ -492,7 +421,7 @@ impl qobject::ScreenCapture {
         let x = x as f64;
         let y = y as f64;
         let (sx, sy) = if cfg!(target_os = "macos") { (x, y) } else { (x * scale, y * scale) };
-        spawn_thread(move || {
+        crate::core::RUNTIME.spawn_blocking(move || {
             if let Err(e) = rdev::simulate(&rdev::EventType::MouseMove { x: sx, y: sy }) {
                 error!("Failed to move cursor: {:?}", e);
             }

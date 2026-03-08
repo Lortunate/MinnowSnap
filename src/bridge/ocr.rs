@@ -88,40 +88,35 @@ impl qobject::OcrManager {
         self.as_mut().set_status_message(QString::from("Starting download..."));
         info!("Starting OCR model download...");
 
-        let qt_thread = self.qt_thread();
+        let qt_thread_progress = self.qt_thread();
 
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-
-            let progress_qt_thread = qt_thread.clone();
-            let progress_cb = Arc::new(move |p: f32| {
-                let qt_thread = progress_qt_thread.clone();
-                let _ = qt_thread.queue(move |mut qobject: Pin<&mut qobject::OcrManager>| {
-                    qobject.as_mut().set_download_progress(p);
-                    let percent = (p * 100.0) as i32;
-                    qobject
-                        .as_mut()
-                        .set_status_message(QString::from(&format!("Downloading... {}%", percent)));
-                });
-            });
-
-            let result = rt.block_on(ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)));
-
+        let progress_cb = Arc::new(move |p: f32| {
+            let qt_thread = qt_thread_progress.clone();
             let _ = qt_thread.queue(move |mut qobject: Pin<&mut qobject::OcrManager>| {
-                qobject.as_mut().set_is_downloading(false);
-                match result {
-                    Ok(_) => {
-                        info!("OCR model download completed successfully");
-                        qobject.as_mut().set_is_model_ready(true);
-                        qobject.as_mut().set_download_progress(1.0);
-                        qobject.as_mut().set_status_message(QString::from("Download complete"));
-                    }
-                    Err(e) => {
-                        error!("Download failed: {}", e);
-                        qobject.as_mut().set_status_message(QString::from("Download failed"));
-                    }
-                }
+                qobject.as_mut().set_download_progress(p);
+                let percent = (p * 100.0) as i32;
+                qobject
+                    .as_mut()
+                    .set_status_message(QString::from(&format!("Downloading... {}%", percent)));
             });
+        });
+
+        crate::spawn_qt_task!(self, async move {
+            ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await
+        }, |mut qobject: Pin<&mut qobject::OcrManager>, result| {
+            qobject.as_mut().set_is_downloading(false);
+            match result {
+                Ok(_) => {
+                    info!("OCR model download completed successfully");
+                    qobject.as_mut().set_is_model_ready(true);
+                    qobject.as_mut().set_download_progress(1.0);
+                    qobject.as_mut().set_status_message(QString::from("Download complete"));
+                }
+                Err(e) => {
+                    error!("Download failed: {}", e);
+                    qobject.as_mut().set_status_message(QString::from("Download failed"));
+                }
+            }
         });
     }
 }

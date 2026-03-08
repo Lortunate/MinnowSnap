@@ -4,7 +4,6 @@ use cxx_qt_lib::QString;
 use ocr::{OcrContext, OcrModelType};
 use serde::Serialize;
 use std::pin::Pin;
-use std::thread;
 use tracing::{error, info};
 
 #[derive(Serialize)]
@@ -59,33 +58,31 @@ impl qobject::OcrViewModel {
         self.as_mut().set_is_processing(true);
         self.as_mut().set_ocr_data_json(QString::from("[]"));
 
-        let qt_thread = self.qt_thread();
-
-        thread::spawn(move || {
-            let result = (|| -> Result<String, String> {
+        crate::spawn_qt_task!(self, async move {
+            let res = async {
                 let clean_path = crate::core::io::storage::clean_url_path(&path_str);
                 info!("Loading image from: {}", clean_path);
-                let image = image::open(&clean_path).map_err(|e| e.to_string())?;
+                
+                let image = tokio::task::spawn_blocking(move || {
+                    image::open(&clean_path).map_err(|e| e.to_string())
+                }).await.map_err(|e| e.to_string())??;
+                
                 let (img_w, img_h) = (image.width() as f64, image.height() as f64);
 
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .map_err(|e| e.to_string())?;
-
-                let mut context = rt
-                    .block_on(OcrContext::new(
-                        None::<std::path::PathBuf>,
-                        Some(OcrModelType::Mobile),
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
-                    .map_err(|e| e.to_string())?;
+                let mut context = OcrContext::new(
+                    None::<std::path::PathBuf>,
+                    Some(OcrModelType::Mobile),
+                    None,
+                    None,
+                    None,
+                    None,
+                ).await.map_err(|e| e.to_string())?;
 
                 info!("Starting OCR recognition...");
-                let ocr_results = context.recognize(&image).map_err(|e| e.to_string())?;
+                let ocr_results = tokio::task::spawn_blocking(move || {
+                    context.recognize(&image).map_err(|e| e.to_string())
+                }).await.map_err(|e| e.to_string())??;
+                
                 info!("OCR finished. Found {} blocks", ocr_results.len());
 
                 let blocks: Vec<OcrBlock> = ocr_results
@@ -106,10 +103,10 @@ impl qobject::OcrViewModel {
                     .collect();
 
                 let json = serde_json::to_string(&blocks).map_err(|e| e.to_string())?;
-                Ok(json)
-            })();
+                Ok::<String, String>(json)
+            }.await;
 
-            let json_output = match result {
+            match res {
                 Ok(json) => {
                     info!("OCR success, JSON length: {}", json.len());
                     json
@@ -118,12 +115,10 @@ impl qobject::OcrViewModel {
                     error!("OCR processing failed: {}", e);
                     "[]".to_string()
                 }
-            };
-
-            let _ = qt_thread.queue(move |mut qobject: Pin<&mut qobject::OcrViewModel>| {
-                qobject.as_mut().set_ocr_data_json(QString::from(&json_output));
-                qobject.as_mut().set_is_processing(false);
-            });
+            }
+        }, |mut qobject: Pin<&mut qobject::OcrViewModel>, json_output| {
+            qobject.as_mut().set_ocr_data_json(QString::from(&json_output));
+            qobject.as_mut().set_is_processing(false);
         });
     }
 }
