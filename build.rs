@@ -41,7 +41,6 @@ fn main() {
             "src/bridge/ocr.rs",
             "src/bridge/ocr_overlay.rs",
         ])
-        .qt_module("Network")
         .qt_module("Quick");
 
     if cfg!(target_os = "macos") {
