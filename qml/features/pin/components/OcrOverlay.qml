@@ -15,13 +15,13 @@ Item {
 
     signal requestMenu(int x, int y)
 
-    OcrViewModel {
-        id: ocrModel
+    OcrController {
+        id: ocrController
     }
 
     function recognize() {
         if (sourcePath)
-            ocrModel.recognizeImage(PathUtils.toLocalPath(sourcePath));
+            ocrController.recognizeImage(PathUtils.toLocalPath(sourcePath));
     }
 
     function clearSelection() {
@@ -46,55 +46,15 @@ Item {
         if (indexes.length === 0)
             return false;
 
-        var result = blocks[indexes[0]].text;
-        var prevBlock = blocks[indexes[0]];
-
-        for (var k = 1; k < indexes.length; k++) {
-            var currBlock = blocks[indexes[k]];
-            var currText = currBlock.text;
-            var prevText = prevBlock.text;
-
-            var prevBottom = prevBlock.cy + prevBlock.height / 2.0;
-            var currTop = currBlock.cy - currBlock.height / 2.0;
-            var gap = currTop - prevBottom;
-            var avgHeight = (prevBlock.height + currBlock.height) / 2.0;
-            var isListItem = /^\s*(\d+\.|-|•|\*)\s/.test(currText);
-
-            if (prevText.endsWith("-")) {
-                result = result.slice(0, -1) + currText;
-            } else if (gap > avgHeight * 0.5 || isListItem) {
-                result += "\n" + currText;
-            } else {
-                var lastChar = prevText[prevText.length - 1];
-                var firstChar = currText[0];
-                var isPrevCJK = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(lastChar);
-                var isCurrCJK = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(firstChar);
-
-                if (isPrevCJK && isCurrCJK) {
-                    result += currText;
-                } else {
-                    result += " " + currText;
-                }
-            }
-            prevBlock = currBlock;
-        }
-
-        clipboardHelper.text = result;
-        clipboardHelper.selectAll();
-        clipboardHelper.copy();
+        ocrController.copySelectedText(JSON.stringify(indexes));
         return true;
     }
 
-    TextEdit {
-        id: clipboardHelper
-        visible: false
-    }
-
     property var blocks: {
-        if (ocrModel.ocrDataJson === "")
+        if (ocrController.ocrDataJson === "")
             return [];
         try {
-            return JSON.parse(ocrModel.ocrDataJson);
+            return JSON.parse(ocrController.ocrDataJson);
         } catch (e) {
             return [];
         }

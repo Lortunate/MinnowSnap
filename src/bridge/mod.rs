@@ -4,6 +4,7 @@ pub mod hotkey;
 pub mod ocr;
 pub mod ocr_overlay;
 pub mod overlay_controller;
+pub mod pin;
 pub mod provider;
 pub mod screen_capture;
 pub mod shortcut_helper;

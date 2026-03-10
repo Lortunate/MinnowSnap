@@ -40,6 +40,7 @@ fn main() {
             "src/bridge/config.rs",
             "src/bridge/ocr.rs",
             "src/bridge/ocr_overlay.rs",
+            "src/bridge/pin.rs",
         ])
         .qt_module("Quick");
 
