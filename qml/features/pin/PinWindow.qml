@@ -63,13 +63,13 @@ Window {
             }
 
             if (pinWindow.screenCapture) {
-                pinWindow.screenCapture.copyImage(PathUtils.toLocalPath(pinWindow.imageSource), 0, 0, 0, 0);
+                pinWindow.screenCapture.requestAction(PathUtils.toLocalPath(pinWindow.imageSource), "copy", 0, 0, 0, 0, false);
             }
         }
 
         function save() {
             if (pinWindow.screenCapture) {
-                pinWindow.screenCapture.saveImage(PathUtils.toLocalPath(pinWindow.imageSource), 0, 0, 0, 0);
+                pinWindow.screenCapture.requestAction(PathUtils.toLocalPath(pinWindow.imageSource), "save", 0, 0, 0, 0, false);
             }
         }
 

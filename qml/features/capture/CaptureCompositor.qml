@@ -20,7 +20,7 @@ Item {
     signal requestResetState
     signal selectionMade(int x, int y, int width, int height)
 
-    function capture(selectionRect, action) {
+    function performComposition(selectionRect, action) {
         if (annotationLayer && annotationLayer.hasAnnotations) {
             processing = true;
 
@@ -52,7 +52,7 @@ Item {
                 }
 
                 if (result.saveToFile(savePath)) {
-                    processResult(action, savePath, selectionRect);
+                    screenCapture.submitCapture(savePath, action, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
                 } else {
                     console.error("Failed to save composite image");
                     root.requestHide();
@@ -66,33 +66,10 @@ Item {
             }, Qt.size(outW, outH));
             return;
         }
-
-        if (action === "copy") {
-            screenCapture.copyImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-        } else if (action === "save") {
-            screenCapture.saveImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-        } else if (action === "pin" || action === "ocr") {
-            let path = screenCapture.cropImage(overlayWindow.backgroundImageSource, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-            if (path !== "") {
-                showPin(path, selectionRect, action === "ocr");
-            }
-        }
-        selectionMade(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-        root.requestHide();
-        root.requestResetState();
+        // Should not happen if flow is correct, but safe fallback:
+        screenCapture.submitCapture(overlayWindow.backgroundImageSource, action, selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
     }
-    function processResult(action, path, selectionRect) {
-        if (action === "copy") {
-            screenCapture.copyImage(path, 0, 0, 0, 0);
-        } else if (action === "save") {
-            screenCapture.saveImage(path, 0, 0, 0, 0);
-        } else if (action === "pin" || action === "ocr") {
-            showPin(path, selectionRect, action === "ocr");
-        }
-        selectionMade(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-        root.requestHide();
-        root.requestResetState();
-    }
+    
     function showPin(path, rect, autoOcr) {
         let component = Qt.createComponent("../pin/PinWindow.qml");
         if (component.status === Component.Ready) {
@@ -156,6 +133,13 @@ Item {
             id: annotationWrapper
 
             anchors.fill: parent
+        }
+    }
+
+    Connections {
+        target: screenCapture
+        function onPinWindowRequested(path, x, y, w, h, autoOcr) {
+            showPin(path, Qt.rect(x,y,w,h), autoOcr);
         }
     }
 }

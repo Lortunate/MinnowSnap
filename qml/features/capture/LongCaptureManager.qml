@@ -30,37 +30,8 @@ Item {
     }
     function processScrollResult(path) {
         if (!scrollCancelled && path !== "") {
-            if (pendingScrollAction === "save") {
-                screenCapture.saveImage(path, 0, 0, 0, 0);
-                finish(false);
-            } else if (pendingScrollAction === "copy") {
-                screenCapture.copyImage(path, 0, 0, 0, 0);
-                finish(false);
-            } else if (pendingScrollAction === "pin") {
-                let component = Qt.createComponent("../pin/PinWindow.qml");
-                if (component.status === Component.Ready) {
-                    let finalPath = PathUtils.toUrl(path);
-                    let win = component.createObject(null, {
-                        "imageSource": finalPath,
-                        "screenCapture": root.screenCapture,
-                        "x": 100,
-                        "y": 100
-                    });
-
-                    // Keep reference to prevent GC
-                    pinnedWindows.push(win);
-
-                    win.closing.connect(function () {
-                        let index = pinnedWindows.indexOf(win);
-                        if (index > -1) {
-                            pinnedWindows.splice(index, 1);
-                        }
-                    });
-
-                    win.show();
-                }
-                finish(false);
-            }
+            screenCapture.requestAction(path, pendingScrollAction, 0, 0, 0, 0, false);
+            finish(false);
         } else {
             finish(true);
         }
@@ -85,8 +56,6 @@ Item {
         scrollPreview.show();
 
         root.requestHide();
-
-        screenCapture.startScrollCapture(x, y, w, h);
     }
     function stop() {
         screenCapture.stopScrollCapture();
@@ -130,6 +99,10 @@ Item {
     ]
 
     Connections {
+
+        function onScrollCaptureStarted(x, y, w, h) {
+            start(x, y, w, h);
+        }
 
         function onCaptureReady() {
             if (scrollToolbar.visible)

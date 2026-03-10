@@ -3,8 +3,6 @@ pub mod qobject {
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
-        include!("cxx-qt-lib/qstringlist.h");
-        type QStringList = cxx_qt_lib::QStringList;
     }
 
     extern "RustQt" {
@@ -31,24 +29,12 @@ pub mod qobject {
         fn stop_scroll_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "cropImage"]
-        fn crop_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString;
-
-        #[qinvokable]
-        #[cxx_name = "copyImage"]
-        fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32);
-
-        #[qinvokable]
         #[cxx_name = "copyText"]
         fn copy_text(self: Pin<&mut Self>, text: QString);
 
         #[qinvokable]
         #[cxx_name = "copyQrcodeResult"]
         fn copy_qrcode_result(self: Pin<&mut Self>, text: QString);
-
-        #[qinvokable]
-        #[cxx_name = "saveImage"]
-        fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList;
 
         #[qinvokable]
         #[cxx_name = "registerHotkeys"]
@@ -87,8 +73,12 @@ pub mod qobject {
         fn decrement_pin_count(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "detectQrcode"]
-        fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString;
+        #[cxx_name = "requestAction"]
+        fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
+
+        #[qinvokable]
+        #[cxx_name = "submitCapture"]
+        fn submit_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qsignal]
         #[cxx_name = "screenCaptureShortcutTriggered"]
@@ -125,6 +115,26 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "closeAllPins"]
         fn close_all_pins(self: Pin<&mut Self>);
+
+        #[qsignal]
+        #[cxx_name = "requestComposition"]
+        fn request_composition(self: Pin<&mut Self>, action: QString, x: i32, y: i32, width: i32, height: i32);
+
+        #[qsignal]
+        #[cxx_name = "actionFinished"]
+        fn action_finished(self: Pin<&mut Self>);
+
+        #[qsignal]
+        #[cxx_name = "ocrResult"]
+        fn ocr_result(self: Pin<&mut Self>, content: QString);
+
+        #[qsignal]
+        #[cxx_name = "pinWindowRequested"]
+        fn pin_window_requested(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32, auto_ocr: bool);
+
+        #[qsignal]
+        #[cxx_name = "scrollCaptureStarted"]
+        fn scroll_capture_started(self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32);
     }
 
     impl cxx_qt::Threading for ScreenCapture {}
@@ -134,6 +144,7 @@ use crate::bridge::hotkey::{HotkeyState, update_hotkey};
 use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
+use crate::core::capture::action::{CaptureAction, ActionContext, ActionResult};
 use crate::core::hotkey::HotkeyService;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
@@ -142,6 +153,8 @@ use image::RgbaImage;
 use std::pin::Pin;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use tracing::{error, info};
+
+use std::str::FromStr;
 
 pub struct ScreenCaptureRust {
     hotkey_state: HotkeyState,
@@ -261,39 +274,13 @@ impl qobject::ScreenCapture {
         let observer = Box::new(QtScrollObserver { qt_thread: self.qt_thread() });
 
         start_scroll_capture_thread(x, y, width, height, active_flag, observer);
+        
+        self.as_mut().scroll_capture_started(x, y, width, height);
     }
 
     pub fn stop_scroll_capture(self: Pin<&mut Self>) {
         info!("Stopping scroll capture");
         self.rust().scroll_capture_active.store(false, Ordering::SeqCst);
-    }
-
-    pub fn crop_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
-        let path_str = self.rust().resolve_path(&path);
-
-        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height)
-            && let Some(saved_path) = CaptureService::save_temp(&cropped)
-        {
-            return QString::from(&saved_path);
-        }
-        QString::from("")
-    }
-
-    pub fn copy_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) {
-        let path_str = self.rust().resolve_path(&path);
-        info!("Copying image to clipboard from: {}", path_str);
-
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(move || {
-                CaptureService::copy_region_to_clipboard(&path_str, x, y, width, height)
-            }).await.unwrap()
-        }, |_qobject: Pin<&mut qobject::ScreenCapture>, result| {
-            if let Err(e) = result {
-                error!("Clipboard error: {e}");
-            } else {
-                crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
-            }
-        });
     }
 
     pub fn copy_text(self: Pin<&mut Self>, text: QString) {
@@ -302,47 +289,6 @@ impl qobject::ScreenCapture {
 
     pub fn copy_qrcode_result(self: Pin<&mut Self>, text: QString) {
         crate::spawn_clipboard_copy!(self, text, "QR Code content copied to clipboard", QrCode);
-    }
-
-    pub fn detect_qrcode(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QString {
-        let path_str = self.rust().resolve_path(&path);
-
-        if let Some(cropped) = CaptureService::resolve_and_crop(&path_str, x, y, width, height) {
-            let gray = image::imageops::grayscale(&cropped);
-            let (w, h) = gray.dimensions();
-
-            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
-
-            let grids = img.detect_grids();
-            if let Some(grid) = grids.first() {
-                if let Ok((_meta, content)) = grid.decode() {
-                    return QString::from(&content);
-                }
-            }
-        }
-        QString::from("")
-    }
-
-    pub fn save_image(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32) -> QStringList {
-        let path_str = self.rust().resolve_path(&path);
-        info!("Saving image from: {}", path_str);
-
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(move || {
-                CaptureService::save_region_to_user_dir(&path_str, x, y, width, height)
-            }).await.unwrap()
-        }, |_qobject: Pin<&mut qobject::ScreenCapture>, result| {
-            match result {
-                Ok(saved_path) => {
-                    let title = crate::bridge::app::tr("ScreenCapture", "Saved");
-                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
-                }
-                Err(e) => error!("Save error: {e}"),
-            }
-        });
-
-        QStringList::default()
     }
 
     pub fn register_hotkeys(mut self: Pin<&mut Self>) {
@@ -442,6 +388,84 @@ impl qobject::ScreenCapture {
         if count > 0 {
             self.as_mut().set_pin_count(count - 1);
         }
+    }
+
+    pub fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool) {
+        let action_str = action.to_string();
+        let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
+
+        match action_enum {
+            CaptureAction::Scroll => {
+                self.start_scroll_capture(x, y, width, height);
+            },
+            CaptureAction::QrCode if !has_annotations => {
+                let path_str = self.rust().resolve_path(&path);
+                self.process_action(CaptureAction::QrCode, path_str, x, y, width, height, false);
+            },
+            _ => {
+                if has_annotations {
+                    self.request_composition(action, x, y, width, height);
+                } else {
+                    self.submit_capture(path, action, x, y, width, height);
+                }
+            }
+        }
+    }
+
+    pub fn submit_capture(mut self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32) {
+        let action_str = action.to_string();
+        let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
+        let path_str = self.rust().resolve_path(&path);
+        
+        info!("Submitting capture action: {}, path: {}", action_str, path_str);
+
+        match action_enum {
+            CaptureAction::Copy => self.process_action(CaptureAction::Copy, path_str, x, y, width, height, false),
+            CaptureAction::Save => self.process_action(CaptureAction::Save, path_str, x, y, width, height, false),
+            CaptureAction::Pin => self.process_action(CaptureAction::Pin, path_str, x, y, width, height, false),
+            CaptureAction::Ocr => self.process_action(CaptureAction::Ocr, path_str, x, y, width, height, true),
+            CaptureAction::QrCode => self.process_action(CaptureAction::QrCode, path_str, x, y, width, height, false),
+            _ => {
+                self.as_mut().action_finished();
+            }
+        }
+    }
+
+    fn process_action(self: Pin<&mut Self>, action: CaptureAction, path: String, x: i32, y: i32, width: i32, height: i32, _extra_flag: bool) {
+        let context = ActionContext { path, x, y, width, height };
+        let action_clone = action.clone();
+
+        crate::spawn_qt_task!(self, async move {
+            tokio::task::spawn_blocking(move || {
+                action_clone.execute(context)
+            }).await.unwrap_or(ActionResult::Error("Task failed".to_string()))
+        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
+            match result {
+                ActionResult::Copied => {
+                     crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
+                },
+                ActionResult::Saved(saved_path) => {
+                    let title = crate::bridge::app::tr("ScreenCapture", "Saved");
+                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
+                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+                },
+                ActionResult::PinRequested(temp_path, auto_ocr) => {
+                    qobject.as_mut().pin_window_requested(QString::from(&temp_path), x, y, width, height, auto_ocr);
+                },
+                ActionResult::OcrResult(content) => {
+                     crate::spawn_clipboard_copy!(qobject, QString::from(&content), "QR Code content copied to clipboard", QrCode);
+                     qobject.as_mut().ocr_result(QString::from(&content));
+                },
+                ActionResult::Error(e) => {
+                    error!("Action error: {e}");
+                    if action == CaptureAction::QrCode {
+                         crate::core::notify::show("MinnowSnap", "No QR Code detected", crate::core::notify::NotificationType::Info);
+                    }
+                },
+                ActionResult::NoOp => {}
+            }
+            qobject.as_mut().action_finished();
+        });
     }
 }
 

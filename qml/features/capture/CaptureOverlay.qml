@@ -60,21 +60,8 @@ Window {
             return;
         }
 
-        if (action === "scroll") {
-            longCaptureManager.start(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
-            return;
-        }
-
-        if (action === "qrcode") {
-            let text = screenCapture.detectQrcode(overlayWindow.backgroundImageSource, currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
-            if (text !== "") {
-                screenCapture.copyQrcodeResult(text);
-                cancelCapture();
-            }
-            return;
-        }
-
-        captureCompositor.capture(currentSelection, action);
+        screenCapture.requestAction(overlayWindow.backgroundImageSource, action, currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height, annotationLayer.hasAnnotations);
+        selectionMade(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
     }
 
     function endResize() {
@@ -167,6 +154,14 @@ Window {
             overlayWindow.raise();
             overlayWindow.requestActivate();
             resetState();
+        }
+
+        function onActionFinished() {
+            cancelCapture();
+        }
+
+        function onRequestComposition(action, x, y, w, h) {
+            captureCompositor.performComposition(Qt.rect(x, y, w, h), action);
         }
 
         target: screenCapture

@@ -126,4 +126,19 @@ impl CaptureService {
         path.push(filename);
         path.to_string_lossy().replace('\\', "/")
     }
+
+    pub fn detect_qrcode(path: &str, x: i32, y: i32, width: i32, height: i32) -> Option<String> {
+        if let Some(cropped) = Self::resolve_and_crop(path, x, y, width, height) {
+            let gray = image::imageops::grayscale(&cropped);
+            let (w, h) = gray.dimensions();
+            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
+            let grids = img.detect_grids();
+            if let Some(grid) = grids.first() {
+                if let Ok((_meta, content)) = grid.decode() {
+                    return Some(content);
+                }
+            }
+        }
+        None
+    }
 }
