@@ -31,6 +31,7 @@ fn main() {
     let mut builder = CxxQtBuilder::new_qml_module(QmlModule::new("com.lortunate.minnow").qml_files(qml_files))
         .qrc("resources.qrc")
         .files([
+            "src/bridge/annotation.rs",
             "src/bridge/app.rs",
             "src/bridge/window.rs",
             "src/bridge/screen_capture.rs",
@@ -55,3 +56,4 @@ fn main() {
 
     builder.build();
 }
+

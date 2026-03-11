@@ -88,6 +88,10 @@ pub mod qobject {
         #[cxx_name = "submitCapture"]
         fn submit_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
 
+        #[qinvokable]
+        #[cxx_name = "submitCompositedCapture"]
+        fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
+
         #[qsignal]
         #[cxx_name = "screenCaptureShortcutTriggered"]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
@@ -150,9 +154,9 @@ pub mod qobject {
 
 use crate::bridge::hotkey::{HotkeyState, update_hotkey};
 use crate::core::capture::SCROLL_CAPTURE;
+use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction, CaptureInputMode};
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
-use crate::core::capture::action::{CaptureAction, ActionContext, ActionResult};
 use crate::core::hotkey::HotkeyService;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
@@ -220,7 +224,9 @@ impl ScrollObserver for QtScrollObserver {
                     if let Some(act) = action {
                         let action_enum = CaptureAction::from_str(&act).unwrap_or(CaptureAction::Unknown);
                         let path_clean = crate::core::io::storage::clean_url_path(&path);
-                        qobject.as_mut().process_action(action_enum, path_clean, 0, 0, 0, 0, false);
+                        qobject
+                            .as_mut()
+                            .process_action(action_enum, path_clean, 0, 0, 0, 0, CaptureInputMode::FullImage);
                     }
                 });
             }
@@ -429,7 +435,15 @@ impl qobject::ScreenCapture {
             },
             CaptureAction::QrCode if !has_annotations => {
                 let path_str = self.rust().resolve_path(&path);
-                self.process_action(CaptureAction::QrCode, path_str, x, y, width, height, false);
+                self.process_action(
+                    CaptureAction::QrCode,
+                    path_str,
+                    x,
+                    y,
+                    width,
+                    height,
+                    CaptureInputMode::CropSelection,
+                );
             },
             _ => {
                 if has_annotations {
@@ -442,6 +456,25 @@ impl qobject::ScreenCapture {
     }
 
     pub fn submit_capture(mut self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32) {
+        self.as_mut()
+            .submit_capture_internal(path, action, x, y, width, height, CaptureInputMode::CropSelection);
+    }
+
+    pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32) {
+        self.as_mut()
+            .submit_capture_internal(path, action, x, y, width, height, CaptureInputMode::FullImage);
+    }
+
+    fn submit_capture_internal(
+        mut self: Pin<&mut Self>,
+        path: QString,
+        action: QString,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        input_mode: CaptureInputMode,
+    ) {
         let action_str = action.to_string();
         let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
         let path_str = self.rust().resolve_path(&path);
@@ -449,19 +482,29 @@ impl qobject::ScreenCapture {
         info!("Submitting capture action: {}, path: {}", action_str, path_str);
 
         match action_enum {
-            CaptureAction::Copy => self.process_action(CaptureAction::Copy, path_str, x, y, width, height, false),
-            CaptureAction::Save => self.process_action(CaptureAction::Save, path_str, x, y, width, height, false),
-            CaptureAction::Pin => self.process_action(CaptureAction::Pin, path_str, x, y, width, height, false),
-            CaptureAction::Ocr => self.process_action(CaptureAction::Ocr, path_str, x, y, width, height, true),
-            CaptureAction::QrCode => self.process_action(CaptureAction::QrCode, path_str, x, y, width, height, false),
+            CaptureAction::Copy | CaptureAction::Save | CaptureAction::Pin | CaptureAction::Ocr | CaptureAction::QrCode => {
+                self.process_action(action_enum, path_str, x, y, width, height, input_mode)
+            }
             _ => {
                 self.as_mut().action_finished();
             }
         }
     }
 
-    fn process_action(self: Pin<&mut Self>, action: CaptureAction, path: String, x: i32, y: i32, width: i32, height: i32, _extra_flag: bool) {
-        let context = ActionContext { path, x, y, width, height };
+    fn process_action(
+        self: Pin<&mut Self>,
+        action: CaptureAction,
+        path: String,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        input_mode: CaptureInputMode,
+    ) {
+        let context = match input_mode {
+            CaptureInputMode::CropSelection => ActionContext::crop_selection(path, x, y, width, height),
+            CaptureInputMode::FullImage => ActionContext::full_image(path, x, y, width, height),
+        };
         let action_clone = action.clone();
 
         crate::spawn_qt_task!(self, async move {

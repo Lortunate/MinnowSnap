@@ -1,3 +1,4 @@
+pub mod annotation;
 pub mod app;
 pub mod config;
 pub mod hotkey;
@@ -49,3 +50,4 @@ macro_rules! spawn_clipboard_copy {
         });
     };
 }
+

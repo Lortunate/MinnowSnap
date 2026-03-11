@@ -66,19 +66,15 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext {
-                        path: clean_path,
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0,
-                    })
+                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)
             },
-            |_qobject, _result| {
-                crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
+            |_qobject, result| {
+                if matches!(result, crate::core::capture::action::ActionResult::Copied) {
+                    crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
+                }
             }
         );
     }
@@ -90,13 +86,7 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext {
-                        path: clean_path,
-                        x: 0,
-                        y: 0,
-                        width: 0,
-                        height: 0,
-                    })
+                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)

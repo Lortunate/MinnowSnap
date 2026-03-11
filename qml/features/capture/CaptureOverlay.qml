@@ -31,24 +31,42 @@ Window {
     readonly property bool isBrowsingWithTarget: controller.state === states.browsing && controller.hasTarget
 
     readonly property color maskColor: AppTheme.overlayMask
-    property bool processing: false
+    property bool actionProcessing: false
+    readonly property bool processing: actionProcessing || captureCompositor.processing
+    property bool annotationDisplayReady: false
     property var screenCapture: null
     readonly property color selectionColor: AppTheme.selection
     readonly property color selectionFillColor: AppTheme.selectionFill
 
     signal cancelled
-    signal selectionMade(int x, int y, int width, int height)
 
-    function cancelCapture() {
-        if (processing)
+    function cancelCapture(force) {
+        if (force !== true && processing)
             return
-        overlayWindow.hide()
         resetState()
+        overlayWindow.hide()
         cancelled()
+    }
+
+    function normalizedSelectionRect() {
+        return Qt.rect(
+            Math.floor(currentSelection.x),
+            Math.floor(currentSelection.y),
+            Math.max(1, Math.ceil(currentSelection.width)),
+            Math.max(1, Math.ceil(currentSelection.height))
+        )
+    }
+
+    function resetAnnotationSession() {
+        annotationDisplayReady = false
+        toolbar.activeTool = ""
+        annotationLayer.clear()
     }
 
     function confirmSelection(action) {
         if (processing)
+            return
+        if (!screenCapture)
             return
 
         if (action === "undo") {
@@ -60,8 +78,9 @@ Window {
             return
         }
 
-        screenCapture.requestAction(overlayWindow.backgroundImageSource, action, currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height, annotationLayer.hasAnnotations)
-        selectionMade(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height)
+        const rect = normalizedSelectionRect()
+        actionProcessing = true
+        screenCapture.requestAction(overlayWindow.backgroundImageSource, action, rect.x, rect.y, rect.width, rect.height, annotationLayer.hasAnnotations)
     }
 
     function endResize() {
@@ -69,10 +88,36 @@ Window {
     }
 
     function resetState() {
-        processing = false
+        captureCompositor.abortComposition()
+        actionProcessing = false
+        resetAnnotationSession()
         controller.reset()
-        annotationLayer.clear()
-        screenCapture.isCapturing = false
+        overlayWindow.backgroundImageSource = ""
+        overlayWindow.opacity = 0
+        if (screenCapture) {
+            screenCapture.isCapturing = false
+        }
+    }
+
+    function openWithSource(source) {
+        resetState()
+        overlayWindow.hide()
+        overlayWindow.backgroundImageSource = source
+        Qt.callLater(function () {
+            presentOverlay()
+        })
+    }
+
+    function presentOverlay() {
+        overlayWindow.opacity = 0
+        overlayWindow.show()
+        overlayWindow.raise()
+        overlayWindow.requestActivate()
+        Qt.callLater(function () {
+            if (overlayWindow.visible) {
+                overlayWindow.opacity = 1
+            }
+        })
     }
 
     function constrainToolbarPos(targetX, targetY, targetW, targetH, itemW, itemH, isAbove) {
@@ -103,6 +148,7 @@ Window {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
     height: Screen.height
+    opacity: 0
     visible: false
     width: Screen.width
     x: Screen.virtualX
@@ -115,6 +161,20 @@ Window {
     onVisibleChanged: {
         if (visible) {
             focusScope.forceActiveFocus()
+        }
+    }
+
+    onIsLockedStateChanged: {
+        if (!isLockedState) {
+            annotationDisplayReady = false
+            return
+        }
+        if (!annotationDisplayReady) {
+            Qt.callLater(function () {
+                if (isLockedState) {
+                    annotationDisplayReady = true
+                }
+            })
         }
     }
 
@@ -138,26 +198,18 @@ Window {
     Connections {
         function onScreenshotCaptured(path) {
             if (path !== "") {
-                overlayWindow.backgroundImageSource = PathUtils.addTimestamp(PathUtils.toUrl(path))
-                overlayWindow.show()
-                overlayWindow.raise()
-                overlayWindow.requestActivate()
-                resetState()
+                openWithSource(PathUtils.addTimestamp(PathUtils.toUrl(path)))
             }
         }
         function onWindowInfoReady(json) {
             controller.updateWindowList(json)
         }
         function onCaptureReady() {
-            overlayWindow.backgroundImageSource = PathUtils.addTimestamp("image://minnow/preview")
-            overlayWindow.show()
-            overlayWindow.raise()
-            overlayWindow.requestActivate()
-            resetState()
+            openWithSource(PathUtils.addTimestamp("image://minnow/preview"))
         }
 
         function onActionFinished() {
-            cancelCapture()
+            cancelCapture(true)
         }
 
         function onRequestComposition(action, x, y, w, h) {
@@ -221,7 +273,7 @@ Window {
             source: overlayWindow.backgroundImageSource
             verticalAlignment: Image.AlignTop
             layer.enabled: true
-            cache: true
+            cache: false
             asynchronous: false
         }
 
@@ -294,6 +346,7 @@ Window {
                         controller.startMove(mouse.x, mouse.y)
                     }
                 } else if (controller.state === states.browsing) {
+                    resetAnnotationSession()
                     controller.startSelection(mouse.x, mouse.y)
                 }
             }
@@ -335,7 +388,7 @@ Window {
                     sourceImage: bgImage
                     layerX: unifiedSelectionRect.x
                     layerY: unifiedSelectionRect.y
-                    visible: isLockedState
+                    visible: isLockedState && annotationDisplayReady
                     onRequestSetTool: tool => toolbar.activeTool = tool
                 }
             }
@@ -476,9 +529,5 @@ Window {
         overlayWindow: overlayWindow
         screenCapture: overlayWindow.screenCapture
 
-        onProcessingChanged: overlayWindow.processing = processing
-        onRequestHide: overlayWindow.hide()
-        onRequestResetState: resetState()
-        onSelectionMade: (x, y, w, h) => overlayWindow.selectionMade(x, y, w, h)
     }
 }
