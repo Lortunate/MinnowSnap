@@ -65,61 +65,41 @@ ApplicationWindow {
         screenCapture: screenCapture
     }
 
-    Action {
-        id: actPreferences
-        text: qsTr("Preferences")
-        onTriggered: root.showPreferences()
-    }
-
-    Action {
-        id: actScreenCapture
-        text: qsTr("Capture")
-        onTriggered: {
+    TrayMenu {
+        id: trayMenu
+        onPreferencesRequested: root.showPreferences()
+        onScreenCaptureRequested: {
             if (!overlay.visible) {
                 screenCapture.prepareCapture();
             }
         }
-    }
-
-    Action {
-        id: actQuickCapture
-        text: qsTr("Quick Capture")
-        onTriggered: screenCapture.quickCapture(0, 0, 0, 0)
-    }
-
-    Action {
-        id: actQuit
-        text: qsTr("Exit")
-        onTriggered: Qt.quit()
-    }
-
-    TrayMenu {
-        id: trayMenu
-        preferencesAction: actPreferences
-        quickCaptureAction: actQuickCapture
-        screenCaptureAction: actScreenCapture
-        quitAction: actQuit
+        onQuickCaptureRequested: screenCapture.quickCapture(0, 0, 0, 0)
+        onQuitRequested: Qt.quit()
     }
 
     Menu {
         id: nativeMenu
         MenuItem {
-            text: actPreferences.text
-            onTriggered: actPreferences.trigger()
+            text: trayMenu.controller.preferencesText
+            onTriggered: root.showPreferences()
         }
         MenuSeparator {}
         MenuItem {
-            text: actScreenCapture.text
-            onTriggered: actScreenCapture.trigger()
+            text: trayMenu.controller.screenCaptureText
+            onTriggered: {
+                if (!overlay.visible) {
+                    screenCapture.prepareCapture();
+                }
+            }
         }
         MenuItem {
-            text: actQuickCapture.text
-            onTriggered: actQuickCapture.trigger()
+            text: trayMenu.controller.quickCaptureText
+            onTriggered: screenCapture.quickCapture(0, 0, 0, 0)
         }
         MenuSeparator {}
         MenuItem {
-            text: actQuit.text
-            onTriggered: actQuit.trigger()
+            text: trayMenu.controller.quitText
+            onTriggered: Qt.quit()
         }
     }
 
@@ -127,7 +107,7 @@ ApplicationWindow {
         id: trayIcon
         icon.mask: Qt.platform.os === "osx"
         icon.source: Qt.platform.os === "osx" ? "qrc:/resources/tray_black.svg" : (AppTheme.systemIsDark ? "qrc:/resources/tray_white.svg" : "qrc:/resources/tray_black.svg")
-        tooltip: qsTr("MinnowSnap - Screen Capture Tool")
+        tooltip: trayMenu.controller.tooltipText
         visible: true
         menu: Qt.platform.os === "osx" ? nativeMenu : null
 

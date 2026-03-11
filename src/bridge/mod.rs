@@ -12,6 +12,7 @@ pub mod pin;
 pub mod provider;
 pub mod screen_capture;
 pub mod shortcut_helper;
+pub mod tray_menu;
 pub mod window;
 
 #[macro_export]

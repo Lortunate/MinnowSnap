@@ -39,6 +39,7 @@ fn main() {
             "src/bridge/provider.rs",
             "src/bridge/long_capture.rs",
             "src/bridge/overlay_controller.rs",
+            "src/bridge/tray_menu.rs",
             "src/bridge/shortcut_helper.rs",
             "src/bridge/config.rs",
             "src/bridge/capture_compositor.rs",
