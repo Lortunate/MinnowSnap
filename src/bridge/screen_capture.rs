@@ -248,7 +248,7 @@ impl qobject::ScreenCapture {
         self.as_mut().set_is_capturing(true);
 
         crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(|| CaptureService::capture_screen()).await.unwrap_or(false)
+            tokio::task::spawn_blocking(CaptureService::capture_screen).await.unwrap_or(false)
         }, |mut qobject: Pin<&mut qobject::ScreenCapture>, success| {
             if success {
                 qobject.as_mut().capture_ready();
@@ -259,7 +259,7 @@ impl qobject::ScreenCapture {
         });
 
         crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(|| CaptureService::fetch_windows_json()).await.unwrap_or_default()
+            tokio::task::spawn_blocking(CaptureService::fetch_windows_json).await.unwrap_or_default()
         }, |mut qobject: Pin<&mut qobject::ScreenCapture>, json| {
             qobject.as_mut().window_info_ready(QString::from(&json));
         });

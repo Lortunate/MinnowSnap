@@ -115,42 +115,32 @@ impl HotkeyService {
         let new_hotkey = parse_hotkey(new_shortcut);
 
         if let Some(old) = current_hotkey
-            && let Err(e) = manager.unregister(*old)
-        {
-            error!("Failed to unregister hotkey: {e}");
-        }
+            && let Err(e) = manager.unregister(*old) {
+                error!("Failed to unregister hotkey: {e}");
+            }
+
+        let mut next_hotkey = None;
 
         if let Some(hotkey) = new_hotkey {
             if let Err(e) = manager.register(hotkey) {
                 error!("Failed to register hotkey: {e}");
-                *current_hotkey = None;
-                let mut ids = hotkey_ids.lock().unwrap();
-                if is_screen {
-                    ids.screen_capture = None;
-                } else {
-                    ids.quick_capture = None;
-                }
             } else {
-                *current_hotkey = Some(hotkey);
-                let mut ids = hotkey_ids.lock().unwrap();
-                if is_screen {
-                    ids.screen_capture = Some(hotkey.id());
-                    info!("Screen capture hotkey updated to: {new_shortcut}");
-                } else {
-                    ids.quick_capture = Some(hotkey.id());
-                    info!("Quick capture hotkey updated to: {new_shortcut}");
-                }
+                next_hotkey = Some(hotkey);
+                let label = if is_screen { "Screen capture" } else { "Quick capture" };
+                info!("{label} hotkey updated to: {new_shortcut}");
             }
         } else {
-            *current_hotkey = None;
-            let mut ids = hotkey_ids.lock().unwrap();
-            if is_screen {
-                ids.screen_capture = None;
-                info!("Screen capture hotkey cleared");
-            } else {
-                ids.quick_capture = None;
-                info!("Quick capture hotkey cleared");
-            }
+            let label = if is_screen { "Screen capture" } else { "Quick capture" };
+            info!("{label} hotkey cleared");
+        }
+
+        *current_hotkey = next_hotkey;
+        
+        let mut ids = hotkey_ids.lock().unwrap();
+        if is_screen {
+            ids.screen_capture = next_hotkey.map(|hk| hk.id());
+        } else {
+            ids.quick_capture = next_hotkey.map(|hk| hk.id());
         }
     }
 }

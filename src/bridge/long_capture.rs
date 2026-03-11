@@ -75,6 +75,7 @@ pub mod qobject {
     }
 }
 
+#[derive(Default)]
 pub struct LongCaptureControllerRust {
     frame_visible: bool,
     toolbar_visible: bool,
@@ -82,19 +83,6 @@ pub struct LongCaptureControllerRust {
     toolbar_busy: bool,
     warning_text: QString,
     selection_rect: QRectF,
-}
-
-impl Default for LongCaptureControllerRust {
-    fn default() -> Self {
-        Self {
-            frame_visible: false,
-            toolbar_visible: false,
-            preview_visible: false,
-            toolbar_busy: false,
-            warning_text: QString::default(),
-            selection_rect: QRectF::default(),
-        }
-    }
 }
 
 impl qobject::LongCaptureController {

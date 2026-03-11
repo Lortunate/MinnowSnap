@@ -62,12 +62,11 @@ fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
         .map(|m| m.len() != WINDOWS_TOAST_ICON_BYTES.len() as u64)
         .unwrap_or(true);
 
-    if needs_update {
-        if let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
+    if needs_update
+        && let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
             error!("Failed to write toast icon file: {}", e);
             return None;
         }
-    }
     
     Some(path)
 }

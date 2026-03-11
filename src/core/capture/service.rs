@@ -145,11 +145,10 @@ impl CaptureService {
             let (w, h) = gray.dimensions();
             let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
             let grids = img.detect_grids();
-            if let Some(grid) = grids.first() {
-                if let Ok((_meta, content)) = grid.decode() {
+            if let Some(grid) = grids.first()
+                && let Ok((_meta, content)) = grid.decode() {
                     return Some(content);
                 }
-            }
         }
         None
     }

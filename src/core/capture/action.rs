@@ -114,11 +114,10 @@ impl CaptureAction {
     }
 
     fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode) {
-            if let Some(temp_path) = CaptureService::save_temp(&cropped) {
+        if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode)
+            && let Some(temp_path) = CaptureService::save_temp(&cropped) {
                 return ActionResult::PinRequested(temp_path, auto_ocr);
             }
-        }
         ActionResult::Error("Failed to process image for Pin/OCR".to_string())
     }
 
