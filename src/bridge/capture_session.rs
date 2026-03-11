@@ -135,11 +135,7 @@ impl Default for CaptureSessionControllerRust {
 }
 
 fn normalize_selection_rect(rect: &QRectF) -> (i32, i32, i32, i32) {
-    let x = rect.x().floor() as i32;
-    let y = rect.y().floor() as i32;
-    let width = rect.width().ceil().max(1.0) as i32;
-    let height = rect.height().ceil().max(1.0) as i32;
-    (x, y, width, height)
+    crate::core::geometry::normalize_rect(rect.x(), rect.y(), rect.width(), rect.height())
 }
 
 impl qobject::CaptureSessionController {
@@ -211,34 +207,21 @@ impl qobject::CaptureSessionController {
     }
 
     pub fn toolbar_position(&self, target_rect: QRectF, item_w: f64, item_h: f64, is_above: bool) -> QPointF {
-        let target_x = target_rect.x();
-        let target_y = target_rect.y();
-        let target_w = target_rect.width();
-        let target_h = target_rect.height();
-        let padding = *self.toolbar_padding();
-        let spacing_above = *self.toolbar_spacing_above();
-        let spacing_below = *self.toolbar_spacing_below();
-        let default_y = *self.default_toolbar_y();
-        let screen_w = *self.screen_width();
-        let screen_h = *self.screen_height();
-        let desired_x = target_x + target_w - item_w;
-        let max_x = (screen_w - item_w - padding).max(padding);
-        let x = desired_x.clamp(padding, max_x);
-
-        let y = if is_above {
-            let above_y = target_y - item_h - spacing_above;
-            if above_y >= 0.0 { above_y } else { target_y + target_h + spacing_above }
-        } else {
-            let below_y = target_y + target_h + spacing_below;
-            let above_y = target_y - item_h - spacing_below;
-            if below_y + item_h <= screen_h {
-                below_y
-            } else if above_y >= 0.0 {
-                above_y
-            } else {
-                default_y
-            }
-        };
+        let (x, y) = crate::core::geometry::calculate_toolbar_position(
+            target_rect.x(),
+            target_rect.y(),
+            target_rect.width(),
+            target_rect.height(),
+            item_w,
+            item_h,
+            is_above,
+            *self.toolbar_padding(),
+            *self.toolbar_spacing_above(),
+            *self.toolbar_spacing_below(),
+            *self.default_toolbar_y(),
+            *self.screen_width(),
+            *self.screen_height(),
+        );
 
         QPointF::new(x, y)
     }

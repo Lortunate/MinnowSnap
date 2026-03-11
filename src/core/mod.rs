@@ -12,3 +12,5 @@ pub mod logging;
 pub mod notify;
 pub mod settings;
 pub mod window;
+pub mod tray;
+pub mod ocr;

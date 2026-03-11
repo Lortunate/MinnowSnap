@@ -1,4 +1,4 @@
-use crate::core::geometry::{clamp_point, clamp_rect_move, clamp_rect_resize};
+use crate::core::geometry::{clamp_point, clamp_rect_move};
 use crate::core::window::{WindowInfo, find_window_at};
 use cxx_qt::{CxxQtType, QObject};
 use cxx_qt_lib::{QPointF, QRectF, QString};
@@ -289,39 +289,17 @@ impl qobject::OverlayController {
         let dx = x - start_pt.x();
         let dy = y - start_pt.y();
 
-        let mut new_x = start_rect.x();
-        let mut new_y = start_rect.y();
-        let mut new_w = start_rect.width();
-        let mut new_h = start_rect.height();
-
-        if corner.contains("right") {
-            new_w += dx;
-        } else if corner.contains("left") {
-            new_x += dx;
-            new_w -= dx;
-        }
-
-        if corner.contains("bottom") {
-            new_h += dy;
-        } else if corner.contains("top") {
-            new_y += dy;
-            new_h -= dy;
-        }
-
-        if new_w < 10.0 {
-            if corner.contains("left") {
-                new_x = start_rect.x() + start_rect.width() - 10.0;
-            }
-            new_w = 10.0;
-        }
-        if new_h < 10.0 {
-            if corner.contains("top") {
-                new_y = start_rect.y() + start_rect.height() - 10.0;
-            }
-            new_h = 10.0;
-        }
-
-        let (final_x, final_y, final_w, final_h) = clamp_rect_resize(new_x, new_y, new_w, new_h, *self.screen_width(), *self.screen_height());
+        let (final_x, final_y, final_w, final_h) = crate::core::geometry::calculate_resize(
+            start_rect.x(),
+            start_rect.y(),
+            start_rect.width(),
+            start_rect.height(),
+            dx,
+            dy,
+            &corner,
+            *self.screen_width(),
+            *self.screen_height(),
+        );
 
         self.as_mut().set_selection_rect(QRectF::new(final_x, final_y, final_w, final_h));
     }

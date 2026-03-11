@@ -108,3 +108,96 @@ pub fn clamp_rect_resize(x: f64, y: f64, w: f64, h: f64, screen_w: f64, screen_h
         (new_x, new_y, new_w, new_h)
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+pub fn calculate_toolbar_position(
+    target_x: f64,
+    target_y: f64,
+    target_w: f64,
+    target_h: f64,
+    item_w: f64,
+    item_h: f64,
+    is_above: bool,
+    padding: f64,
+    spacing_above: f64,
+    spacing_below: f64,
+    default_y: f64,
+    screen_w: f64,
+    screen_h: f64,
+) -> (f64, f64) {
+    let desired_x = target_x + target_w - item_w;
+    let max_x = (screen_w - item_w - padding).max(padding);
+    let x = desired_x.clamp(padding, max_x);
+
+    let y = if is_above {
+        let above_y = target_y - item_h - spacing_above;
+        if above_y >= 0.0 { above_y } else { target_y + target_h + spacing_above }
+    } else {
+        let below_y = target_y + target_h + spacing_below;
+        let above_y = target_y - item_h - spacing_below;
+        if below_y + item_h <= screen_h {
+            below_y
+        } else if above_y >= 0.0 {
+            above_y
+        } else {
+            default_y
+        }
+    };
+
+    (x, y)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn calculate_resize(
+    start_x: f64,
+    start_y: f64,
+    start_w: f64,
+    start_h: f64,
+    dx: f64,
+    dy: f64,
+    corner: &str,
+    screen_w: f64,
+    screen_h: f64,
+) -> (f64, f64, f64, f64) {
+    let mut new_x = start_x;
+    let mut new_y = start_y;
+    let mut new_w = start_w;
+    let mut new_h = start_h;
+
+    if corner.contains("right") {
+        new_w += dx;
+    } else if corner.contains("left") {
+        new_x += dx;
+        new_w -= dx;
+    }
+
+    if corner.contains("bottom") {
+        new_h += dy;
+    } else if corner.contains("top") {
+        new_y += dy;
+        new_h -= dy;
+    }
+
+    if new_w < 10.0 {
+        if corner.contains("left") {
+            new_x = start_x + start_w - 10.0;
+        }
+        new_w = 10.0;
+    }
+    if new_h < 10.0 {
+        if corner.contains("top") {
+            new_y = start_y + start_h - 10.0;
+        }
+        new_h = 10.0;
+    }
+
+    clamp_rect_resize(new_x, new_y, new_w, new_h, screen_w, screen_h)
+}
+
+pub fn normalize_rect(x: f64, y: f64, w: f64, h: f64) -> (i32, i32, i32, i32) {
+    let nx = x.floor() as i32;
+    let ny = y.floor() as i32;
+    let nw = w.ceil().max(1.0) as i32;
+    let nh = h.ceil().max(1.0) as i32;
+    (nx, ny, nw, nh)
+}
