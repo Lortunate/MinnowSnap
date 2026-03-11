@@ -4,7 +4,7 @@ use cxx_qt_lib::QString;
 use ocr::{OcrContext, OcrModelType};
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
-use tracing::{error, info};
+use tracing::error;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct OcrBlock {

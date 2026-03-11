@@ -77,6 +77,14 @@ pub mod qobject {
         fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
 
         #[qinvokable]
+        #[cxx_name = "requestScrollAction"]
+        fn request_scroll_action(self: Pin<&mut Self>, action: QString);
+
+        #[qinvokable]
+        #[cxx_name = "cancelScrollCapture"]
+        fn cancel_scroll_capture(self: Pin<&mut Self>);
+
+        #[qinvokable]
         #[cxx_name = "submitCapture"]
         fn submit_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
 
@@ -148,7 +156,7 @@ use crate::core::capture::action::{CaptureAction, ActionContext, ActionResult};
 use crate::core::hotkey::HotkeyService;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
-use cxx_qt_lib::{QString, QStringList};
+use cxx_qt_lib::QString;
 use image::RgbaImage;
 use std::pin::Pin;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
@@ -162,6 +170,7 @@ pub struct ScreenCaptureRust {
     pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
+    pending_scroll_action: Option<String>,
 }
 
 impl Default for ScreenCaptureRust {
@@ -172,6 +181,7 @@ impl Default for ScreenCaptureRust {
             pin_count: 0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
             last_scroll_path: None,
+            pending_scroll_action: None,
         }
     }
 }
@@ -202,7 +212,16 @@ impl ScrollObserver for QtScrollObserver {
             if let Some(path) = CaptureService::save_temp(&final_img) {
                 let _ = self.qt_thread.queue(move |mut qobject| {
                     qobject.as_mut().rust_mut().last_scroll_path = Some(path.clone());
+                    
+                    let action = qobject.as_ref().rust().pending_scroll_action.clone();
+                    
                     qobject.as_mut().scroll_capture_finished(QString::from(&path));
+                    
+                    if let Some(act) = action {
+                        let action_enum = CaptureAction::from_str(&act).unwrap_or(CaptureAction::Unknown);
+                        let path_clean = crate::core::io::storage::clean_url_path(&path);
+                        qobject.as_mut().process_action(action_enum, path_clean, 0, 0, 0, 0, false);
+                    }
                 });
             }
         } else {
@@ -276,6 +295,16 @@ impl qobject::ScreenCapture {
         start_scroll_capture_thread(x, y, width, height, active_flag, observer);
         
         self.as_mut().scroll_capture_started(x, y, width, height);
+    }
+
+    pub fn request_scroll_action(mut self: Pin<&mut Self>, action: QString) {
+        self.as_mut().rust_mut().pending_scroll_action = Some(action.to_string());
+        self.as_mut().stop_scroll_capture();
+    }
+
+    pub fn cancel_scroll_capture(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().pending_scroll_action = None;
+        self.as_mut().stop_scroll_capture();
     }
 
     pub fn stop_scroll_capture(self: Pin<&mut Self>) {
