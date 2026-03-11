@@ -15,7 +15,7 @@ Window {
     readonly property int infoTooltipSpacing: 8
     readonly property int resolutionTooltipSpacing: 8
 
-    property string backgroundImageSource: ""
+    property string backgroundImageSource: sessionController.backgroundImageSource
     property alias currentSelection: controller.selectionRect
     readonly property rect activeRect: {
         if (isLockedState || controller.state === states.dragging) {
@@ -31,110 +31,25 @@ Window {
     readonly property bool isBrowsingWithTarget: controller.state === states.browsing && controller.hasTarget
 
     readonly property color maskColor: AppTheme.overlayMask
-    property bool actionProcessing: false
+    property bool actionProcessing: sessionController.actionProcessing
     readonly property bool processing: actionProcessing || captureCompositor.processing
-    property bool annotationDisplayReady: false
+    property bool annotationDisplayReady: sessionController.annotationDisplayReady
     property var screenCapture: null
     readonly property color selectionColor: AppTheme.selection
     readonly property color selectionFillColor: AppTheme.selectionFill
 
     signal cancelled
 
-    function cancelCapture(force) {
-        if (force !== true && processing)
-            return
-        resetState()
-        overlayWindow.hide()
-        cancelled()
-    }
-
-    function normalizedSelectionRect() {
-        return Qt.rect(
-            Math.floor(currentSelection.x),
-            Math.floor(currentSelection.y),
-            Math.max(1, Math.ceil(currentSelection.width)),
-            Math.max(1, Math.ceil(currentSelection.height))
-        )
-    }
-
-    function resetAnnotationSession() {
-        annotationDisplayReady = false
-        toolbar.activeTool = ""
-        annotationLayer.clear()
+    function cancelSession(force) {
+        sessionController.cancelSession(force === true)
     }
 
     function confirmSelection(action) {
-        if (processing)
-            return
-        if (!screenCapture)
-            return
-
-        if (action === "undo") {
-            annotationLayer.undo()
-            return
-        }
-        if (action === "redo") {
-            annotationLayer.redo()
-            return
-        }
-
-        const rect = normalizedSelectionRect()
-        actionProcessing = true
-        screenCapture.requestAction(overlayWindow.backgroundImageSource, action, rect.x, rect.y, rect.width, rect.height, annotationLayer.hasAnnotations)
+        sessionController.confirmAction(action, currentSelection, annotationLayer.hasAnnotations)
     }
 
     function endResize() {
         controller.endResize()
-    }
-
-    function resetState() {
-        captureCompositor.abortComposition()
-        actionProcessing = false
-        resetAnnotationSession()
-        controller.reset()
-        overlayWindow.backgroundImageSource = ""
-        overlayWindow.opacity = 0
-        if (screenCapture) {
-            screenCapture.isCapturing = false
-        }
-    }
-
-    function openWithSource(source) {
-        resetState()
-        overlayWindow.hide()
-        overlayWindow.backgroundImageSource = source
-        Qt.callLater(function () {
-            presentOverlay()
-        })
-    }
-
-    function presentOverlay() {
-        overlayWindow.opacity = 0
-        overlayWindow.show()
-        overlayWindow.raise()
-        overlayWindow.requestActivate()
-        Qt.callLater(function () {
-            if (overlayWindow.visible) {
-                overlayWindow.opacity = 1
-            }
-        })
-    }
-
-    function constrainToolbarPos(targetX, targetY, targetW, targetH, itemW, itemH, isAbove) {
-        let desiredX = targetX + targetW - itemW
-        let x = Math.max(toolbarPadding, Math.min(overlayWindow.width - itemW - toolbarPadding, desiredX))
-
-        let y
-        if (isAbove) {
-            let aboveY = targetY - itemH - toolbarSpacingAbove
-            y = (aboveY >= 0) ? aboveY : (targetY + targetH + toolbarSpacingAbove)
-        } else {
-            let belowY = targetY + targetH + toolbarSpacingBelow
-            let aboveY = targetY - itemH - toolbarSpacingBelow
-            y = (belowY + itemH <= overlayWindow.height) ? belowY : (aboveY >= 0 ? aboveY : defaultY)
-        }
-
-        return Qt.point(x, y)
     }
 
     function startResize(corner, mouseX, mouseY) {
@@ -165,17 +80,27 @@ Window {
     }
 
     onIsLockedStateChanged: {
-        if (!isLockedState) {
-            annotationDisplayReady = false
-            return
-        }
-        if (!annotationDisplayReady) {
+        sessionController.onLockedStateChanged(isLockedState)
+        if (isLockedState && !annotationDisplayReady) {
             Qt.callLater(function () {
                 if (isLockedState) {
-                    annotationDisplayReady = true
+                    sessionController.promoteAnnotationDisplayReady()
                 }
             })
         }
+    }
+
+    CaptureSessionController {
+        id: sessionController
+
+        busy: overlayWindow.processing
+        hasScreenCapture: overlayWindow.screenCapture !== null
+        screenWidth: overlayWindow.width
+        screenHeight: overlayWindow.height
+        toolbarPadding: overlayWindow.toolbarPadding
+        toolbarSpacingAbove: overlayWindow.toolbarSpacingAbove
+        toolbarSpacingBelow: overlayWindow.toolbarSpacingBelow
+        defaultToolbarY: overlayWindow.defaultY
     }
 
     OverlayController {
@@ -198,18 +123,18 @@ Window {
     Connections {
         function onScreenshotCaptured(path) {
             if (path !== "") {
-                openWithSource(PathUtils.addTimestamp(PathUtils.toUrl(path)))
+                sessionController.beginSession(PathUtils.addTimestamp(PathUtils.toUrl(path)))
             }
         }
         function onWindowInfoReady(json) {
             controller.updateWindowList(json)
         }
         function onCaptureReady() {
-            openWithSource(PathUtils.addTimestamp("image://minnow/preview"))
+            sessionController.beginSession(PathUtils.addTimestamp("image://minnow/preview"))
         }
 
         function onActionFinished() {
-            cancelCapture(true)
+            cancelSession(true)
         }
 
         function onRequestComposition(action, x, y, w, h) {
@@ -219,6 +144,72 @@ Window {
         target: screenCapture
     }
 
+    Connections {
+        target: sessionController
+
+        function onRequestAnnotationReset() {
+            toolbar.activeTool = ""
+            annotationLayer.clear()
+        }
+
+        function onRequestCompositorAbort() {
+            captureCompositor.abortComposition()
+        }
+
+        function onRequestOverlayControllerReset() {
+            controller.reset()
+            overlayWindow.opacity = 0
+        }
+
+        function onRequestOverlayHide() {
+            overlayWindow.hide()
+        }
+
+        function onRequestOverlayPresent() {
+            overlayWindow.opacity = 0
+            overlayWindow.show()
+            overlayWindow.raise()
+            overlayWindow.requestActivate()
+            Qt.callLater(function () {
+                if (overlayWindow.visible) {
+                    overlayWindow.opacity = 1
+                }
+            })
+        }
+
+        function onRequestCaptureFlag(value) {
+            if (screenCapture) {
+                screenCapture.isCapturing = value
+            }
+        }
+
+        function onRequestActionDispatch(action, x, y, width, height, hasAnnotations) {
+            if (screenCapture) {
+                screenCapture.requestAction(
+                    sessionController.backgroundImageSource,
+                    action,
+                    x,
+                    y,
+                    width,
+                    height,
+                    hasAnnotations
+                )
+            }
+        }
+
+        function onRequestUndo() {
+            annotationLayer.undo()
+        }
+
+        function onRequestRedo() {
+            annotationLayer.redo()
+        }
+
+        function onSessionCancelled() {
+            cancelled()
+        }
+    }
+
     FocusScope {
         id: focusScope
 
@@ -226,11 +217,12 @@ Window {
         focus: true
 
         Keys.onEnterPressed: {
-            if (hasSelection && !processing)
+            if (hasSelection) {
                 confirmSelection("copy")
+            }
         }
         Keys.onEscapePressed: {
-            cancelCapture()
+            cancelSession(false)
         }
         Keys.onPressed: event => {
             if (!isLockedState && controller.state !== states.dragging) {
@@ -251,17 +243,18 @@ Window {
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
                     if (event.modifiers & Qt.ShiftModifier) {
-                        annotationLayer.redo()
+                        confirmSelection("redo")
                     } else {
-                        annotationLayer.undo()
+                        confirmSelection("undo")
                     }
                     event.accepted = true
                 }
             }
         }
         Keys.onReturnPressed: {
-            if (hasSelection && !processing)
+            if (hasSelection) {
                 confirmSelection("copy")
+            }
         }
 
         Image {
@@ -335,7 +328,7 @@ Window {
                     if (controller.state === states.locked) {
                         controller.reset()
                     } else {
-                        cancelCapture()
+                        cancelSession(false)
                     }
                     return
                 }
@@ -346,7 +339,7 @@ Window {
                         controller.startMove(mouse.x, mouse.y)
                     }
                 } else if (controller.state === states.browsing) {
-                    resetAnnotationSession()
+                    sessionController.resetAnnotationState()
                     controller.startSelection(mouse.x, mouse.y)
                 }
             }
@@ -432,30 +425,52 @@ Window {
                 visible: !isLockedState && controller.state !== states.dragging
                 z: 1000
 
-                onColorCopied: cancelCapture()
+                onColorCopied: {
+                    cancelSession(false)
+                }
             }
         }
 
         SelectionToolbar {
             id: toolbar
 
-            property point pos: constrainToolbarPos(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height, width, height, false)
+            property point pos: sessionController.toolbarPosition(
+                Qt.rect(
+                    currentSelection.x,
+                    currentSelection.y,
+                    currentSelection.width,
+                    currentSelection.height
+                ),
+                width,
+                height,
+                false
+            )
 
             visible: controller.state === states.locked
             x: pos.x
             y: pos.y
             z: 999
 
-            onActionConfirmed: action => overlayWindow.confirmSelection(action)
+            onActionConfirmed: action => confirmSelection(action)
             onCanceled: {
-                cancelCapture()
+                cancelSession(false)
             }
         }
 
         AnnotationProperties {
             id: propBar
 
-            property point pos: constrainToolbarPos(toolbar.x, toolbar.y, toolbar.width, toolbar.height, width, height, false)
+            property point pos: sessionController.toolbarPosition(
+                Qt.rect(
+                    toolbar.x,
+                    toolbar.y,
+                    toolbar.width,
+                    toolbar.height
+                ),
+                width,
+                height,
+                false
+            )
 
             activeColor: annotationLayer.activeColor
             hasOutline: annotationLayer.activeHasOutline
@@ -517,7 +532,7 @@ Window {
         screenCapture: overlayWindow.screenCapture
 
         onRequestHide: overlayWindow.hide()
-        onRequestReset: resetState()
+        onRequestReset: sessionController.resetSession()
     }
 
     CaptureCompositor {
@@ -527,6 +542,7 @@ Window {
         annotationLayer: annotationLayer
         lockedSelectionRect: unifiedSelectionRect
         overlayWindow: overlayWindow
+        sessionController: sessionController
         screenCapture: overlayWindow.screenCapture
 
     }

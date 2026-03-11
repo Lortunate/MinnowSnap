@@ -1,9 +1,12 @@
 pub mod annotation;
 pub mod app;
 pub mod config;
+pub mod capture_compositor;
+pub mod capture_session;
 pub mod hotkey;
 pub mod ocr;
 pub mod ocr_overlay;
+pub mod long_capture;
 pub mod overlay_controller;
 pub mod pin;
 pub mod provider;

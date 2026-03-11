@@ -9,24 +9,14 @@ Item {
     property var annotationLayer
     property var lockedSelectionRect
     property var overlayWindow
+    property var sessionController
 
-    property bool processing: false
     property var pinnedWindows: []
-    property int compositionVersion: 0
-    property int activeCompositionId: -1
     property var pinWindowComponent: null
 
     property var screenCapture
+    readonly property bool processing: compositorController.processing
 
-
-    function normalizeRect(rect) {
-        return Qt.rect(
-            Math.floor(rect.x),
-            Math.floor(rect.y),
-            Math.max(1, Math.ceil(rect.width)),
-            Math.max(1, Math.ceil(rect.height))
-        )
-    }
 
     function restoreAnnotationLayerParent() {
         if (annotationLayer && lockedSelectionRect && annotationLayer.parent !== lockedSelectionRect) {
@@ -35,16 +25,8 @@ Item {
         }
     }
 
-    function finishComposition() {
-        compositor.width = 0
-        compositor.height = 0
-        processing = false
-    }
-
     function abortComposition() {
-        activeCompositionId = -1
-        restoreAnnotationLayerParent()
-        finishComposition()
+        compositorController.abort()
     }
 
     function getPinWindowComponent() {
@@ -62,61 +44,14 @@ Item {
     }
 
     function performComposition(selectionRect, action) {
-        const rect = normalizeRect(selectionRect)
-
-        if (annotationLayer && annotationLayer.hasAnnotations) {
-            const compositionId = ++compositionVersion
-            activeCompositionId = compositionId
-            processing = true
-
-            let srcW = compositorBg.sourceSize.width
-            let logW = compositorBg.width
-            let dpr = (srcW > 0 && logW > 0) ? (srcW / logW) : Screen.devicePixelRatio
-
-            compositor.width = rect.width
-            compositor.height = rect.height
-
-            compositorBg.x = -rect.x
-            compositorBg.y = -rect.y
-
-            annotationLayer.parent = annotationWrapper
-            annotationLayer.anchors.fill = annotationWrapper
-
-            annotationLayer.deselectAll()
-
-            let outW = Math.max(1, Math.ceil(rect.width * dpr))
-            let outH = Math.max(1, Math.ceil(rect.height * dpr))
-
-            let savePath = screenCapture.generateTempPath("png")
-            Qt.callLater(function () {
-                if (activeCompositionId !== compositionId) {
-                    return
-                }
-                compositor.grabToImage(function (result) {
-                    if (activeCompositionId !== compositionId) {
-                        return
-                    }
-
-                    restoreAnnotationLayerParent()
-                    activeCompositionId = -1
-
-                    if (result.saveToFile(savePath)) {
-                        screenCapture.submitCompositedCapture(savePath, action, rect.x, rect.y, rect.width, rect.height)
-                    } else {
-                        console.error("Failed to save composite image")
-                        if (overlayWindow) {
-                            overlayWindow.hide()
-                            overlayWindow.resetState()
-                        }
-                    }
-
-                    finishComposition()
-                }, Qt.size(outW, outH))
-            })
-            return
-        }
-
-        screenCapture.submitCapture(overlayWindow.backgroundImageSource, action, rect.x, rect.y, rect.width, rect.height)
+        compositorController.start(
+            action,
+            selectionRect,
+            annotationLayer ? annotationLayer.hasAnnotations : false,
+            compositorBg.sourceSize.width,
+            compositorBg.width,
+            Screen.devicePixelRatio
+        )
     }
     
     function showPin(path, rect, autoOcr) {
@@ -184,6 +119,89 @@ Item {
             id: annotationWrapper
 
             anchors.fill: parent
+        }
+    }
+
+    CaptureCompositorController {
+        id: compositorController
+    }
+
+    Connections {
+        target: compositorController
+
+        function onRequestPrepareComposition(compositionId, rect, outW, outH) {
+            compositor.width = rect.width
+            compositor.height = rect.height
+            compositorBg.x = -rect.x
+            compositorBg.y = -rect.y
+
+            if (annotationLayer) {
+                annotationLayer.parent = annotationWrapper
+                annotationLayer.anchors.fill = annotationWrapper
+                annotationLayer.deselectAll()
+            }
+
+            if (!screenCapture) {
+                compositorController.handleGrabResult(compositionId, "", false)
+                return
+            }
+
+            const savePath = screenCapture.generateTempPath("png")
+
+            Qt.callLater(function () {
+                if (!compositorController.isActive(compositionId)) {
+                    return
+                }
+                compositor.grabToImage(function (result) {
+                    if (!compositorController.isActive(compositionId)) {
+                        return
+                    }
+                    const saved = result.saveToFile(savePath)
+                    compositorController.handleGrabResult(compositionId, savePath, saved)
+                }, Qt.size(outW, outH))
+            })
+        }
+
+        function onRequestSubmitDirect(action, rect) {
+            if (screenCapture) {
+                screenCapture.submitCapture(
+                    overlayWindow.backgroundImageSource,
+                    action,
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height
+                )
+            }
+        }
+
+        function onRequestSubmitComposited(path, action, rect) {
+            if (screenCapture) {
+                screenCapture.submitCompositedCapture(
+                    path,
+                    action,
+                    rect.x,
+                    rect.y,
+                    rect.width,
+                    rect.height
+                )
+            }
+        }
+
+        function onRequestRestoreAnnotation() {
+            restoreAnnotationLayerParent()
+        }
+
+        function onRequestCompositionFailed() {
+            console.error("Failed to save composite image")
+            if (sessionController) {
+                sessionController.cancelSession(true)
+            }
+        }
+
+        function onRequestResetSurface() {
+            compositor.width = 0
+            compositor.height = 0
         }
     }
 
