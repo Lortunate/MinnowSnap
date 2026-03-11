@@ -32,10 +32,11 @@ pub fn hide_dock_icon() {
 
 pub fn ensure_single_instance(uniq_id: &str) -> bool {
     if let Ok(instance) = SingleInstance::new(uniq_id)
-        && instance.is_single() {
-            Box::leak(Box::new(instance));
-            return true;
-        }
+        && instance.is_single()
+    {
+        Box::leak(Box::new(instance));
+        return true;
+    }
     false
 }
 

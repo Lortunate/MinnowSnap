@@ -101,22 +101,24 @@ impl qobject::OcrManager {
             });
         });
 
-        crate::spawn_qt_task!(self, async move {
-            ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await
-        }, |mut qobject: Pin<&mut qobject::OcrManager>, result| {
-            qobject.as_mut().set_is_downloading(false);
-            match result {
-                Ok(_) => {
-                    info!("OCR model download completed successfully");
-                    qobject.as_mut().set_is_model_ready(true);
-                    qobject.as_mut().set_download_progress(1.0);
-                    qobject.as_mut().set_status_message(QString::from("Download complete"));
-                }
-                Err(e) => {
-                    error!("Download failed: {}", e);
-                    qobject.as_mut().set_status_message(QString::from("Download failed"));
+        crate::spawn_qt_task!(
+            self,
+            async move { ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await },
+            |mut qobject: Pin<&mut qobject::OcrManager>, result| {
+                qobject.as_mut().set_is_downloading(false);
+                match result {
+                    Ok(_) => {
+                        info!("OCR model download completed successfully");
+                        qobject.as_mut().set_is_model_ready(true);
+                        qobject.as_mut().set_download_progress(1.0);
+                        qobject.as_mut().set_status_message(QString::from("Download complete"));
+                    }
+                    Err(e) => {
+                        error!("Download failed: {}", e);
+                        qobject.as_mut().set_status_message(QString::from("Download failed"));
+                    }
                 }
             }
-        });
+        );
     }
 }

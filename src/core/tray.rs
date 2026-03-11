@@ -48,12 +48,9 @@ pub fn normalize_geometry(mut rect: RectData, screens: &[ScreenData], platform_o
         return rect;
     }
 
-    let is_logical = screens.iter().any(|s| {
-        rect.x >= s.virtual_x
-            && rect.x < s.virtual_x + s.width
-            && rect.y >= s.virtual_y
-            && rect.y < s.virtual_y + s.height
-    });
+    let is_logical = screens
+        .iter()
+        .any(|s| rect.x >= s.virtual_x && rect.x < s.virtual_x + s.width && rect.y >= s.virtual_y && rect.y < s.virtual_y + s.height);
 
     if is_logical {
         return rect;
@@ -67,11 +64,7 @@ pub fn normalize_geometry(mut rect: RectData, screens: &[ScreenData], platform_o
         };
         let px = rect.x / dpr;
         let py = rect.y / dpr;
-        if px >= screen.virtual_x
-            && px < screen.virtual_x + screen.width
-            && py >= screen.virtual_y
-            && py < screen.virtual_y + screen.height
-        {
+        if px >= screen.virtual_x && px < screen.virtual_x + screen.width && py >= screen.virtual_y && py < screen.virtual_y + screen.height {
             rect.x = px;
             rect.y = py;
             rect.width /= dpr;
@@ -89,12 +82,7 @@ pub fn find_screen(rect: RectData, screens: &[ScreenData]) -> Option<ScreenData>
     screens
         .iter()
         .copied()
-        .find(|s| {
-            cx >= s.virtual_x
-                && cx < s.virtual_x + s.width
-                && cy >= s.virtual_y
-                && cy < s.virtual_y + s.height
-        })
+        .find(|s| cx >= s.virtual_x && cx < s.virtual_x + s.width && cy >= s.virtual_y && cy < s.virtual_y + s.height)
         .or_else(|| screens.first().copied())
 }
 

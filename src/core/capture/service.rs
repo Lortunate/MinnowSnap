@@ -1,5 +1,5 @@
-use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::capture::action::CaptureInputMode;
+use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
@@ -93,7 +93,8 @@ impl CaptureService {
     }
 
     pub fn save_region_to_user_dir(path: &str, x: i32, y: i32, width: i32, height: i32, input_mode: CaptureInputMode) -> Result<String, String> {
-        let img = Self::resolve_image(path, x, y, width, height, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
+        let img =
+            Self::resolve_image(path, x, y, width, height, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
         let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
 
@@ -146,9 +147,10 @@ impl CaptureService {
             let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
             let grids = img.detect_grids();
             if let Some(grid) = grids.first()
-                && let Ok((_meta, content)) = grid.decode() {
-                    return Some(content);
-                }
+                && let Ok((_meta, content)) = grid.decode()
+            {
+                return Some(content);
+            }
         }
         None
     }

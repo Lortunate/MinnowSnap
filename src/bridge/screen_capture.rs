@@ -163,7 +163,10 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use image::RgbaImage;
 use std::pin::Pin;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use tracing::{error, info};
 
 use std::str::FromStr;
@@ -216,11 +219,11 @@ impl ScrollObserver for QtScrollObserver {
             if let Some(path) = CaptureService::save_temp(&final_img) {
                 let _ = self.qt_thread.queue(move |mut qobject| {
                     qobject.as_mut().rust_mut().last_scroll_path = Some(path.clone());
-                    
+
                     let action = qobject.as_ref().rust().pending_scroll_action.clone();
-                    
+
                     qobject.as_mut().scroll_capture_finished(QString::from(&path));
-                    
+
                     if let Some(act) = action {
                         let action_enum = CaptureAction::from_str(&act).unwrap_or(CaptureAction::Unknown);
                         let path_clean = crate::core::io::storage::clean_url_path(&path);
@@ -247,22 +250,26 @@ impl qobject::ScreenCapture {
         info!("Preparing screen capture...");
         self.as_mut().set_is_capturing(true);
 
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(CaptureService::capture_screen).await.unwrap_or(false)
-        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, success| {
-            if success {
-                qobject.as_mut().capture_ready();
-            } else {
-                error!("Failed to capture screen");
+        crate::spawn_qt_task!(
+            self,
+            async move { tokio::task::spawn_blocking(CaptureService::capture_screen).await.unwrap_or(false) },
+            |mut qobject: Pin<&mut qobject::ScreenCapture>, success| {
+                if success {
+                    qobject.as_mut().capture_ready();
+                } else {
+                    error!("Failed to capture screen");
+                }
+                qobject.as_mut().set_is_capturing(false);
             }
-            qobject.as_mut().set_is_capturing(false);
-        });
+        );
 
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(CaptureService::fetch_windows_json).await.unwrap_or_default()
-        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, json| {
-            qobject.as_mut().window_info_ready(QString::from(&json));
-        });
+        crate::spawn_qt_task!(
+            self,
+            async move { tokio::task::spawn_blocking(CaptureService::fetch_windows_json).await.unwrap_or_default() },
+            |mut qobject: Pin<&mut qobject::ScreenCapture>, json| {
+                qobject.as_mut().window_info_ready(QString::from(&json));
+            }
+        );
     }
 
     pub fn quick_capture(mut self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32) {
@@ -273,18 +280,22 @@ impl qobject::ScreenCapture {
         info!("Starting quick capture region: {},{} {}x{}", x, y, width, height);
         self.as_mut().set_is_capturing(true);
 
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(move || {
-                CaptureService::run_quick_capture_workflow(x, y, width, height)
-            }).await.unwrap_or(None)
-        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
-            if let Some(saved) = result {
-                let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
-                let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
-                crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+        crate::spawn_qt_task!(
+            self,
+            async move {
+                tokio::task::spawn_blocking(move || CaptureService::run_quick_capture_workflow(x, y, width, height))
+                    .await
+                    .unwrap_or(None)
+            },
+            |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
+                if let Some(saved) = result {
+                    let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
+                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
+                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+                }
+                qobject.as_mut().set_is_capturing(false);
             }
-            qobject.as_mut().set_is_capturing(false);
-        });
+        );
     }
 
     pub fn start_scroll_capture(mut self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32) {
@@ -299,7 +310,7 @@ impl qobject::ScreenCapture {
         let observer = Box::new(QtScrollObserver { qt_thread: self.qt_thread() });
 
         start_scroll_capture_thread(x, y, width, height, active_flag, observer);
-        
+
         self.as_mut().scroll_capture_started(x, y, width, height);
     }
 
@@ -432,19 +443,11 @@ impl qobject::ScreenCapture {
         match action_enum {
             CaptureAction::Scroll => {
                 self.start_scroll_capture(x, y, width, height);
-            },
+            }
             CaptureAction::QrCode if !has_annotations => {
                 let path_str = self.rust().resolve_path(&path);
-                self.process_action(
-                    CaptureAction::QrCode,
-                    path_str,
-                    x,
-                    y,
-                    width,
-                    height,
-                    CaptureInputMode::CropSelection,
-                );
-            },
+                self.process_action(CaptureAction::QrCode, path_str, x, y, width, height, CaptureInputMode::CropSelection);
+            }
             _ => {
                 if has_annotations {
                     self.request_composition(action, x, y, width, height);
@@ -478,7 +481,7 @@ impl qobject::ScreenCapture {
         let action_str = action.to_string();
         let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
         let path_str = self.rust().resolve_path(&path);
-        
+
         info!("Submitting capture action: {}, path: {}", action_str, path_str);
 
         match action_enum {
@@ -507,37 +510,43 @@ impl qobject::ScreenCapture {
         };
         let action_clone = action.clone();
 
-        crate::spawn_qt_task!(self, async move {
-            tokio::task::spawn_blocking(move || {
-                action_clone.execute(context)
-            }).await.unwrap_or(ActionResult::Error("Task failed".to_string()))
-        }, |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
-            match result {
-                ActionResult::Copied => {
-                     crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
-                },
-                ActionResult::Saved(saved_path) => {
-                    let title = crate::bridge::app::tr("ScreenCapture", "Saved");
-                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
-                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
-                },
-                ActionResult::PinRequested(temp_path, auto_ocr) => {
-                    qobject.as_mut().pin_window_requested(QString::from(&temp_path), x, y, width, height, auto_ocr);
-                },
-                ActionResult::OcrResult(content) => {
-                     crate::spawn_clipboard_copy!(qobject, QString::from(&content), "QR Code content copied to clipboard", QrCode);
-                     qobject.as_mut().ocr_result(QString::from(&content));
-                },
-                ActionResult::Error(e) => {
-                    error!("Action error: {e}");
-                    if action == CaptureAction::QrCode {
-                         crate::core::notify::show("MinnowSnap", "No QR Code detected", crate::core::notify::NotificationType::Info);
+        crate::spawn_qt_task!(
+            self,
+            async move {
+                tokio::task::spawn_blocking(move || action_clone.execute(context))
+                    .await
+                    .unwrap_or(ActionResult::Error("Task failed".to_string()))
+            },
+            |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
+                match result {
+                    ActionResult::Copied => {
+                        crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
                     }
-                },
-                ActionResult::NoOp => {}
+                    ActionResult::Saved(saved_path) => {
+                        let title = crate::bridge::app::tr("ScreenCapture", "Saved");
+                        let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
+                        crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+                    }
+                    ActionResult::PinRequested(temp_path, auto_ocr) => {
+                        qobject
+                            .as_mut()
+                            .pin_window_requested(QString::from(&temp_path), x, y, width, height, auto_ocr);
+                    }
+                    ActionResult::OcrResult(content) => {
+                        crate::spawn_clipboard_copy!(qobject, QString::from(&content), "QR Code content copied to clipboard", QrCode);
+                        qobject.as_mut().ocr_result(QString::from(&content));
+                    }
+                    ActionResult::Error(e) => {
+                        error!("Action error: {e}");
+                        if action == CaptureAction::QrCode {
+                            crate::core::notify::show("MinnowSnap", "No QR Code detected", crate::core::notify::NotificationType::Info);
+                        }
+                    }
+                    ActionResult::NoOp => {}
+                }
+                qobject.as_mut().action_finished();
             }
-            qobject.as_mut().action_finished();
-        });
+        );
     }
 }
 
@@ -549,7 +558,7 @@ impl ScreenCaptureRust {
         {
             path_str = last.to_string();
         }
-        
+
         crate::core::io::storage::clean_url_path(&path_str)
     }
 }

@@ -71,6 +71,6 @@ pub fn format_selected_blocks(blocks: &[OcrBlock], indices: &[usize]) -> Option<
         }
         prev_block = Some(curr_block);
     }
-    
+
     Some(result)
 }

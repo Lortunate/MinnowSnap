@@ -226,7 +226,14 @@ impl qobject::Config {
     }
 
     pub fn update_notification_enabled(mut self: Pin<&mut Self>, enabled: bool) {
-        update_prop!(self, enabled, notification_enabled, set_notification_enabled, set_notification_enabled, bool);
+        update_prop!(
+            self,
+            enabled,
+            notification_enabled,
+            set_notification_enabled,
+            set_notification_enabled,
+            bool
+        );
     }
 
     pub fn update_save_notification(mut self: Pin<&mut Self>, enabled: bool) {
@@ -238,7 +245,14 @@ impl qobject::Config {
     }
 
     pub fn update_qr_code_notification(mut self: Pin<&mut Self>, enabled: bool) {
-        update_prop!(self, enabled, qr_code_notification, set_qr_code_notification, set_qr_code_notification, bool);
+        update_prop!(
+            self,
+            enabled,
+            qr_code_notification,
+            set_qr_code_notification,
+            set_qr_code_notification,
+            bool
+        );
     }
 
     pub fn update_shutter_sound(mut self: Pin<&mut Self>, enabled: bool) {
@@ -248,7 +262,7 @@ impl qobject::Config {
     pub fn update_save_path(mut self: Pin<&mut Self>, path: QString) {
         let path_str = path.to_string();
         let clean_path = clean_url_path(&path_str);
-        
+
         if self.save_path().to_string() == clean_path {
             return;
         }
@@ -282,7 +296,8 @@ impl qobject::Config {
 
         if capture_str == quick_str {
             self.as_mut().set_has_shortcut_conflicts(true);
-            self.as_mut().set_shortcut_conflict_msg(crate::bridge::app::tr("Preferences", "Shortcuts cannot be identical."));
+            self.as_mut()
+                .set_shortcut_conflict_msg(crate::bridge::app::tr("Preferences", "Shortcuts cannot be identical."));
         } else {
             self.as_mut().set_has_shortcut_conflicts(false);
             self.as_mut().set_shortcut_conflict_msg(QString::default());

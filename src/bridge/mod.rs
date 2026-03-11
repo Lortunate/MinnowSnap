@@ -1,12 +1,12 @@
 pub mod annotation;
 pub mod app;
-pub mod config;
 pub mod capture_compositor;
 pub mod capture_session;
+pub mod config;
 pub mod hotkey;
+pub mod long_capture;
 pub mod ocr;
 pub mod ocr_overlay;
-pub mod long_capture;
 pub mod overlay_controller;
 pub mod pin;
 pub mod provider;
@@ -41,17 +41,20 @@ macro_rules! notify_tr {
 macro_rules! spawn_clipboard_copy {
     ($self:expr, $text:expr, $msg_key:expr, $notif_type:ident) => {
         let text_str = $text.to_string();
-        $crate::spawn_qt_task!($self, async move {
-            tokio::task::spawn_blocking(move || {
-                $crate::core::io::clipboard::copy_text_to_clipboard(text_str)
-            }).await.unwrap_or(false)
-        }, |_qobject: Pin<&mut qobject::ScreenCapture>, success| {
-            if success {
-                $crate::notify_tr!("ScreenCapture", "Success", $msg_key, $notif_type);
-            } else {
-                tracing::error!("Failed to copy to clipboard");
+        $crate::spawn_qt_task!(
+            $self,
+            async move {
+                tokio::task::spawn_blocking(move || $crate::core::io::clipboard::copy_text_to_clipboard(text_str))
+                    .await
+                    .unwrap_or(false)
+            },
+            |_qobject: Pin<&mut qobject::ScreenCapture>, success| {
+                if success {
+                    $crate::notify_tr!("ScreenCapture", "Success", $msg_key, $notif_type);
+                } else {
+                    tracing::error!("Failed to copy to clipboard");
+                }
             }
-        });
+        );
     };
 }
-

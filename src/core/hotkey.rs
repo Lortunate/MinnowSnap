@@ -115,9 +115,10 @@ impl HotkeyService {
         let new_hotkey = parse_hotkey(new_shortcut);
 
         if let Some(old) = current_hotkey
-            && let Err(e) = manager.unregister(*old) {
-                error!("Failed to unregister hotkey: {e}");
-            }
+            && let Err(e) = manager.unregister(*old)
+        {
+            error!("Failed to unregister hotkey: {e}");
+        }
 
         let mut next_hotkey = None;
 
@@ -135,7 +136,7 @@ impl HotkeyService {
         }
 
         *current_hotkey = next_hotkey;
-        
+
         let mut ids = hotkey_ids.lock().unwrap();
         if is_screen {
             ids.screen_capture = next_hotkey.map(|hk| hk.id());
