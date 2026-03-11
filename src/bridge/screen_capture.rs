@@ -152,7 +152,7 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
-use crate::bridge::hotkey::{HotkeyState, update_hotkey};
+use crate::core::hotkey_state::{update_hotkey, HotkeyState};
 use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction, CaptureInputMode};
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};

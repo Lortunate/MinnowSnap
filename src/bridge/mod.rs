@@ -3,7 +3,6 @@ pub mod app;
 pub mod capture_compositor;
 pub mod capture_session;
 pub mod config;
-pub mod hotkey;
 pub mod long_capture;
 pub mod ocr;
 pub mod ocr_overlay;
