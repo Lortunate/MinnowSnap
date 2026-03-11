@@ -9,8 +9,6 @@ import "../../../components"
 Item {
     id: root
 
-    property var screenCapture
-
     FolderDialog {
         id: folderDialog
         currentFolder: PathUtils.toUrl(Config.savePath !== "" ? Config.savePath : StandardPaths.standardLocations(StandardPaths.PicturesLocation)[0])

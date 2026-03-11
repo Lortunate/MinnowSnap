@@ -265,7 +265,6 @@ Window {
                     currentIndex: sidebarList.currentIndex
 
                     GeneralPage {
-                        screenCapture: preferencesWindow.screenCapture
                     }
 
                     ShortcutsPage {

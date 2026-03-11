@@ -8,28 +8,6 @@ Item {
     id: root
     property var screenCapture
 
-    QtObject {
-        id: shortcutsModel
-        property string conflictMessage: ""
-        property bool hasConflicts: false
-
-        function resolve(val, def) {
-            return val === "" ? def : val;
-        }
-
-        function checkConflicts(capture, quick) {
-            hasConflicts = false;
-            conflictMessage = "";
-            let c = resolve(capture, "F1");
-            let q = resolve(quick, "F2");
-
-            if (c === q) {
-                hasConflicts = true;
-                conflictMessage = qsTr("Shortcuts cannot be identical.");
-            }
-        }
-    }
-
     ScrollView {
         anchors.fill: parent
         clip: true
@@ -46,7 +24,7 @@ Item {
 
                     control: ShortcutInput {
                         id: screenCaptureInput
-                        hasConflict: shortcutsModel.hasConflicts
+                        hasConflict: Config.hasShortcutConflicts
                         defaultValue: "F1"
                         sequence: Config.captureShortcut
                         onCommitted: (newShortcut) => {
@@ -54,7 +32,7 @@ Item {
                             if (root.screenCapture) {
                                 root.screenCapture.setCaptureShortcut(newShortcut)
                             }
-                            shortcutsModel.checkConflicts(newShortcut, Config.quickCaptureShortcut)
+                            Config.checkShortcutConflicts(newShortcut, Config.quickCaptureShortcut)
                         }
                     }
                 }
@@ -67,7 +45,7 @@ Item {
 
                     control: ShortcutInput {
                         id: quickCaptureInput
-                        hasConflict: shortcutsModel.hasConflicts
+                        hasConflict: Config.hasShortcutConflicts
                         defaultValue: "F2"
                         sequence: Config.quickCaptureShortcut
                         onCommitted: (newShortcut) => {
@@ -75,7 +53,7 @@ Item {
                             if (root.screenCapture) {
                                 root.screenCapture.setQuickCaptureShortcut(newShortcut)
                             }
-                            shortcutsModel.checkConflicts(Config.captureShortcut, newShortcut)
+                            Config.checkShortcutConflicts(Config.captureShortcut, newShortcut)
                         }
                     }
                 }
@@ -87,7 +65,7 @@ Item {
 
                 RowLayout {
                     spacing: AppTheme.spacingTiny
-                    visible: shortcutsModel.hasConflicts
+                    visible: Config.hasShortcutConflicts
 
                     Text {
                         font.pixelSize: AppTheme.fontSizeSmall
@@ -98,7 +76,7 @@ Item {
                         color: AppTheme.danger
                         font.family: AppTheme.fontFamily
                         font.pixelSize: AppTheme.fontSizeSmall
-                        text: shortcutsModel.conflictMessage
+                        text: Config.shortcutConflictMsg
                     }
                 }
 
@@ -116,7 +94,7 @@ Item {
                             root.screenCapture.setCaptureShortcut("F1")
                             root.screenCapture.setQuickCaptureShortcut("F2")
                         }
-                        shortcutsModel.checkConflicts("F1", "F2")
+                        Config.checkShortcutConflicts("F1", "F2")
                     }
                 }
             }
