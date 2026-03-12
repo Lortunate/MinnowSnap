@@ -8,16 +8,16 @@ Rectangle {
 
     property color activeColor: AppTheme.danger
     property int activeSize: 4
-    property string mode: "arrow"
+    property int mode: AnnotationTools.Arrow
 
     property bool hasOutline: false
     property bool hasStroke: false
     property string mosaicType: "mosaic"
 
-    readonly property bool isMosaic: mode === "mosaic"
-    readonly property int minSize: mode === "counter" || mode === "text" ? 16 : (isMosaic ? 5 : 2)
-    readonly property int maxSize: mode === "text" ? 96 : (mode === "counter" ? 64 : (isMosaic ? 50 : 20))
-    readonly property int stepSize: mode === "counter" || mode === "text" ? 4 : (isMosaic ? 5 : 2)
+    readonly property bool isMosaic: mode === AnnotationTools.Mosaic
+    readonly property int minSize: mode === AnnotationTools.Counter || mode === AnnotationTools.Text ? 16 : (isMosaic ? 5 : 2)
+    readonly property int maxSize: mode === AnnotationTools.Text ? 96 : (mode === AnnotationTools.Counter ? 64 : (isMosaic ? 50 : 20))
+    readonly property int stepSize: mode === AnnotationTools.Counter || mode === AnnotationTools.Text ? 4 : (isMosaic ? 5 : 2)
 
     readonly property var colors: [AppTheme.danger, "#FF9500", "#FFCC00", "#4CD964", "#5AC8FA", "#007AFF", "#5856D6", "#000000", "#FFFFFF"]
 

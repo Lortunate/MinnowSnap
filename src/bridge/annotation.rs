@@ -17,6 +17,21 @@ const FONT_SIZE_MAX: i32 = 96;
 
 #[cxx_qt::bridge]
 pub mod qobject {
+    #[qml_element]
+    qnamespace!("AnnotationTools");
+
+    #[qenum]
+    #[namespace = "AnnotationTools"]
+    pub enum AnnotationTool {
+        NoTool,
+        Arrow,
+        Rectangle,
+        Circle,
+        Counter,
+        Text,
+        Mosaic,
+    }
+
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
@@ -26,7 +41,7 @@ pub mod qobject {
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QString, active_tool)]
+        #[qproperty(i32, active_tool)]
         #[qproperty(QString, active_color)]
         #[qproperty(bool, active_has_outline)]
         #[qproperty(bool, active_has_stroke)]
@@ -38,14 +53,14 @@ pub mod qobject {
         #[qproperty(i32, next_counter_value)]
         #[qproperty(bool, has_annotations)]
         #[qproperty(bool, has_selected_annotation)]
-        #[qproperty(QString, selected_annotation_type)]
+        #[qproperty(i32, selected_annotation_type)]
         type AnnotationController = super::AnnotationControllerRust;
 
         #[qinvokable]
         fn initialize_defaults(self: Pin<&mut Self>, active_color: QString);
 
         #[qinvokable]
-        fn update_active_tool(self: Pin<&mut Self>, tool: QString);
+        fn update_active_tool(self: Pin<&mut Self>, tool: i32);
 
         #[qinvokable]
         fn update_active_color(self: Pin<&mut Self>, color: QString);
@@ -75,7 +90,7 @@ pub mod qobject {
         fn begin_create_annotation(self: Pin<&mut Self>) -> i32;
 
         #[qinvokable]
-        fn register_created_annotation(self: Pin<&mut Self>, id: i32, kind: QString);
+        fn register_created_annotation(self: Pin<&mut Self>, id: i32, kind: i32);
 
         #[qinvokable]
         fn cancel_created_annotation(self: Pin<&mut Self>, id: i32);
@@ -84,7 +99,7 @@ pub mod qobject {
         fn on_annotation_selected(
             self: Pin<&mut Self>,
             id: i32,
-            kind: QString,
+            kind: i32,
             color: QString,
             has_outline: bool,
             has_stroke: bool,
@@ -112,7 +127,7 @@ pub mod qobject {
         fn clear_selection(self: Pin<&mut Self>);
 
         #[qsignal]
-        fn request_set_tool(self: Pin<&mut Self>, tool: QString);
+        fn request_set_tool(self: Pin<&mut Self>, tool: i32);
 
         #[qsignal]
         fn request_clear_selection(self: Pin<&mut Self>);
@@ -132,7 +147,7 @@ pub mod qobject {
 }
 
 pub struct AnnotationControllerRust {
-    active_tool: QString,
+    active_tool: i32,
     active_color: QString,
     active_has_outline: bool,
     active_has_stroke: bool,
@@ -144,7 +159,7 @@ pub struct AnnotationControllerRust {
     next_counter_value: i32,
     has_annotations: bool,
     has_selected_annotation: bool,
-    selected_annotation_type: QString,
+    selected_annotation_type: i32,
     annotations: Vec<AnnotationState>,
     selected_id: Option<i32>,
     next_id: i32,
@@ -154,7 +169,7 @@ pub struct AnnotationControllerRust {
 impl Default for AnnotationControllerRust {
     fn default() -> Self {
         Self {
-            active_tool: QString::from(""),
+            active_tool: TOOL_NO_TOOL,
             active_color: QString::from("#FF3B30"),
             active_has_outline: true,
             active_has_stroke: false,
@@ -166,7 +181,7 @@ impl Default for AnnotationControllerRust {
             next_counter_value: 1,
             has_annotations: false,
             has_selected_annotation: false,
-            selected_annotation_type: QString::from(""),
+            selected_annotation_type: TOOL_NO_TOOL,
             annotations: Vec::new(),
             selected_id: None,
             next_id: 1,
@@ -192,7 +207,7 @@ macro_rules! clamped_update {
 }
 
 impl qobject::AnnotationController {
-    fn set_selected_annotation(mut self: Pin<&mut Self>, id: i32, kind: QString) {
+    fn set_selected_annotation(mut self: Pin<&mut Self>, id: i32, kind: i32) {
         self.as_mut().rust_mut().selected_id = Some(id);
         self.as_mut().set_has_selected_annotation(true);
         self.as_mut().set_selected_annotation_type(kind);
@@ -201,7 +216,7 @@ impl qobject::AnnotationController {
     fn clear_selected_annotation(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().selected_id = None;
         self.as_mut().set_has_selected_annotation(false);
-        self.as_mut().set_selected_annotation_type(QString::from(""));
+        self.as_mut().set_selected_annotation_type(TOOL_NO_TOOL);
     }
 
     pub fn initialize_defaults(mut self: Pin<&mut Self>, active_color: QString) {
@@ -210,12 +225,11 @@ impl qobject::AnnotationController {
         }
     }
 
-    pub fn update_active_tool(mut self: Pin<&mut Self>, tool: QString) {
-        self.as_mut().set_active_tool(tool.clone());
-        let tool_name = tool.to_string();
-        if !tool_name.is_empty() {
+    pub fn update_active_tool(mut self: Pin<&mut Self>, tool: i32) {
+        self.as_mut().set_active_tool(tool);
+        if tool != TOOL_NO_TOOL {
             self.as_mut().clear_selection();
-            if tool_name == "counter" || tool_name == "arrow" {
+            if tool == TOOL_COUNTER || tool == TOOL_ARROW {
                 self.as_mut().set_active_has_outline(false);
             }
         }
@@ -249,8 +263,8 @@ impl qobject::AnnotationController {
         removed_ids
     }
 
-    fn select_with_kind(mut self: Pin<&mut Self>, id: i32, kind: &str) {
-        self.as_mut().set_selected_annotation(id, QString::from(kind));
+    fn select_with_kind(mut self: Pin<&mut Self>, id: i32, kind: i32) {
+        self.as_mut().set_selected_annotation(id, kind);
         self.as_mut().request_select_annotation(id);
     }
 
@@ -277,11 +291,11 @@ impl qobject::AnnotationController {
     }
 
     fn deactivate_tool(mut self: Pin<&mut Self>) {
-        if self.active_tool().is_empty() {
+        if *self.active_tool() == TOOL_NO_TOOL {
             return;
         }
-        self.as_mut().set_active_tool(QString::from(""));
-        self.as_mut().request_set_tool(QString::from(""));
+        self.as_mut().set_active_tool(TOOL_NO_TOOL);
+        self.as_mut().request_set_tool(TOOL_NO_TOOL);
     }
 
     pub fn begin_create_annotation(mut self: Pin<&mut Self>) -> i32 {
@@ -298,19 +312,18 @@ impl qobject::AnnotationController {
         id
     }
 
-    pub fn register_created_annotation(mut self: Pin<&mut Self>, id: i32, kind: QString) {
+    pub fn register_created_annotation(mut self: Pin<&mut Self>, id: i32, kind: i32) {
         self.as_mut().rust_mut().annotations.push(AnnotationState { id });
         let visible_len = self.rust().annotations.len();
         self.as_mut().set_visible_len(visible_len);
         self.as_mut().request_bring_to_front(id);
 
-        let kind_str = kind.to_string();
-        if kind_str == "counter" {
-            self.as_mut().select_with_kind(id, "counter");
+        if kind == TOOL_COUNTER {
+            self.as_mut().select_with_kind(id, TOOL_COUNTER);
             let next_counter_value = *self.next_counter_value() + 1;
             self.as_mut().set_next_counter_value(next_counter_value);
-        } else if kind_str == "text" {
-            self.as_mut().select_with_kind(id, "text");
+        } else if kind == TOOL_TEXT {
+            self.as_mut().select_with_kind(id, TOOL_TEXT);
         }
     }
 
@@ -321,7 +334,7 @@ impl qobject::AnnotationController {
     pub fn on_annotation_selected(
         mut self: Pin<&mut Self>,
         id: i32,
-        kind: QString,
+        kind: i32,
         color: QString,
         has_outline: bool,
         has_stroke: bool,
@@ -419,3 +432,8 @@ impl qobject::AnnotationController {
         self.as_mut().request_clear_selection();
     }
 }
+
+const TOOL_NO_TOOL: i32 = 0;
+const TOOL_ARROW: i32 = 1;
+const TOOL_COUNTER: i32 = 4;
+const TOOL_TEXT: i32 = 5;

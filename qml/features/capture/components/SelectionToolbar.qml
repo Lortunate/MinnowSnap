@@ -7,7 +7,7 @@ import "../../../components"
 Rectangle {
     id: root
 
-    property string activeTool: ""
+    property int activeTool: AnnotationTools.NoTool
     property bool showTooltips: true
 
     readonly property int toolbarHeight: 36
@@ -20,42 +20,42 @@ Rectangle {
             {
                 "icon": "qrc:/resources/icons/square.svg",
                 "text": qsTr("Rectangle"),
-                "tool": "rectangle",
+                "tool": AnnotationTools.Rectangle,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/circle.svg",
                 "text": qsTr("Circle"),
-                "tool": "circle",
+                "tool": AnnotationTools.Circle,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/counter_1.svg",
                 "text": qsTr("Counter"),
-                "tool": "counter",
+                "tool": AnnotationTools.Counter,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/arrow_insert.svg",
                 "text": qsTr("Arrow"),
-                "tool": "arrow",
+                "tool": AnnotationTools.Arrow,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/text_fields.svg",
                 "text": qsTr("Text"),
-                "tool": "text",
+                "tool": AnnotationTools.Text,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/grid_on.svg",
                 "text": qsTr("Mosaic"),
-                "tool": "mosaic",
+                "tool": AnnotationTools.Mosaic,
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
@@ -129,7 +129,7 @@ Rectangle {
 
     signal actionConfirmed(int action)
     signal canceled
-    signal toolChanged(string tool)
+    signal toolChanged(int tool)
 
     border.color: AppTheme.border
     border.width: 1
@@ -176,7 +176,7 @@ Rectangle {
                             if (modelData.action === CaptureActions.Cancel) {
                                 root.canceled();
                             } else if (modelData.isTool) {
-                                root.activeTool = root.activeTool === modelData.tool ? "" : modelData.tool;
+                                root.activeTool = root.activeTool === modelData.tool ? AnnotationTools.NoTool : modelData.tool;
                                 root.toolChanged(root.activeTool);
                             } else {
                                 root.actionConfirmed(modelData.action);
