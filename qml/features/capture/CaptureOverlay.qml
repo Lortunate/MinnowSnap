@@ -218,7 +218,7 @@ Window {
 
         Keys.onEnterPressed: {
             if (hasSelection) {
-                confirmSelection("copy")
+                confirmSelection(CaptureActions.Copy)
             }
         }
         Keys.onEscapePressed: {
@@ -243,9 +243,9 @@ Window {
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
                     if (event.modifiers & Qt.ShiftModifier) {
-                        confirmSelection("redo")
+                        confirmSelection(CaptureActions.Redo)
                     } else {
-                        confirmSelection("undo")
+                        confirmSelection(CaptureActions.Undo)
                     }
                     event.accepted = true
                 }
@@ -253,7 +253,7 @@ Window {
         }
         Keys.onReturnPressed: {
             if (hasSelection) {
-                confirmSelection("copy")
+                confirmSelection(CaptureActions.Copy)
             }
         }
 

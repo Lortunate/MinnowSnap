@@ -1,5 +1,23 @@
 #[cxx_qt::bridge]
 pub mod qobject {
+    #[qml_element]
+    qnamespace!("CaptureActions");
+
+    #[qenum]
+    #[namespace = "CaptureActions"]
+    pub enum UiAction {
+        Unknown,
+        Copy,
+        Save,
+        Pin,
+        Ocr,
+        Scroll,
+        QrCode,
+        Undo,
+        Redo,
+        Cancel,
+    }
+
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
@@ -59,19 +77,19 @@ pub mod qobject {
         fn decrement_pin_count(self: Pin<&mut Self>);
 
         #[qinvokable]
-        fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
+        fn request_action(self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
 
         #[qinvokable]
-        fn request_scroll_action(self: Pin<&mut Self>, action: QString);
+        fn request_scroll_action(self: Pin<&mut Self>, action: i32);
 
         #[qinvokable]
         fn cancel_scroll_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        fn submit_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
+        fn submit_capture(self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
-        fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
+        fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32);
 
         #[qsignal]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
@@ -101,7 +119,7 @@ pub mod qobject {
         fn close_all_pins(self: Pin<&mut Self>);
 
         #[qsignal]
-        fn request_composition(self: Pin<&mut Self>, action: QString, x: i32, y: i32, width: i32, height: i32);
+        fn request_composition(self: Pin<&mut Self>, action: i32, x: i32, y: i32, width: i32, height: i32);
 
         #[qsignal]
         fn action_finished(self: Pin<&mut Self>);
@@ -135,7 +153,39 @@ use std::sync::{
 };
 use tracing::{error, info};
 
-use std::str::FromStr;
+pub const UI_ACTION_COPY: i32 = 1;
+pub const UI_ACTION_SAVE: i32 = 2;
+pub const UI_ACTION_PIN: i32 = 3;
+pub const UI_ACTION_OCR: i32 = 4;
+pub const UI_ACTION_SCROLL: i32 = 5;
+pub const UI_ACTION_QRCODE: i32 = 6;
+pub const UI_ACTION_UNDO: i32 = 7;
+pub const UI_ACTION_REDO: i32 = 8;
+pub const UI_ACTION_CANCEL: i32 = 9;
+
+pub fn is_undo_action(action: i32) -> bool {
+    action == UI_ACTION_UNDO
+}
+
+pub fn is_redo_action(action: i32) -> bool {
+    action == UI_ACTION_REDO
+}
+
+pub fn is_cancel_action(action: i32) -> bool {
+    action == UI_ACTION_CANCEL
+}
+
+fn capture_action_from_code(action: i32) -> Option<CaptureAction> {
+    match action {
+        UI_ACTION_COPY => Some(CaptureAction::Copy),
+        UI_ACTION_SAVE => Some(CaptureAction::Save),
+        UI_ACTION_PIN => Some(CaptureAction::Pin),
+        UI_ACTION_OCR => Some(CaptureAction::Ocr),
+        UI_ACTION_SCROLL => Some(CaptureAction::Scroll),
+        UI_ACTION_QRCODE => Some(CaptureAction::QrCode),
+        _ => None,
+    }
+}
 
 pub struct ScreenCaptureRust {
     hotkey_manager: HotkeyManager,
@@ -143,7 +193,7 @@ pub struct ScreenCaptureRust {
     pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
-    pending_scroll_action: Option<String>,
+    pending_scroll_action: Option<CaptureAction>,
 }
 
 impl Default for ScreenCaptureRust {
@@ -190,8 +240,7 @@ impl ScrollObserver for QtScrollObserver {
 
                     qobject.as_mut().scroll_capture_finished(QString::from(&path));
 
-                    if let Some(act) = action {
-                        let action_enum = CaptureAction::from_str(&act).unwrap_or(CaptureAction::Unknown);
+                    if let Some(action_enum) = action {
                         let path_clean = crate::core::io::storage::clean_url_path(&path);
                         qobject
                             .as_mut()
@@ -280,8 +329,8 @@ impl qobject::ScreenCapture {
         self.as_mut().scroll_capture_started(x, y, width, height);
     }
 
-    pub fn request_scroll_action(mut self: Pin<&mut Self>, action: QString) {
-        self.as_mut().rust_mut().pending_scroll_action = Some(action.to_string());
+    pub fn request_scroll_action(mut self: Pin<&mut Self>, action: i32) {
+        self.as_mut().rust_mut().pending_scroll_action = capture_action_from_code(action);
         self.as_mut().stop_scroll_capture();
     }
 
@@ -387,9 +436,11 @@ impl qobject::ScreenCapture {
         }
     }
 
-    pub fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool) {
-        let action_str = action.to_string();
-        let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
+    pub fn request_action(self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32, has_annotations: bool) {
+        let Some(action_enum) = capture_action_from_code(action) else {
+            self.action_finished();
+            return;
+        };
 
         match action_enum {
             CaptureAction::Scroll => {
@@ -409,12 +460,12 @@ impl qobject::ScreenCapture {
         }
     }
 
-    pub fn submit_capture(mut self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32) {
+    pub fn submit_capture(mut self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32) {
         self.as_mut()
             .submit_capture_internal(path, action, x, y, width, height, CaptureInputMode::CropSelection);
     }
 
-    pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32) {
+    pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32) {
         self.as_mut()
             .submit_capture_internal(path, action, x, y, width, height, CaptureInputMode::FullImage);
     }
@@ -422,18 +473,20 @@ impl qobject::ScreenCapture {
     fn submit_capture_internal(
         mut self: Pin<&mut Self>,
         path: QString,
-        action: QString,
+        action: i32,
         x: i32,
         y: i32,
         width: i32,
         height: i32,
         input_mode: CaptureInputMode,
     ) {
-        let action_str = action.to_string();
-        let action_enum = CaptureAction::from_str(&action_str).unwrap_or(CaptureAction::Unknown);
+        let Some(action_enum) = capture_action_from_code(action) else {
+            self.as_mut().action_finished();
+            return;
+        };
         let path_str = self.rust().resolve_path(&path);
 
-        info!("Submitting capture action: {}, path: {}", action_str, path_str);
+        info!("Submitting capture action: {}, path: {}", action, path_str);
 
         match action_enum {
             CaptureAction::Copy | CaptureAction::Save | CaptureAction::Pin | CaptureAction::Ocr | CaptureAction::QrCode => {

@@ -20,56 +20,56 @@ Rectangle {
             {
                 "icon": "qrc:/resources/icons/square.svg",
                 "text": qsTr("Rectangle"),
-                "action": "rectangle",
+                "tool": "rectangle",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/circle.svg",
                 "text": qsTr("Circle"),
-                "action": "circle",
+                "tool": "circle",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/counter_1.svg",
                 "text": qsTr("Counter"),
-                "action": "counter",
+                "tool": "counter",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/arrow_insert.svg",
                 "text": qsTr("Arrow"),
-                "action": "arrow",
+                "tool": "arrow",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/text_fields.svg",
                 "text": qsTr("Text"),
-                "action": "text",
+                "tool": "text",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/grid_on.svg",
                 "text": qsTr("Mosaic"),
-                "action": "mosaic",
+                "tool": "mosaic",
                 "isTool": true,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/undo.svg",
                 "text": qsTr("Undo"),
-                "action": "undo",
+                "action": CaptureActions.Undo,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/redo.svg",
                 "text": qsTr("Redo"),
-                "action": "redo",
+                "action": CaptureActions.Redo,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             }
@@ -77,7 +77,7 @@ Rectangle {
             {
                 "icon": "qrc:/resources/icons/text_fields.svg",
                 "text": qsTr("OCR"),
-                "action": "ocr",
+                "action": CaptureActions.Ocr,
                 "isTool": false,
                 "hoverColor": AppTheme.primary,
                 "visible": Config.enableOcr
@@ -85,35 +85,35 @@ Rectangle {
             {
                 "icon": "qrc:/resources/icons/crop_free.svg",
                 "text": qsTr("QR Code"),
-                "action": "qrcode",
+                "action": CaptureActions.QrCode,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/scroll.svg",
                 "text": qsTr("Scroll"),
-                "action": "scroll",
+                "action": CaptureActions.Scroll,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/save.svg",
                 "text": qsTr("Save"),
-                "action": "save",
+                "action": CaptureActions.Save,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/keep.svg",
                 "text": qsTr("Pin"),
-                "action": "pin",
+                "action": CaptureActions.Pin,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             },
             {
                 "icon": "qrc:/resources/icons/file_copy.svg",
                 "text": qsTr("Copy"),
-                "action": "copy",
+                "action": CaptureActions.Copy,
                 "isTool": false,
                 "hoverColor": AppTheme.primary
             }
@@ -121,13 +121,13 @@ Rectangle {
             {
                 "icon": "qrc:/resources/icons/close.svg",
                 "text": qsTr("Cancel"),
-                "action": "cancel",
+                "action": CaptureActions.Cancel,
                 "isTool": false,
                 "hoverColor": AppTheme.danger
             }
         ]]
 
-    signal actionConfirmed(string action)
+    signal actionConfirmed(int action)
     signal canceled
     signal toolChanged(string tool)
 
@@ -167,16 +167,16 @@ Rectangle {
                         icon.height: iconSize
                         icon.source: modelData.icon
                         icon.width: iconSize
-                        isActive: modelData.action === root.activeTool
+                        isActive: modelData.tool === root.activeTool
                         showTooltip: root.showTooltips
                         tooltipText: modelData.text
                         visible: modelData.visible === undefined ? true : modelData.visible
 
                         onClicked: {
-                            if (modelData.action === "cancel") {
+                            if (modelData.action === CaptureActions.Cancel) {
                                 root.canceled();
                             } else if (modelData.isTool) {
-                                root.activeTool = root.activeTool === modelData.action ? "" : modelData.action;
+                                root.activeTool = root.activeTool === modelData.tool ? "" : modelData.tool;
                                 root.toolChanged(root.activeTool);
                             } else {
                                 root.actionConfirmed(modelData.action);

@@ -21,7 +21,7 @@ pub mod qobject {
         #[qinvokable]
         fn start(
             self: Pin<&mut Self>,
-            action: QString,
+            action: i32,
             selection_rect: QRectF,
             has_annotations: bool,
             source_pixel_width: f64,
@@ -42,10 +42,10 @@ pub mod qobject {
         fn request_prepare_composition(self: Pin<&mut Self>, composition_id: i32, selection_rect: QRectF, out_width: i32, out_height: i32);
 
         #[qsignal]
-        fn request_submit_direct(self: Pin<&mut Self>, action: QString, selection_rect: QRectF);
+        fn request_submit_direct(self: Pin<&mut Self>, action: i32, selection_rect: QRectF);
 
         #[qsignal]
-        fn request_submit_composited(self: Pin<&mut Self>, path: QString, action: QString, selection_rect: QRectF);
+        fn request_submit_composited(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF);
 
         #[qsignal]
         fn request_restore_annotation(self: Pin<&mut Self>);
@@ -62,7 +62,7 @@ pub struct CaptureCompositorControllerRust {
     processing: bool,
     composition_version: i32,
     active_composition_id: i32,
-    pending_action: QString,
+    pending_action: i32,
     selection_rect: QRectF,
 }
 
@@ -72,7 +72,7 @@ impl Default for CaptureCompositorControllerRust {
             processing: false,
             composition_version: 0,
             active_composition_id: -1,
-            pending_action: QString::default(),
+            pending_action: 0,
             selection_rect: QRectF::default(),
         }
     }
@@ -86,7 +86,7 @@ fn normalize_rect(rect: &QRectF) -> QRectF {
 impl qobject::CaptureCompositorController {
     pub fn start(
         mut self: Pin<&mut Self>,
-        action: QString,
+        action: i32,
         selection_rect: QRectF,
         has_annotations: bool,
         source_pixel_width: f64,
@@ -107,7 +107,7 @@ impl qobject::CaptureCompositorController {
             let mut rust = self.as_mut().rust_mut();
             rust.composition_version += 1;
             rust.active_composition_id = rust.composition_version;
-            rust.pending_action = QString::from(&action.to_string());
+            rust.pending_action = action;
             rust.selection_rect = normalized.clone();
         }
 
@@ -146,7 +146,7 @@ impl qobject::CaptureCompositorController {
 
         let (action, rect) = {
             let rust = self.rust();
-            (rust.pending_action.to_string(), rust.selection_rect.clone())
+            (rust.pending_action, rust.selection_rect.clone())
         };
 
         {
@@ -158,7 +158,7 @@ impl qobject::CaptureCompositorController {
         self.as_mut().request_reset_surface();
 
         if save_succeeded && !save_path.is_empty() {
-            self.as_mut().request_submit_composited(save_path, QString::from(&action), rect);
+            self.as_mut().request_submit_composited(save_path, action, rect);
         } else {
             self.as_mut().request_composition_failed();
         }

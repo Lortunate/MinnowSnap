@@ -1,3 +1,4 @@
+use crate::bridge::screen_capture::{is_redo_action, is_undo_action};
 use cxx_qt_lib::{QPointF, QRectF, QString};
 use std::pin::Pin;
 
@@ -30,7 +31,7 @@ pub mod qobject {
         type CaptureSessionController = super::CaptureSessionControllerRust;
 
         #[qinvokable]
-        fn confirm_action(self: Pin<&mut Self>, action: QString, selection_rect: QRectF, has_annotations: bool);
+        fn confirm_action(self: Pin<&mut Self>, action: i32, selection_rect: QRectF, has_annotations: bool);
 
         #[qinvokable]
         fn cancel_session(self: Pin<&mut Self>, force: bool);
@@ -69,7 +70,7 @@ pub mod qobject {
         fn request_capture_flag(self: Pin<&mut Self>, value: bool);
 
         #[qsignal]
-        fn request_action_dispatch(self: Pin<&mut Self>, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
+        fn request_action_dispatch(self: Pin<&mut Self>, action: i32, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
 
         #[qsignal]
         fn request_undo(self: Pin<&mut Self>);
@@ -122,21 +123,18 @@ fn normalize_selection_rect(rect: &QRectF) -> (i32, i32, i32, i32) {
 }
 
 impl qobject::CaptureSessionController {
-    pub fn confirm_action(mut self: Pin<&mut Self>, action: QString, selection_rect: QRectF, has_annotations: bool) {
+    pub fn confirm_action(mut self: Pin<&mut Self>, action: i32, selection_rect: QRectF, has_annotations: bool) {
         if *self.busy() || !*self.has_screen_capture() {
             return;
         }
 
-        match action.to_string().as_str() {
-            "undo" => {
-                self.as_mut().request_undo();
-                return;
-            }
-            "redo" => {
-                self.as_mut().request_redo();
-                return;
-            }
-            _ => {}
+        if is_undo_action(action) {
+            self.as_mut().request_undo();
+            return;
+        }
+        if is_redo_action(action) {
+            self.as_mut().request_redo();
+            return;
         }
 
         let (x, y, width, height) = normalize_selection_rect(&selection_rect);

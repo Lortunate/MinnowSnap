@@ -1,3 +1,4 @@
+use crate::bridge::screen_capture::is_cancel_action;
 use cxx_qt_lib::{QRectF, QString};
 use std::pin::Pin;
 
@@ -29,7 +30,7 @@ pub mod qobject {
         fn finish(self: Pin<&mut Self>);
 
         #[qinvokable]
-        fn handle_toolbar_action(self: Pin<&mut Self>, action: QString);
+        fn handle_toolbar_action(self: Pin<&mut Self>, action: i32);
 
         #[qinvokable]
         fn on_capture_ready(self: Pin<&mut Self>);
@@ -53,7 +54,7 @@ pub mod qobject {
         fn request_cancel_scroll_capture(self: Pin<&mut Self>);
 
         #[qsignal]
-        fn request_scroll_action(self: Pin<&mut Self>, action: QString);
+        fn request_scroll_action(self: Pin<&mut Self>, action: i32);
 
         #[qsignal]
         fn request_preview_refresh(self: Pin<&mut Self>, height: i32);
@@ -94,8 +95,8 @@ impl qobject::LongCaptureController {
         self.as_mut().request_reset_overlay();
     }
 
-    pub fn handle_toolbar_action(mut self: Pin<&mut Self>, action: QString) {
-        if action.to_string() == "cancel" {
+    pub fn handle_toolbar_action(mut self: Pin<&mut Self>, action: i32) {
+        if is_cancel_action(action) {
             self.as_mut().set_toolbar_busy(false);
             self.as_mut().set_frame_visible(false);
             self.as_mut().set_toolbar_visible(false);
