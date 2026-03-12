@@ -1,7 +1,4 @@
 use cxx_qt_lib::QString;
-use global_hotkey::{GlobalHotKeyManager, hotkey::HotKey};
-use std::str::FromStr;
-use tracing::{error, info};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -23,10 +20,6 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "getKeySequence"]
         fn get_key_sequence(self: &Self, key: i32, modifiers: i32) -> QString;
-
-        #[qinvokable]
-        #[cxx_name = "registerGlobalHotkey"]
-        fn register_global_hotkey(self: &Self, seq: QString);
     }
 }
 
@@ -41,23 +34,5 @@ impl Default for ShortcutHelperRust {
 impl qobject::ShortcutHelper {
     pub fn get_key_sequence(&self, key: i32, modifiers: i32) -> QString {
         qobject::get_key_sequence_cpp(key, modifiers)
-    }
-
-    pub fn register_global_hotkey(&self, seq: QString) {
-        let seq_str = seq.to_string();
-
-        let Ok(hotkey) = HotKey::from_str(&seq_str) else {
-            return error!("Failed to parse hotkey string: {seq_str}");
-        };
-
-        let Ok(manager) = GlobalHotKeyManager::new() else {
-            return error!("Failed to create GlobalHotKeyManager");
-        };
-
-        if let Err(e) = manager.register(hotkey) {
-            error!("Failed to register global hotkey: {e:?}");
-        } else {
-            info!("Successfully registered global hotkey: {seq_str}");
-        }
     }
 }

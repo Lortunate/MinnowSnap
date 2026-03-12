@@ -1,4 +1,3 @@
-use crate::core::geometry::normalize_polygon;
 use crate::core::ocr::{OcrBlock, format_selected_blocks};
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
@@ -66,21 +65,7 @@ impl qobject::OcrController {
                         .await
                         .map_err(|e| e.to_string())??;
 
-                    let blocks: Vec<OcrBlock> = ocr_results
-                        .into_iter()
-                        .map(|res| {
-                            let rect = normalize_polygon(&res.box_points, img_w, img_h);
-                            OcrBlock {
-                                text: res.text,
-                                cx: rect.cx,
-                                cy: rect.cy,
-                                width: rect.width,
-                                height: rect.height,
-                                angle: rect.angle,
-                                percentage_coordinates: true,
-                            }
-                        })
-                        .collect();
+                    let blocks = crate::core::ocr::build_ocr_blocks(ocr_results, img_w, img_h);
 
                     serde_json::to_string(&blocks).map_err(|e| e.to_string())
                 }

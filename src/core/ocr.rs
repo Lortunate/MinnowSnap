@@ -11,6 +11,24 @@ pub struct OcrBlock {
     pub percentage_coordinates: bool,
 }
 
+pub fn build_ocr_blocks(ocr_results: Vec<ocr::OcrResult>, img_w: f64, img_h: f64) -> Vec<OcrBlock> {
+    ocr_results
+        .into_iter()
+        .map(|res| {
+            let rect = crate::core::geometry::normalize_polygon(&res.box_points, img_w, img_h);
+            OcrBlock {
+                text: res.text,
+                cx: rect.cx,
+                cy: rect.cy,
+                width: rect.width,
+                height: rect.height,
+                angle: rect.angle,
+                percentage_coordinates: true,
+            }
+        })
+        .collect()
+}
+
 pub fn is_cjk(c: char) -> bool {
     ('\u{3000}'..='\u{303f}').contains(&c)
         || ('\u{3040}'..='\u{309f}').contains(&c)

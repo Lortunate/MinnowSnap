@@ -7,7 +7,6 @@ pub mod app;
 pub mod capture;
 pub mod geometry;
 pub mod hotkey;
-pub mod hotkey_state;
 pub mod io;
 pub mod logging;
 pub mod notify;

@@ -156,8 +156,7 @@ use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction, CaptureInputMode};
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
-use crate::core::hotkey::HotkeyService;
-use crate::core::hotkey_state::{HotkeyState, update_hotkey};
+use crate::core::hotkey::HotkeyManager;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -172,7 +171,7 @@ use tracing::{error, info};
 use std::str::FromStr;
 
 pub struct ScreenCaptureRust {
-    hotkey_state: HotkeyState,
+    hotkey_manager: HotkeyManager,
     is_capturing: bool,
     pin_count: i32,
     scroll_capture_active: Arc<AtomicBool>,
@@ -183,7 +182,7 @@ pub struct ScreenCaptureRust {
 impl Default for ScreenCaptureRust {
     fn default() -> Self {
         Self {
-            hotkey_state: HotkeyState::default(),
+            hotkey_manager: HotkeyManager::default(),
             is_capturing: false,
             pin_count: 0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
@@ -367,23 +366,20 @@ impl qobject::ScreenCapture {
             settings.shortcuts.quick_capture
         };
 
-        if let Some(registration) = HotkeyService::register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback) {
-            let mut rust = self.as_mut().rust_mut();
-            rust.hotkey_state.manager = Some(registration.manager);
-            rust.hotkey_state.ids = registration.ids;
-            rust.hotkey_state.screen = registration.screen_hotkey;
-            rust.hotkey_state.quick = registration.quick_hotkey;
-        }
+        self.as_mut()
+            .rust_mut()
+            .hotkey_manager
+            .register_global_hotkeys(&screen_shortcut, &quick_shortcut, screen_callback, quick_callback);
     }
 
     pub fn set_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        let state = &mut self.as_mut().rust_mut().hotkey_state;
-        update_hotkey(state, shortcut, true);
+        let shortcut_str = shortcut.to_string();
+        self.as_mut().rust_mut().hotkey_manager.update_shortcut(&shortcut_str, true);
     }
 
     pub fn set_quick_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        let state = &mut self.as_mut().rust_mut().hotkey_state;
-        update_hotkey(state, shortcut, false);
+        let shortcut_str = shortcut.to_string();
+        self.as_mut().rust_mut().hotkey_manager.update_shortcut(&shortcut_str, false);
     }
 
     pub fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString {
@@ -391,19 +387,7 @@ impl qobject::ScreenCapture {
     }
 
     pub fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString {
-        use crate::core::capture::LAST_CAPTURE;
-
-        let x_phys = (x as f64 * scale) as i32;
-        let y_phys = (y as f64 * scale) as i32;
-
-        if let Ok(lock) = LAST_CAPTURE.lock()
-            && let Some(img) = &*lock
-            && let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys))
-            && u_x < img.width()
-            && u_y < img.height()
-        {
-            let pixel = img.get_pixel(u_x, u_y);
-            let hex = format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]);
+        if let Some(hex) = CaptureService::get_pixel_hex(x, y, scale) {
             return QString::from(&hex);
         }
         QString::from("")
