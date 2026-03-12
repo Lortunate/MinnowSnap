@@ -59,7 +59,8 @@ pub fn run_app() {
     let _guard = init_logger();
     info!("Starting MinnowSnap...");
 
-    if !ensure_single_instance(&get_instance_id()) {
+    let enforce_single_instance = !cfg!(debug_assertions);
+    if enforce_single_instance && !ensure_single_instance(&get_instance_id()) {
         info!("Another instance is running, exiting.");
         return;
     }

@@ -5,6 +5,7 @@ resources.qrc
 build
 output
 target
+.qtcreator
 
 
 ### macOS template

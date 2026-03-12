@@ -61,6 +61,15 @@ cxx_qt_import_qml_module(MinnowSnap_qml_module
   SOURCE_CRATE MinnowSnap
 )
 
+file(
+  GLOB_RECURSE MINNOWSNAP_QML_FILES
+  CONFIGURE_DEPENDS
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  qml/*.qml
+  qml/qmldir
+  qml/**/qmldir
+)
+
 if(APPLE)
   add_executable(MinnowSnapApp MACOSX_BUNDLE cpp/main.cpp)
 elseif(WIN32)
@@ -69,10 +78,12 @@ else()
   add_executable(MinnowSnapApp cpp/main.cpp)
 endif()
 
+target_sources(MinnowSnapApp PRIVATE ${MINNOWSNAP_QML_FILES})
 target_link_libraries(MinnowSnapApp PRIVATE MinnowSnap_qml_module)
+target_compile_definitions(MinnowSnapApp PRIVATE $<$<CONFIG:Debug>:QT_QML_DEBUG>)
 qt_import_qml_plugins(MinnowSnapApp)
 
-set_target_properties(MinnowSnapApp PROPERTIES OUTPUT_NAME MinnowSnap)
+set_target_properties(MinnowSnapApp PROPERTIES RUNTIME_OUTPUT_NAME MinnowSnap)
 
 if(WIN32)
   target_link_libraries(MinnowSnapApp PRIVATE DirectML)
