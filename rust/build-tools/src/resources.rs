@@ -38,6 +38,7 @@ fn write_block<W: std::io::Write>(writer: &mut Writer<W>, block: &ResourceBlock)
 }
 
 pub fn update_resources(qrc_path: &Path, resource_dir: &Path) -> Result<()> {
+    let qrc_base = qrc_path.parent().unwrap_or(Path::new("."));
     let mut root_files = Vec::new();
     if resource_dir.exists() {
         for entry in WalkDir::new(resource_dir).sort_by_file_name() {
@@ -48,7 +49,11 @@ pub fn update_resources(qrc_path: &Path, resource_dir: &Path) -> Result<()> {
                     continue;
                 }
                 let path = entry.path();
-                let rel_path = path.to_string_lossy().replace("\\", "/");
+                let rel_path = path
+                    .strip_prefix(qrc_base)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .replace("\\", "/");
                 let rel_path = rel_path.trim_start_matches("./").to_string();
                 root_files.push(rel_path);
             }

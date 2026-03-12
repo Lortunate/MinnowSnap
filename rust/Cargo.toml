@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Lortuante"]
 
+[lib]
+crate-type = ["staticlib"]
+
 [workspace]
 members = ["build-tools", "plugins/ocr"]
 
@@ -107,5 +110,5 @@ strip = true
 
 [package.metadata.bundle]
 identifier = "com.lortunate.minnowsnap"
-icon = ["assets_icons/icon.icns", "assets_icons/icon.ico"]
-osx_info_plist_exts = ["resources/Info.plist.extra"]
+icon = ["../assets_icons/icon.icns", "../assets_icons/icon.ico"]
+osx_info_plist_exts = ["../resources/Info.plist.extra"]

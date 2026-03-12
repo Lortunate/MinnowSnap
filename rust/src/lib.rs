@@ -1,5 +1,3 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 pub mod bridge;
 pub mod core;
 
@@ -57,7 +55,7 @@ impl MinnowApp {
     }
 }
 
-fn main() {
+pub fn run_app() {
     let _guard = init_logger();
     info!("Starting MinnowSnap...");
 
@@ -75,4 +73,10 @@ fn main() {
     }
 
     MinnowApp::new().run();
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn minnowsnap_main() -> i32 {
+    run_app();
+    0
 }

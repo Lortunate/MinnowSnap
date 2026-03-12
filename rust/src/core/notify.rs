@@ -15,7 +15,7 @@ use winreg::{RegKey, enums::HKEY_CURRENT_USER};
 #[cfg(target_os = "windows")]
 const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
 #[cfg(target_os = "windows")]
-const WINDOWS_TOAST_ICON_BYTES: &[u8] = include_bytes!("../../resources/logo.png");
+const WINDOWS_TOAST_ICON_BYTES: &[u8] = include_bytes!("../../../resources/logo.png");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationType {
@@ -36,7 +36,7 @@ pub fn play_shutter() {
     }
 
     crate::core::RUNTIME.spawn_blocking(|| {
-        let sound_data = include_bytes!("../../resources/raw/capture.mp3");
+        let sound_data = include_bytes!("../../../resources/raw/capture.mp3");
         let cursor = std::io::Cursor::new(&sound_data[..]);
         match rodio::DeviceSinkBuilder::open_default_sink() {
             Ok(handle) => {

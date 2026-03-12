@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Sequence
 
 APP_NAME = "MinnowSnap"
+CMAKE_TARGET = "MinnowSnapApp"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEPLOY_DIR = PROJECT_ROOT / "deploy"
 
@@ -46,7 +47,7 @@ WINDOWS_EXCLUDED_IMAGE_PLUGINS = ("qgif", "qico")
 class DistOptions:
     upx: bool
     upx_aggressive: bool
-    cargo_profile: str
+    build_profile: str
     aggressive_slim: bool
     keep_opengl_sw: bool
     keep_d3d_compiler: bool
@@ -89,11 +90,12 @@ def get_bool_env(name: str, default: bool) -> bool:
 
 
 def build_options(args: argparse.Namespace) -> DistOptions:
-    profile = (os.getenv("MINNOWSNAP_CARGO_PROFILE") or "release").strip()
+    # Keep backward compatibility with the previous env var name.
+    profile = (os.getenv("MINNOWSNAP_BUILD_PROFILE") or os.getenv("MINNOWSNAP_CARGO_PROFILE") or "release").strip()
     return DistOptions(
         upx=args.upx or get_bool_env("MINNOWSNAP_USE_UPX", False),
         upx_aggressive=args.upx_aggressive or get_bool_env("MINNOWSNAP_UPX_AGGRESSIVE", False),
-        cargo_profile=profile,
+        build_profile=profile,
         aggressive_slim=get_bool_env("MINNOWSNAP_AGGRESSIVE_SLIM", False),
         keep_opengl_sw=get_bool_env("MINNOWSNAP_KEEP_OPENGL_SW", False),
         keep_d3d_compiler=get_bool_env("MINNOWSNAP_KEEP_D3D_COMPILER", False),
@@ -104,7 +106,7 @@ def build_options(args: argparse.Namespace) -> DistOptions:
 
 
 def get_version() -> str:
-    cargo_toml = PROJECT_ROOT / "Cargo.toml"
+    cargo_toml = PROJECT_ROOT / "rust" / "Cargo.toml"
     with cargo_toml.open("rb") as f:
         data = tomllib.load(f)
     return str(data.get("package", {}).get("version", "0.0.0"))
@@ -122,9 +124,32 @@ def get_arch() -> str:
 def get_system_name() -> str:
     return platform.system().lower().replace("darwin", "macos")
 
+def get_cmake_build_dir() -> Path:
+    return PROJECT_ROOT / "build" / "cmake"
 
-def get_target_dir(profile: str) -> Path:
-    return PROJECT_ROOT / "target" / profile
+
+def get_cmake_exe_path(config: str) -> Path:
+    build_dir = get_cmake_build_dir()
+    candidates = [
+        build_dir / config / f"{APP_NAME}.exe",
+        build_dir / f"{APP_NAME}.exe",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def get_cmake_app_bundle_path(config: str) -> Path:
+    build_dir = get_cmake_build_dir()
+    candidates = [
+        build_dir / config / f"{APP_NAME}.app",
+        build_dir / f"{APP_NAME}.app",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 
 def ensure_clean_dir(path: Path) -> None:
@@ -275,12 +300,33 @@ def print_bundle_report(bundle_dir: Path, *, max_files: int = 12) -> None:
         print(f"            {format_size(path.stat().st_size):>10}  {rel}")
 
 
-def cargo_build(profile: str) -> None:
-    print_action("Building", f"profile={profile} (cargo)")
-    if profile == "release":
-        run_command(["cargo", "build", "--release"])
-    else:
-        run_command(["cargo", "build", "--profile", profile])
+def cmake_build(profile: str) -> None:
+    build_dir = get_cmake_build_dir()
+
+    profile_lower = profile.lower()
+    cmake_config = "Release" if profile_lower != "debug" else "Debug"
+    if profile_lower not in {"release", "debug"}:
+        print_action("Warning", f"Unsupported CMake profile '{profile}', using {cmake_config}")
+
+    print_action("Configuring", f"CMake ({cmake_config})")
+    run_command([
+        "cmake",
+        "-S",
+        str(PROJECT_ROOT),
+        "-B",
+        str(build_dir),
+    ])
+
+    print_action("Building", f"target={CMAKE_TARGET} ({cmake_config})")
+    run_command([
+        "cmake",
+        "--build",
+        str(build_dir),
+        "--target",
+        CMAKE_TARGET,
+        "--config",
+        cmake_config,
+    ])
 
 
 def build_windeployqt_command(exe_path: Path, qml_dir: Path, options: DistOptions) -> list[str]:
@@ -319,10 +365,12 @@ def macos_dmg_name() -> str:
 
 
 def dist_windows(options: DistOptions) -> None:
-    cargo_build(options.cargo_profile)
+    profile_lower = options.build_profile.lower()
+    cmake_config = "Debug" if profile_lower == "debug" else "Release"
+    cmake_build(options.build_profile)
 
     deploy_dir, bundle_dir = clean_deploy_dir(APP_NAME)
-    target_exe = get_target_dir(options.cargo_profile) / f"{APP_NAME}.exe"
+    target_exe = get_cmake_exe_path(cmake_config)
     if not target_exe.exists():
         fail(f"Error: {target_exe} not found")
 
@@ -349,10 +397,9 @@ def dist_windows(options: DistOptions) -> None:
 
 
 def dist_macos() -> None:
-    print_action("Building", "bundle (cargo bundle)")
-    run_command(["cargo", "bundle", "--release"])
+    cmake_build("release")
 
-    bundle_path = get_target_dir("release") / "bundle" / "osx" / f"{APP_NAME}.app"
+    bundle_path = get_cmake_app_bundle_path("Release")
     if not bundle_path.exists():
         fail(f"Error: {bundle_path} not found")
 
