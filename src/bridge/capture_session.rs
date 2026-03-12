@@ -12,92 +12,75 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, action_processing, cxx_name = "actionProcessing")]
-        #[qproperty(bool, annotation_display_ready, cxx_name = "annotationDisplayReady")]
-        #[qproperty(QString, background_image_source, cxx_name = "backgroundImageSource")]
-        #[qproperty(bool, busy, cxx_name = "busy")]
-        #[qproperty(bool, has_screen_capture, cxx_name = "hasScreenCapture")]
-        #[qproperty(f64, screen_width, cxx_name = "screenWidth")]
-        #[qproperty(f64, screen_height, cxx_name = "screenHeight")]
-        #[qproperty(f64, toolbar_padding, cxx_name = "toolbarPadding")]
-        #[qproperty(f64, toolbar_spacing_above, cxx_name = "toolbarSpacingAbove")]
-        #[qproperty(f64, toolbar_spacing_below, cxx_name = "toolbarSpacingBelow")]
-        #[qproperty(f64, default_toolbar_y, cxx_name = "defaultToolbarY")]
+        #[qproperty(bool, action_processing)]
+        #[qproperty(bool, annotation_display_ready)]
+        #[qproperty(QString, background_image_source)]
+        #[qproperty(bool, busy)]
+        #[qproperty(bool, has_screen_capture)]
+        #[qproperty(f64, screen_width)]
+        #[qproperty(f64, screen_height)]
+        #[qproperty(f64, toolbar_padding)]
+        #[qproperty(f64, toolbar_spacing_above)]
+        #[qproperty(f64, toolbar_spacing_below)]
+        #[qproperty(f64, default_toolbar_y)]
         type CaptureSessionController = super::CaptureSessionControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "confirmAction"]
         fn confirm_action(self: Pin<&mut Self>, action: QString, selection_rect: QRectF, has_annotations: bool);
 
         #[qinvokable]
-        #[cxx_name = "cancelSession"]
         fn cancel_session(self: Pin<&mut Self>, force: bool);
 
         #[qinvokable]
-        #[cxx_name = "beginSession"]
         fn begin_session(self: Pin<&mut Self>, source: QString);
 
         #[qinvokable]
-        #[cxx_name = "resetSession"]
         fn reset_session(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "resetAnnotationState"]
         fn reset_annotation_state(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "onLockedStateChanged"]
         fn on_locked_state_changed(self: Pin<&mut Self>, is_locked: bool);
 
         #[qinvokable]
-        #[cxx_name = "promoteAnnotationDisplayReady"]
         fn promote_annotation_display_ready(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "toolbarPosition"]
         fn toolbar_position(self: &Self, target_rect: QRectF, item_w: f64, item_h: f64, is_above: bool) -> QPointF;
 
         #[qsignal]
-        #[cxx_name = "requestAnnotationReset"]
         fn request_annotation_reset(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestCompositorAbort"]
         fn request_compositor_abort(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestOverlayHide"]
         fn request_overlay_hide(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestOverlayPresent"]
         fn request_overlay_present(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestCaptureFlag"]
         fn request_capture_flag(self: Pin<&mut Self>, value: bool);
 
         #[qsignal]
-        #[cxx_name = "requestActionDispatch"]
         fn request_action_dispatch(self: Pin<&mut Self>, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
 
         #[qsignal]
-        #[cxx_name = "requestUndo"]
         fn request_undo(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestRedo"]
         fn request_redo(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "sessionCancelled"]
         fn session_cancelled(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestOverlayControllerReset"]
         fn request_overlay_controller_reset(self: Pin<&mut Self>);
     }
 }

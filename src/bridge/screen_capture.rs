@@ -5,147 +5,114 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, is_capturing, cxx_name = "isCapturing")]
-        #[qproperty(i32, pin_count, cxx_name = "pinCount")]
+        #[qproperty(bool, is_capturing)]
+        #[qproperty(i32, pin_count)]
         type ScreenCapture = super::ScreenCaptureRust;
 
         #[qinvokable]
-        #[cxx_name = "prepareCapture"]
         fn prepare_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "quickCapture"]
         fn quick_capture(self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
-        #[cxx_name = "startScrollCapture"]
         fn start_scroll_capture(self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
-        #[cxx_name = "stopScrollCapture"]
         fn stop_scroll_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "copyText"]
         fn copy_text(self: Pin<&mut Self>, text: QString);
 
         #[qinvokable]
-        #[cxx_name = "copyQrcodeResult"]
         fn copy_qrcode_result(self: Pin<&mut Self>, text: QString);
 
         #[qinvokable]
-        #[cxx_name = "registerHotkeys"]
         fn register_hotkeys(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "setCaptureShortcut"]
         fn set_capture_shortcut(self: Pin<&mut Self>, shortcut: QString);
 
         #[qinvokable]
-        #[cxx_name = "setQuickCaptureShortcut"]
         fn set_quick_capture_shortcut(self: Pin<&mut Self>, shortcut: QString);
 
         #[qinvokable]
-        #[cxx_name = "generateTempPath"]
         fn generate_temp_path(self: Pin<&mut Self>, extension: QString) -> QString;
 
         #[qinvokable]
-        #[cxx_name = "getPixelColor"]
         fn get_pixel_color(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) -> QString;
 
         #[qinvokable]
-        #[cxx_name = "setCursorPosition"]
         fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64);
 
         #[qinvokable]
-        #[cxx_name = "emitCloseAllPins"]
         fn emit_close_all_pins(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "incrementPinCount"]
         fn increment_pin_count(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "decrementPinCount"]
         fn decrement_pin_count(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "requestAction"]
         fn request_action(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
 
         #[qinvokable]
-        #[cxx_name = "requestScrollAction"]
         fn request_scroll_action(self: Pin<&mut Self>, action: QString);
 
         #[qinvokable]
-        #[cxx_name = "cancelScrollCapture"]
         fn cancel_scroll_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "submitCapture"]
         fn submit_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qinvokable]
-        #[cxx_name = "submitCompositedCapture"]
         fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qsignal]
-        #[cxx_name = "screenCaptureShortcutTriggered"]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "quickCaptureShortcutTriggered"]
         fn quick_capture_shortcut_triggered(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "screenshotCaptured"]
         fn screenshot_captured(self: Pin<&mut Self>, path: QString);
 
         #[qsignal]
-        #[cxx_name = "windowInfoReady"]
         fn window_info_ready(self: Pin<&mut Self>, json: QString);
 
         #[qsignal]
-        #[cxx_name = "captureReady"]
         fn capture_ready(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "scrollCaptureFinished"]
         fn scroll_capture_finished(self: Pin<&mut Self>, path: QString);
 
         #[qsignal]
-        #[cxx_name = "scrollCaptureUpdated"]
         fn scroll_capture_updated(self: Pin<&mut Self>, height: i32);
 
         #[qsignal]
-        #[cxx_name = "scrollCaptureWarning"]
         fn scroll_capture_warning(self: Pin<&mut Self>, message: QString);
 
         #[qsignal]
-        #[cxx_name = "closeAllPins"]
         fn close_all_pins(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestComposition"]
         fn request_composition(self: Pin<&mut Self>, action: QString, x: i32, y: i32, width: i32, height: i32);
 
         #[qsignal]
-        #[cxx_name = "actionFinished"]
         fn action_finished(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "ocrResult"]
         fn ocr_result(self: Pin<&mut Self>, content: QString);
 
         #[qsignal]
-        #[cxx_name = "pinWindowRequested"]
         fn pin_window_requested(self: Pin<&mut Self>, path: QString, x: i32, y: i32, width: i32, height: i32, auto_ocr: bool);
 
         #[qsignal]
-        #[cxx_name = "scrollCaptureStarted"]
         fn scroll_capture_started(self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32);
     }
 

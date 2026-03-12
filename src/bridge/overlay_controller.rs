@@ -15,76 +15,62 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QRectF, target_rect, cxx_name = "targetRect")]
-        #[qproperty(QString, target_info, cxx_name = "targetInfo")]
-        #[qproperty(bool, has_target, cxx_name = "hasTarget")]
-        #[qproperty(QRectF, selection_rect, cxx_name = "selectionRect")]
-        #[qproperty(QString, state, cxx_name = "state")]
-        #[qproperty(f64, screen_width, cxx_name = "screenWidth")]
-        #[qproperty(f64, screen_height, cxx_name = "screenHeight")]
+        #[qproperty(QRectF, target_rect)]
+        #[qproperty(QString, target_info)]
+        #[qproperty(bool, has_target)]
+        #[qproperty(QRectF, selection_rect)]
+        #[qproperty(QString, state)]
+        #[qproperty(f64, screen_width)]
+        #[qproperty(f64, screen_height)]
         type OverlayController = super::OverlayControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "updateWindowList"]
         fn update_window_list(self: Pin<&mut Self>, json: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateHover"]
         fn update_hover(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "clearTarget"]
         fn clear_target(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startSelection"]
         fn start_selection(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateSelection"]
         fn update_selection(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endSelection"]
         fn end_selection(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startMove"]
         fn start_move(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateMove"]
         fn update_move(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endMove"]
         fn end_move(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startResize"]
         fn start_resize(self: Pin<&mut Self>, corner: QString, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateResize"]
         fn update_resize(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endResize"]
         fn end_resize(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "reset"]
         fn reset(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "selectTarget"]
         fn select_target(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "setupWindow"]
         unsafe fn setup_window(self: Pin<&mut Self>, window: *mut QObject);
     }
 }

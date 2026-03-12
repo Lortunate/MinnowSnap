@@ -22,78 +22,65 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QString, active_tool, cxx_name = "activeTool")]
-        #[qproperty(QString, active_color, cxx_name = "activeColor")]
-        #[qproperty(bool, active_has_outline, cxx_name = "activeHasOutline")]
-        #[qproperty(bool, active_has_stroke, cxx_name = "activeHasStroke")]
-        #[qproperty(i32, active_line_width, cxx_name = "activeLineWidth")]
-        #[qproperty(i32, active_intensity, cxx_name = "activeIntensity")]
-        #[qproperty(QString, active_mosaic_type, cxx_name = "activeMosaicType")]
-        #[qproperty(i32, active_counter_size, cxx_name = "activeCounterSize")]
-        #[qproperty(i32, active_font_size, cxx_name = "activeFontSize")]
-        #[qproperty(i32, next_counter_value, cxx_name = "nextCounterValue")]
-        #[qproperty(bool, has_annotations, cxx_name = "hasAnnotations")]
-        #[qproperty(bool, has_selected_annotation, cxx_name = "hasSelectedAnnotation")]
-        #[qproperty(QString, selected_annotation_type, cxx_name = "selectedAnnotationType")]
+        #[qproperty(QString, active_tool)]
+        #[qproperty(QString, active_color)]
+        #[qproperty(bool, active_has_outline)]
+        #[qproperty(bool, active_has_stroke)]
+        #[qproperty(i32, active_line_width)]
+        #[qproperty(i32, active_intensity)]
+        #[qproperty(QString, active_mosaic_type)]
+        #[qproperty(i32, active_counter_size)]
+        #[qproperty(i32, active_font_size)]
+        #[qproperty(i32, next_counter_value)]
+        #[qproperty(bool, has_annotations)]
+        #[qproperty(bool, has_selected_annotation)]
+        #[qproperty(QString, selected_annotation_type)]
         type AnnotationController = super::AnnotationControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "initializeDefaults"]
         fn initialize_defaults(self: Pin<&mut Self>, active_color: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveTool"]
         fn update_active_tool(self: Pin<&mut Self>, tool: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveColor"]
         fn update_active_color(self: Pin<&mut Self>, color: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveHasOutline"]
         fn update_active_has_outline(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveHasStroke"]
         fn update_active_has_stroke(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveLineWidth"]
         fn update_active_line_width(self: Pin<&mut Self>, value: i32);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveIntensity"]
         fn update_active_intensity(self: Pin<&mut Self>, value: i32);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveMosaicType"]
         fn update_active_mosaic_type(self: Pin<&mut Self>, value: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveCounterSize"]
         fn update_active_counter_size(self: Pin<&mut Self>, value: i32);
 
         #[qinvokable]
-        #[cxx_name = "updateActiveFontSize"]
         fn update_active_font_size(self: Pin<&mut Self>, value: i32);
 
         #[qinvokable]
-        #[cxx_name = "beginCreateAnnotation"]
         fn begin_create_annotation(self: Pin<&mut Self>) -> i32;
 
         #[qinvokable]
-        #[cxx_name = "registerCreatedAnnotation"]
         fn register_created_annotation(self: Pin<&mut Self>, id: i32, kind: QString);
 
         #[qinvokable]
-        #[cxx_name = "cancelCreatedAnnotation"]
         fn cancel_created_annotation(self: Pin<&mut Self>, id: i32);
 
         #[qinvokable]
-        #[cxx_name = "onAnnotationSelected"]
         fn on_annotation_selected(
             self: Pin<&mut Self>,
             id: i32,
@@ -110,47 +97,36 @@ pub mod qobject {
         );
 
         #[qinvokable]
-        #[cxx_name = "removeAnnotation"]
         fn remove_annotation(self: Pin<&mut Self>, id: i32);
 
         #[qinvokable]
-        #[cxx_name = "clearAll"]
         fn clear_all(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "undo"]
         fn undo(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "redo"]
         fn redo(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "clearSelection"]
         fn clear_selection(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestSetTool"]
         fn request_set_tool(self: Pin<&mut Self>, tool: QString);
 
         #[qsignal]
-        #[cxx_name = "requestClearSelection"]
         fn request_clear_selection(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestSelectAnnotation"]
         fn request_select_annotation(self: Pin<&mut Self>, id: i32);
 
         #[qsignal]
-        #[cxx_name = "requestBringToFront"]
         fn request_bring_to_front(self: Pin<&mut Self>, id: i32);
 
         #[qsignal]
-        #[cxx_name = "requestRemoveAnnotation"]
         fn request_remove_annotation(self: Pin<&mut Self>, id: i32);
 
         #[qsignal]
-        #[cxx_name = "requestSetAnnotationVisible"]
         fn request_set_annotation_visible(self: Pin<&mut Self>, id: i32, visible: bool);
     }
 }

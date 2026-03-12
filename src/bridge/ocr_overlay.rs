@@ -12,19 +12,18 @@ mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, is_processing, cxx_name = "isProcessing")]
-        #[qproperty(QString, ocr_data_json, cxx_name = "ocrDataJson")]
+        #[qproperty(bool, is_processing)]
+        #[qproperty(QString, ocr_data_json)]
         type OcrController = super::OcrControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "recognizeImage"]
         fn recognize_image(self: Pin<&mut Self>, image_path: QString);
 
         #[qinvokable]
-        #[cxx_name = "copySelectedText"]
         fn copy_selected_text(self: Pin<&mut Self>, selected_indices_json: QString);
     }
 

@@ -9,29 +9,27 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(f64, popup_x, cxx_name = "popupX")]
-        #[qproperty(f64, popup_y, cxx_name = "popupY")]
-        #[qproperty(bool, popup_visible, cxx_name = "popupVisible")]
-        #[qproperty(QString, preferences_text, cxx_name = "preferencesText")]
-        #[qproperty(QString, screen_capture_text, cxx_name = "screenCaptureText")]
-        #[qproperty(QString, quick_capture_text, cxx_name = "quickCaptureText")]
-        #[qproperty(QString, quit_text, cxx_name = "quitText")]
-        #[qproperty(QString, tooltip_text, cxx_name = "tooltipText")]
+        #[qproperty(f64, popup_x)]
+        #[qproperty(f64, popup_y)]
+        #[qproperty(bool, popup_visible)]
+        #[qproperty(QString, preferences_text)]
+        #[qproperty(QString, screen_capture_text)]
+        #[qproperty(QString, quick_capture_text)]
+        #[qproperty(QString, quit_text)]
+        #[qproperty(QString, tooltip_text)]
         type TrayMenuController = super::TrayMenuControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "popup"]
         fn popup(self: Pin<&mut Self>, geometry_json: QString, screens_json: QString, platform_os: QString, menu_width: f64, menu_height: f64);
 
         #[qinvokable]
-        #[cxx_name = "hideMenu"]
         fn hide_menu(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "syncWindowActive"]
         fn sync_window_active(self: Pin<&mut Self>, active: bool);
     }
 }

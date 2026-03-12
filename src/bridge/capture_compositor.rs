@@ -11,14 +11,14 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, processing, cxx_name = "processing")]
+        #[qproperty(bool, processing)]
         type CaptureCompositorController = super::CaptureCompositorControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "start"]
         fn start(
             self: Pin<&mut Self>,
             action: QString,
@@ -30,39 +30,30 @@ pub mod qobject {
         );
 
         #[qinvokable]
-        #[cxx_name = "abort"]
         fn abort(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "handleGrabResult"]
         fn handle_grab_result(self: Pin<&mut Self>, composition_id: i32, save_path: QString, save_succeeded: bool);
 
         #[qinvokable]
-        #[cxx_name = "isActive"]
         fn is_active(self: Pin<&mut Self>, composition_id: i32) -> bool;
 
         #[qsignal]
-        #[cxx_name = "requestPrepareComposition"]
         fn request_prepare_composition(self: Pin<&mut Self>, composition_id: i32, selection_rect: QRectF, out_width: i32, out_height: i32);
 
         #[qsignal]
-        #[cxx_name = "requestSubmitDirect"]
         fn request_submit_direct(self: Pin<&mut Self>, action: QString, selection_rect: QRectF);
 
         #[qsignal]
-        #[cxx_name = "requestSubmitComposited"]
         fn request_submit_composited(self: Pin<&mut Self>, path: QString, action: QString, selection_rect: QRectF);
 
         #[qsignal]
-        #[cxx_name = "requestRestoreAnnotation"]
         fn request_restore_annotation(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestCompositionFailed"]
         fn request_composition_failed(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "requestResetSurface"]
         fn request_reset_surface(self: Pin<&mut Self>);
     }
 }

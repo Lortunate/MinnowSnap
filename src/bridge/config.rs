@@ -31,103 +31,85 @@ pub mod qobject {
         type QStringList = cxx_qt_lib::QStringList;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
         #[qml_singleton]
-        #[qproperty(bool, oxipng_enabled, cxx_name = "oxipngEnabled")]
-        #[qproperty(bool, auto_start, cxx_name = "autoStart")]
-        #[qproperty(bool, enable_ocr, cxx_name = "enableOcr")]
-        #[qproperty(bool, notification_enabled, cxx_name = "notificationEnabled")]
-        #[qproperty(bool, save_notification, cxx_name = "saveNotification")]
-        #[qproperty(bool, copy_notification, cxx_name = "copyNotification")]
-        #[qproperty(bool, qr_code_notification, cxx_name = "qrCodeNotification")]
-        #[qproperty(bool, shutter_sound, cxx_name = "shutterSound")]
-        #[qproperty(QString, save_path, cxx_name = "savePath")]
-        #[qproperty(QString, font_family, cxx_name = "fontFamily")]
+        #[qproperty(bool, oxipng_enabled)]
+        #[qproperty(bool, auto_start)]
+        #[qproperty(bool, enable_ocr)]
+        #[qproperty(bool, notification_enabled)]
+        #[qproperty(bool, save_notification)]
+        #[qproperty(bool, copy_notification)]
+        #[qproperty(bool, qr_code_notification)]
+        #[qproperty(bool, shutter_sound)]
+        #[qproperty(QString, save_path)]
+        #[qproperty(QString, font_family)]
         #[qproperty(QString, theme)]
         #[qproperty(QString, language)]
         #[qproperty(QString, version)]
-        #[qproperty(QString, capture_shortcut, cxx_name = "captureShortcut")]
-        #[qproperty(QString, quick_capture_shortcut, cxx_name = "quickCaptureShortcut")]
-        #[qproperty(bool, has_shortcut_conflicts, cxx_name = "hasShortcutConflicts")]
-        #[qproperty(QString, shortcut_conflict_msg, cxx_name = "shortcutConflictMsg")]
+        #[qproperty(QString, capture_shortcut)]
+        #[qproperty(QString, quick_capture_shortcut)]
+        #[qproperty(bool, has_shortcut_conflicts)]
+        #[qproperty(QString, shortcut_conflict_msg)]
         type Config = super::ConfigRust;
 
         #[qinvokable]
-        #[cxx_name = "checkShortcutConflicts"]
         fn check_shortcut_conflicts(self: Pin<&mut Self>, capture: QString, quick: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateTheme"]
         fn update_theme(self: Pin<&mut Self>, theme: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateLanguage"]
         fn update_language(self: Pin<&mut Self>, language: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateOxipngEnabled"]
         fn update_oxipng_enabled(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateAutoStart"]
         fn update_auto_start(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateEnableOcr"]
         fn update_enable_ocr(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateNotificationEnabled"]
         fn update_notification_enabled(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateSaveNotification"]
         fn update_save_notification(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateCopyNotification"]
         fn update_copy_notification(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateQrCodeNotification"]
         fn update_qr_code_notification(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateShutterSound"]
         fn update_shutter_sound(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "updateSavePath"]
         fn update_save_path(self: Pin<&mut Self>, path: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateFontFamily"]
         fn update_font_family(self: Pin<&mut Self>, family: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateCaptureShortcut"]
         fn update_capture_shortcut(self: Pin<&mut Self>, shortcut: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateQuickCaptureShortcut"]
         fn update_quick_capture_shortcut(self: Pin<&mut Self>, shortcut: QString);
 
         #[qinvokable]
-        #[cxx_name = "getSystemFonts"]
         fn get_system_fonts(self: &Self) -> QStringList;
 
         #[qinvokable]
-        #[cxx_name = "getDefaultSavePath"]
         fn get_default_save_path(self: &Self) -> QString;
 
         #[qinvokable]
-        #[cxx_name = "getSupportedLanguages"]
         fn get_supported_languages(self: &Self) -> QStringList;
 
         #[qinvokable]
-        #[cxx_name = "loadSettings"]
         fn load_settings(self: Pin<&mut Self>);
     }
 }
