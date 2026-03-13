@@ -123,14 +123,14 @@ Window {
     Connections {
         function onScreenshotCaptured(path) {
             if (path !== "") {
-                sessionController.beginSession(PathUtils.addTimestamp(PathUtils.toUrl(path)))
+                sessionController.beginSession(PathUtils.toUrl(path))
             }
         }
         function onWindowInfoReady(json) {
             controller.updateWindowList(json)
         }
         function onCaptureReady() {
-            sessionController.beginSession(PathUtils.addTimestamp("image://minnow/preview"))
+            sessionController.beginSession("image://minnow/preview")
         }
 
         function onActionFinished() {
@@ -206,6 +206,9 @@ Window {
         }
 
         function onSessionCancelled() {
+            if (screenCapture) {
+                screenCapture.releaseCaptureBuffers()
+            }
             cancelled()
         }
     }

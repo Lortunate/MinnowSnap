@@ -26,11 +26,4 @@ QtObject {
         return path.toString().replace(/\\/g, "/");
     }
 
-    function addTimestamp(path, timestamp) {
-        if (!path)
-            return "";
-        let t = timestamp !== undefined ? timestamp : Date.now();
-        const separator = path.toString().indexOf("?") === -1 ? "?" : "&";
-        return path + separator + "t=" + t;
-    }
 }

@@ -5,12 +5,18 @@ mod ffi {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
 
+        unsafe fn quit_app();
         unsafe fn set_quit_on_last_window_closed();
         unsafe fn set_window_icon();
         unsafe fn install_translator(locale: &str);
         unsafe fn retranslate_all();
         fn translate(context: &str, source_text: &str) -> QString;
     }
+}
+
+
+pub fn quit_app() {
+    unsafe { ffi::quit_app() }
 }
 
 pub fn set_quit_on_last_window_closed() {

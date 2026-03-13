@@ -2,38 +2,15 @@
 #include <QtQuick/QQuickImageProvider>
 #include <QImage>
 #include <QQmlApplicationEngine>
-#include <mutex>
 
 QImage get_capture_qimage(QString id) noexcept;
 
 class MinnowImageProvider : public QQuickImageProvider {
-    QString m_lastId;
-    QImage m_cachedImage;
-    std::mutex m_mutex;
-
 public:
     MinnowImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
     
     QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override {
-        QImage img;
-        bool found = false;
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (id == m_lastId && !m_cachedImage.isNull()) {
-                img = m_cachedImage;
-                found = true;
-            }
-        }
-
-        if (!found) {
-            img = get_capture_qimage(id);
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                m_lastId = id;
-                m_cachedImage = img;
-            }
-        }
+        QImage img = get_capture_qimage(id);
         
         if (size) *size = img.size();
         

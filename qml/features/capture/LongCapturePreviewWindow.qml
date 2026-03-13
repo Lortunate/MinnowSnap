@@ -26,13 +26,13 @@ Window {
     property int selectionX: 0
     property int selectionY: 0
     property bool showFull: false // Toggle between full view and latest view
-
-    property int updateCounter: 0
+    readonly property string scrollSource: "image://minnow/scroll"
 
     function refresh(h) {
-        updateCounter += 1;
         if (h)
             currentHeight = h;
+        previewImg.source = "";
+        previewImg.source = scrollSource;
     }
 
     color: "transparent"
@@ -86,7 +86,7 @@ Window {
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
             mipmap: true
             smooth: true
-            source: PathUtils.addTimestamp("image://minnow/scroll", root.updateCounter)
+            source: root.scrollSource
             sourceSize.width: parent.width * Screen.devicePixelRatio
             verticalAlignment: Image.AlignBottom
 
