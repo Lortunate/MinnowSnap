@@ -96,6 +96,9 @@ pub mod qobject {
         #[qinvokable]
         fn release_capture_buffers(self: Pin<&mut Self>);
 
+        #[qinvokable]
+        fn collect_memory(self: Pin<&mut Self>);
+
         #[qsignal]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
 
@@ -192,6 +195,13 @@ fn capture_action_from_code(action: i32) -> Option<CaptureAction> {
         UI_ACTION_SCROLL => Some(CaptureAction::Scroll),
         UI_ACTION_QRCODE => Some(CaptureAction::QrCode),
         _ => None,
+    }
+}
+
+#[inline]
+fn collect_process_memory() {
+    unsafe {
+        libmimalloc_sys::mi_collect(true);
     }
 }
 
@@ -478,6 +488,10 @@ impl qobject::ScreenCapture {
             *cache = None;
         }
         self.as_mut().rust_mut().last_scroll_path = None;
+    }
+
+    pub fn collect_memory(self: Pin<&mut Self>) {
+        crate::core::RUNTIME.spawn_blocking(collect_process_memory);
     }
 
     fn submit_capture_internal(mut self: Pin<&mut Self>, path: QString, action: i32, rect: Rect, input_mode: CaptureInputMode) {

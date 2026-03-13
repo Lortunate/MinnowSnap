@@ -56,6 +56,7 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [dependencies]
 mimalloc = { workspace = true }
+libmimalloc-sys = { version = "0.1", features = ["extended"] }
 cxx = { workspace = true }
 cxx-qt = { workspace = true }
 cxx-qt-lib = { workspace = true }

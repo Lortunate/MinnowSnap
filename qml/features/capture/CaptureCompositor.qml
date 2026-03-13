@@ -107,7 +107,7 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 height: overlayWindow ? overlayWindow.height : 0
                 horizontalAlignment: Image.AlignLeft
-                source: overlayWindow ? overlayWindow.backgroundImageSource : ""
+                source: (root.processing && overlayWindow) ? overlayWindow.backgroundImageSource : ""
                 verticalAlignment: Image.AlignTop
                 width: overlayWindow ? overlayWindow.width : 0
                 cache: false

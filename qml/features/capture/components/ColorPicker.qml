@@ -268,12 +268,14 @@ Item {
 
                 Image {
                     id: zoomImage
-                    source: root.imageSource
+                    source: root.visible ? root.imageSource : ""
                     smooth: false
                     fillMode: Image.Stretch
                     width: root.surfaceWidth
                     height: root.surfaceHeight
                     visible: width > 0 && height > 0
+                    cache: false
+                    asynchronous: false
                     scale: root.zoomLevel
                     transformOrigin: Item.TopLeft
                     x: (parent.width / 2) - (root.targetX * root.zoomLevel) - (root.zoomLevel / 2)
