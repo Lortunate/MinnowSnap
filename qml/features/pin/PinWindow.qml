@@ -11,6 +11,7 @@ Window {
     id: pinWindow
 
     property alias imageSource: controller.imagePath
+    property alias autoOcr: controller.autoOcr
     property int shadowMargin: 20
     property var screenCapture: null
 
@@ -37,7 +38,7 @@ Window {
         }
         pinWindow.raise();
         if (controller.autoOcr) {
-            ocrOverlay.triggerOcr();
+            ocrOverlay.recognize();
         }
     }
 
