@@ -77,13 +77,8 @@ pub struct LongCaptureControllerRust {
 
 impl qobject::LongCaptureController {
     pub fn start(mut self: Pin<&mut Self>, selection_rect: QRectF) {
-        let rect = SelectionRect::from_qrect(&selection_rect).rect();
-        self.as_mut().set_selection_rect(QRectF::new(
-            f64::from(rect.x),
-            f64::from(rect.y),
-            f64::from(rect.width),
-            f64::from(rect.height),
-        ));
+        let selection = SelectionRect::from_qrect(&selection_rect);
+        self.as_mut().set_selection_rect(selection.to_qrect());
         self.as_mut().set_frame_visible(true);
         self.as_mut().set_toolbar_visible(true);
         self.as_mut().set_preview_visible(true);

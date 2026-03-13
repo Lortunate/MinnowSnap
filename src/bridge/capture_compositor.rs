@@ -1,3 +1,4 @@
+use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QRectF, QString};
 use std::pin::Pin;
@@ -78,10 +79,6 @@ impl Default for CaptureCompositorControllerRust {
     }
 }
 
-fn normalize_rect(rect: &QRectF) -> QRectF {
-    crate::interop::qt_rect_adapter::SelectionRect::from_qrect(rect).to_qrect()
-}
-
 impl qobject::CaptureCompositorController {
     pub fn start(
         mut self: Pin<&mut Self>,
@@ -92,7 +89,7 @@ impl qobject::CaptureCompositorController {
         source_logical_width: f64,
         fallback_dpr: f64,
     ) {
-        let normalized = normalize_rect(&selection_rect);
+        let normalized = SelectionRect::from_qrect(&selection_rect).to_qrect();
         let width = normalized.width().max(1.0);
         let height = normalized.height().max(1.0);
         if !has_annotations {

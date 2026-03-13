@@ -1,4 +1,3 @@
-#![allow(clippy::too_many_arguments)]
 use crate::bridge::screen_capture::{is_redo_action, is_undo_action};
 use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt_lib::{QPointF, QRectF, QString};

@@ -1,4 +1,3 @@
-#![allow(clippy::too_many_arguments)]
 #[cxx_qt::bridge]
 pub mod qobject {
     #[qml_element]
@@ -325,22 +324,7 @@ impl qobject::ScreenCapture {
 
     pub fn start_scroll_capture(mut self: Pin<&mut Self>, selection_rect: QRectF) {
         let rect = SelectionRect::from_qrect(&selection_rect).rect();
-        if self.rust().scroll_capture_active.load(Ordering::SeqCst) {
-            info!("Scroll capture already active");
-            return;
-        }
-        info!(
-            "Starting optimized scroll capture at {},{} {}x{}",
-            rect.x, rect.y, rect.width, rect.height
-        );
-        self.as_mut().rust_mut().scroll_capture_active.store(true, Ordering::SeqCst);
-        let active_flag = self.rust().scroll_capture_active.clone();
-
-        let observer = Box::new(QtScrollObserver { qt_thread: self.qt_thread() });
-
-        start_scroll_capture_thread(rect, active_flag, observer);
-
-        self.as_mut().scroll_capture_started(rect_to_qrect(rect));
+        self.as_mut().start_scroll_capture_rect(rect);
     }
 
     pub fn request_scroll_action(mut self: Pin<&mut Self>, action: i32) {
@@ -451,7 +435,8 @@ impl qobject::ScreenCapture {
     }
 
     pub fn request_action(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF, has_annotations: bool) {
-        let rect = SelectionRect::from_qrect(&selection_rect).rect();
+        let selection = SelectionRect::from_qrect(&selection_rect);
+        let rect = selection.rect();
         let Some(action_enum) = capture_action_from_code(action) else {
             self.action_finished();
             return;
@@ -459,7 +444,7 @@ impl qobject::ScreenCapture {
 
         match action_enum {
             CaptureAction::Scroll => {
-                self.start_scroll_capture(rect_to_qrect(rect));
+                self.start_scroll_capture_rect(rect);
             }
             CaptureAction::QrCode if !has_annotations => {
                 let path_str = self.rust().resolve_path(&path);
@@ -467,9 +452,9 @@ impl qobject::ScreenCapture {
             }
             _ => {
                 if has_annotations {
-                    self.request_composition(action, rect_to_qrect(rect));
+                    self.request_composition(action, selection.to_qrect());
                 } else {
-                    self.submit_capture(path, action, rect_to_qrect(rect));
+                    self.submit_capture_internal(path, action, rect, CaptureInputMode::CropSelection);
                 }
             }
         }
@@ -512,6 +497,22 @@ impl qobject::ScreenCapture {
                 self.as_mut().action_finished();
             }
         }
+    }
+
+    fn start_scroll_capture_rect(mut self: Pin<&mut Self>, rect: Rect) {
+        if self.rust().scroll_capture_active.load(Ordering::SeqCst) {
+            info!("Scroll capture already active");
+            return;
+        }
+        info!(
+            "Starting optimized scroll capture at {},{} {}x{}",
+            rect.x, rect.y, rect.width, rect.height
+        );
+        self.as_mut().rust_mut().scroll_capture_active.store(true, Ordering::SeqCst);
+        let active_flag = self.rust().scroll_capture_active.clone();
+        let observer = Box::new(QtScrollObserver { qt_thread: self.qt_thread() });
+        start_scroll_capture_thread(rect, active_flag, observer);
+        self.as_mut().scroll_capture_started(rect_to_qrect(rect));
     }
 
     fn process_action(self: Pin<&mut Self>, action: CaptureAction, path: String, rect: Rect, input_mode: CaptureInputMode) {
