@@ -81,15 +81,7 @@ Item {
     }
 
     function clear() {
-        deselectAll()
-        for (let i = annotations.children.length - 1; i >= 0; i--) {
-            const child = annotations.children[i]
-            child.visible = false
-            child.parent = null
-            child.destroy()
-        }
         annotationController.clearAll()
-        selectedItem = null
     }
 
     function undo() {
