@@ -13,6 +13,11 @@
 #include <string>
 #include "rust/cxx.h"
 
+
+inline void quit_app() {
+    QCoreApplication::quit();
+}
+
 inline void set_window_icon() {
     QIcon icon(":/resources/logo.png");
     QGuiApplication::setWindowIcon(icon);

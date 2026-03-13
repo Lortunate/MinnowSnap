@@ -19,9 +19,9 @@ use tracing::info;
 static GLOBAL: MiMalloc = MiMalloc;
 
 struct MinnowApp {
-    app: UniquePtr<QGuiApplication>,
     #[allow(dead_code)]
     engine: UniquePtr<QQmlApplicationEngine>,
+    app: UniquePtr<QGuiApplication>,
 }
 
 impl MinnowApp {
@@ -39,15 +39,15 @@ impl MinnowApp {
         core::app::hide_dock_icon();
 
         let mut engine = QQmlApplicationEngine::new();
-        if let Some(mut engine_pin) = engine.as_mut() {
-            bridge::provider::register_image_provider(engine_pin.as_mut());
-            engine_pin.as_mut().load(&QUrl::from(QML_MAIN));
+        if let Some(mut pinned_engine) = engine.as_mut() {
+            bridge::provider::register_image_provider(pinned_engine.as_mut());
+            pinned_engine.as_mut().load(&QUrl::from(QML_MAIN));
 
-            let untyped: Pin<&mut QQmlEngine> = engine_pin.upcast_pin();
-            untyped.on_quit(|_| std::process::exit(0)).release();
+            let base_engine: Pin<&mut QQmlEngine> = pinned_engine.upcast_pin();
+            base_engine.on_quit(|_| bridge::app::quit_app()).release();
         }
 
-        Self { app, engine }
+        Self { engine, app }
     }
 
     fn run(&mut self) {
