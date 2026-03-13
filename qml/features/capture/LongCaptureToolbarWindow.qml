@@ -14,7 +14,7 @@ Window {
     property int selectionX: 0
     property int selectionY: 0
 
-    signal actionClicked(string action)
+    signal actionClicked(int action)
 
     color: "transparent"
 
@@ -48,33 +48,33 @@ Window {
                 {
                     "icon": "qrc:/resources/icons/save.svg",
                     "text": qsTr("Save"),
-                    "action": "save",
+                    "action": CaptureActions.Save,
                     "hoverColor": AppTheme.primary
                 },
                 {
                     "icon": "qrc:/resources/icons/keep.svg",
                     "text": qsTr("Pin"),
-                    "action": "pin",
+                    "action": CaptureActions.Pin,
                     "hoverColor": AppTheme.primary
                 },
                 {
                     "icon": "qrc:/resources/icons/file_copy.svg",
                     "text": qsTr("Copy"),
-                    "action": "copy",
+                    "action": CaptureActions.Copy,
                     "hoverColor": AppTheme.primary
                 }
             ], [
                 {
                     "icon": "qrc:/resources/icons/close.svg",
                     "text": qsTr("Cancel"),
-                    "action": "cancel",
+                    "action": CaptureActions.Cancel,
                     "hoverColor": AppTheme.danger
                 }
             ]]
         visible: !isBusy
 
         onActionConfirmed: action => root.actionClicked(action)
-        onCanceled: root.actionClicked("cancel")
+        onCanceled: root.actionClicked(CaptureActions.Cancel)
     }
     BusyStatus {
         id: busyRect

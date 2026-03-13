@@ -12,23 +12,31 @@ Item {
     property string activeMosaicType: "mosaic"
     property int activeCounterSize: 32
     property int activeFontSize: 24
-    property string activeTool: ""
+    property int activeTool: AnnotationTools.NoTool
     readonly property bool hasAnnotations: annotationController.hasAnnotations
     property var selectedItem: null
     property Item sourceImage: null
     property real layerX: 0
     property real layerY: 0
     readonly property var annotationComponents: ({
-        "arrow": "ArrowItem.qml",
-        "rectangle": "RectangleItem.qml",
-        "circle": "CircleItem.qml",
-        "counter": "CounterItem.qml",
-        "text": "TextItem.qml",
-        "mosaic": "MosaicItem.qml"
+        [AnnotationTools.Arrow]: "ArrowItem.qml",
+        [AnnotationTools.Rectangle]: "RectangleItem.qml",
+        [AnnotationTools.Circle]: "CircleItem.qml",
+        [AnnotationTools.Counter]: "CounterItem.qml",
+        [AnnotationTools.Text]: "TextItem.qml",
+        [AnnotationTools.Mosaic]: "MosaicItem.qml"
+    })
+    readonly property var itemTypeToTool: ({
+        "arrow": AnnotationTools.Arrow,
+        "rectangle": AnnotationTools.Rectangle,
+        "circle": AnnotationTools.Circle,
+        "counter": AnnotationTools.Counter,
+        "text": AnnotationTools.Text,
+        "mosaic": AnnotationTools.Mosaic
     })
     property var componentCache: ({})
 
-    signal requestSetTool(string tool)
+    signal requestSetTool(int tool)
 
     function toColorString(colorValue) {
         return colorValue.toString()
@@ -183,9 +191,10 @@ Item {
     }
 
     function notifySelection(item, deactivateTool) {
+        const kind = itemTypeToTool[item.type] !== undefined ? itemTypeToTool[item.type] : AnnotationTools.NoTool
         annotationController.onAnnotationSelected(
             item.annotationId,
-            item.type,
+            kind,
             toColorString(item.color),
             valueOrFallback(item, "hasOutline", false),
             valueOrFallback(item, "hasStroke", false),
@@ -240,14 +249,14 @@ Item {
             "drawingMode": true
         }
 
-        if (root.activeTool === "counter") {
+        if (root.activeTool === AnnotationTools.Counter) {
             props["selected"] = true
             props["number"] = annotationController.nextCounterValue
             props["size"] = root.activeCounterSize
-        } else if (root.activeTool === "text") {
+        } else if (root.activeTool === AnnotationTools.Text) {
             props["selected"] = true
             props["fontSize"] = root.activeFontSize
-        } else if (root.activeTool === "mosaic") {
+        } else if (root.activeTool === AnnotationTools.Mosaic) {
             props["p2"] = startPoint
             props["sourceItem"] = root.sourceImage
             props["intensity"] = root.activeIntensity
@@ -261,7 +270,7 @@ Item {
     }
 
     onActiveToolChanged: {
-        updateDrawingMode(activeTool !== "")
+        updateDrawingMode(activeTool !== AnnotationTools.NoTool)
         syncRootToController(activeTool, annotationController.activeTool, annotationController.updateActiveTool, false)
     }
 
@@ -387,14 +396,14 @@ Item {
         property point startPoint: Qt.point(0, 0)
 
         anchors.fill: parent
-        cursorShape: root.activeTool === "text" ? Qt.IBeamCursor : Qt.CrossCursor
-        enabled: root.activeTool !== ""
+        cursorShape: root.activeTool === AnnotationTools.Text ? Qt.IBeamCursor : Qt.CrossCursor
+        enabled: root.activeTool !== AnnotationTools.NoTool
 
         onPositionChanged: mouse => {
             if (currentItem) {
                 let p2 = Qt.point(mouse.x, mouse.y)
 
-                if ((mouse.modifiers & Qt.ShiftModifier) && (root.activeTool === "circle" || root.activeTool === "rectangle")) {
+                if ((mouse.modifiers & Qt.ShiftModifier) && (root.activeTool === AnnotationTools.Circle || root.activeTool === AnnotationTools.Rectangle)) {
                     const dx = p2.x - currentItem.p1.x
                     const dy = p2.y - currentItem.p1.y
                     const size = Math.max(Math.abs(dx), Math.abs(dy))
@@ -403,7 +412,7 @@ Item {
                     p2 = Qt.point(currentItem.p1.x + sx * size, currentItem.p1.y + sy * size)
                 }
 
-                if (root.activeTool !== "text") {
+                if (root.activeTool !== AnnotationTools.Text) {
                     currentItem.p2 = p2
                 }
             }
@@ -431,7 +440,7 @@ Item {
             }
 
             annotationController.registerCreatedAnnotation(annotationId, root.activeTool)
-            if (root.activeTool !== "counter" && root.activeTool !== "text") {
+            if (root.activeTool !== AnnotationTools.Counter && root.activeTool !== AnnotationTools.Text) {
                 currentItem = item
             }
             mouse.accepted = true

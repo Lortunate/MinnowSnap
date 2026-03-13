@@ -1,5 +1,5 @@
-use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::capture::action::CaptureInputMode;
+use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
@@ -93,7 +93,8 @@ impl CaptureService {
     }
 
     pub fn save_region_to_user_dir(path: &str, x: i32, y: i32, width: i32, height: i32, input_mode: CaptureInputMode) -> Result<String, String> {
-        let img = Self::resolve_image(path, x, y, width, height, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
+        let img =
+            Self::resolve_image(path, x, y, width, height, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
         let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
 
@@ -145,11 +146,27 @@ impl CaptureService {
             let (w, h) = gray.dimensions();
             let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
             let grids = img.detect_grids();
-            if let Some(grid) = grids.first() {
-                if let Ok((_meta, content)) = grid.decode() {
-                    return Some(content);
-                }
+            if let Some(grid) = grids.first()
+                && let Ok((_meta, content)) = grid.decode()
+            {
+                return Some(content);
             }
+        }
+        None
+    }
+
+    pub fn get_pixel_hex(x: i32, y: i32, scale: f64) -> Option<String> {
+        let x_phys = (x as f64 * scale) as i32;
+        let y_phys = (y as f64 * scale) as i32;
+
+        if let Ok(lock) = LAST_CAPTURE.lock()
+            && let Some(img) = &*lock
+            && let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys))
+            && u_x < img.width()
+            && u_y < img.height()
+        {
+            let pixel = img.get_pixel(u_x, u_y);
+            return Some(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]));
         }
         None
     }

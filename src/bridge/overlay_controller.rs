@@ -1,4 +1,4 @@
-use crate::core::geometry::{clamp_point, clamp_rect_move, clamp_rect_resize};
+use crate::core::geometry::{clamp_point, clamp_rect_move};
 use crate::core::window::{WindowInfo, find_window_at};
 use cxx_qt::{CxxQtType, QObject};
 use cxx_qt_lib::{QPointF, QRectF, QString};
@@ -15,76 +15,62 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QRectF, target_rect, cxx_name = "targetRect")]
-        #[qproperty(QString, target_info, cxx_name = "targetInfo")]
-        #[qproperty(bool, has_target, cxx_name = "hasTarget")]
-        #[qproperty(QRectF, selection_rect, cxx_name = "selectionRect")]
-        #[qproperty(QString, state, cxx_name = "state")]
-        #[qproperty(f64, screen_width, cxx_name = "screenWidth")]
-        #[qproperty(f64, screen_height, cxx_name = "screenHeight")]
+        #[qproperty(QRectF, target_rect)]
+        #[qproperty(QString, target_info)]
+        #[qproperty(bool, has_target)]
+        #[qproperty(QRectF, selection_rect)]
+        #[qproperty(QString, state)]
+        #[qproperty(f64, screen_width)]
+        #[qproperty(f64, screen_height)]
         type OverlayController = super::OverlayControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "updateWindowList"]
         fn update_window_list(self: Pin<&mut Self>, json: QString);
 
         #[qinvokable]
-        #[cxx_name = "updateHover"]
         fn update_hover(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "clearTarget"]
         fn clear_target(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startSelection"]
         fn start_selection(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateSelection"]
         fn update_selection(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endSelection"]
         fn end_selection(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startMove"]
         fn start_move(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateMove"]
         fn update_move(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endMove"]
         fn end_move(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "startResize"]
         fn start_resize(self: Pin<&mut Self>, corner: QString, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "updateResize"]
         fn update_resize(self: Pin<&mut Self>, x: f64, y: f64);
 
         #[qinvokable]
-        #[cxx_name = "endResize"]
         fn end_resize(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "reset"]
         fn reset(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "selectTarget"]
         fn select_target(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "setupWindow"]
         unsafe fn setup_window(self: Pin<&mut Self>, window: *mut QObject);
     }
 }
@@ -289,39 +275,17 @@ impl qobject::OverlayController {
         let dx = x - start_pt.x();
         let dy = y - start_pt.y();
 
-        let mut new_x = start_rect.x();
-        let mut new_y = start_rect.y();
-        let mut new_w = start_rect.width();
-        let mut new_h = start_rect.height();
-
-        if corner.contains("right") {
-            new_w += dx;
-        } else if corner.contains("left") {
-            new_x += dx;
-            new_w -= dx;
-        }
-
-        if corner.contains("bottom") {
-            new_h += dy;
-        } else if corner.contains("top") {
-            new_y += dy;
-            new_h -= dy;
-        }
-
-        if new_w < 10.0 {
-            if corner.contains("left") {
-                new_x = start_rect.x() + start_rect.width() - 10.0;
-            }
-            new_w = 10.0;
-        }
-        if new_h < 10.0 {
-            if corner.contains("top") {
-                new_y = start_rect.y() + start_rect.height() - 10.0;
-            }
-            new_h = 10.0;
-        }
-
-        let (final_x, final_y, final_w, final_h) = clamp_rect_resize(new_x, new_y, new_w, new_h, *self.screen_width(), *self.screen_height());
+        let (final_x, final_y, final_w, final_h) = crate::core::geometry::calculate_resize(
+            start_rect.x(),
+            start_rect.y(),
+            start_rect.width(),
+            start_rect.height(),
+            dx,
+            dy,
+            &corner,
+            *self.screen_width(),
+            *self.screen_height(),
+        );
 
         self.as_mut().set_selection_rect(QRectF::new(final_x, final_y, final_w, final_h));
     }

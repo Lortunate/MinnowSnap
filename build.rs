@@ -1,7 +1,7 @@
 use build_tools::i18n::compile_all_translations;
 use build_tools::icons::{embed_windows_icon, generate_icons};
 use build_tools::resources::update_resources;
-use build_tools::utils::collect_qml_files;
+use build_tools::utils::{collect_bridge_files, collect_qml_files};
 use cxx_qt_build::{CxxQtBuilder, QmlModule};
 use std::path::Path;
 
@@ -9,6 +9,7 @@ fn main() {
     println!("cargo:rerun-if-changed=resources/logo.png");
     println!("cargo:rerun-if-changed=resources");
     println!("cargo:rerun-if-changed=qml");
+    println!("cargo:rerun-if-changed=src/bridge");
     println!("cargo:rerun-if-changed=resources/i18n");
 
     if let Err(e) = generate_icons(Path::new("resources/logo.png"), Path::new("assets_icons")) {
@@ -28,25 +29,11 @@ fn main() {
     }
 
     let qml_files = collect_qml_files(Path::new("qml"));
+    let bridge_files = collect_bridge_files(Path::new("src/bridge"));
+
     let mut builder = CxxQtBuilder::new_qml_module(QmlModule::new("com.lortunate.minnow").qml_files(qml_files))
         .qrc("resources.qrc")
-        .files([
-            "src/bridge/annotation.rs",
-            "src/bridge/app.rs",
-            "src/bridge/capture_session.rs",
-            "src/bridge/window.rs",
-            "src/bridge/screen_capture.rs",
-            "src/bridge/provider.rs",
-            "src/bridge/long_capture.rs",
-            "src/bridge/overlay_controller.rs",
-            "src/bridge/tray_menu.rs",
-            "src/bridge/shortcut_helper.rs",
-            "src/bridge/config.rs",
-            "src/bridge/capture_compositor.rs",
-            "src/bridge/ocr.rs",
-            "src/bridge/ocr_overlay.rs",
-            "src/bridge/pin.rs",
-        ])
+        .files(bridge_files)
         .qt_module("Quick");
 
     if cfg!(target_os = "macos") {
@@ -60,4 +47,3 @@ fn main() {
 
     builder.build();
 }
-

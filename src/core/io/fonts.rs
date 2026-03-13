@@ -24,7 +24,6 @@ pub fn get_system_fonts() -> Vec<String> {
         vec![]
     });
 
-    let mut filtered = Vec::new();
     let blocklist = [
         "Emoji",
         "Dingbats",
@@ -58,27 +57,20 @@ pub fn get_system_fonts() -> Vec<String> {
         "Tibetan",
     ];
 
-    for family in all_families {
-        if family.starts_with('.') {
-            continue;
-        }
-
-        let name_lower = family.to_lowercase();
-        let mut allowed = true;
-        for &block in blocklist.iter() {
-            if name_lower.contains(&block.to_lowercase()) {
-                if block == "UI" && (name_lower.contains("segoe") || name_lower.contains("san francisco")) {
-                    continue;
+    let mut filtered: Vec<String> = all_families
+        .into_iter()
+        .filter(|family| !family.starts_with('.'))
+        .filter(|family| {
+            let name_lower = family.to_lowercase();
+            !blocklist.iter().any(|&block| {
+                if name_lower.contains(&block.to_lowercase()) {
+                    !(block == "UI" && (name_lower.contains("segoe") || name_lower.contains("san francisco")))
+                } else {
+                    false
                 }
-                allowed = false;
-                break;
-            }
-        }
-
-        if allowed {
-            filtered.push(family);
-        }
-    }
+            })
+        })
+        .collect();
 
     filtered.sort();
 

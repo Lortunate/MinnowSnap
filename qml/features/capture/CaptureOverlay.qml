@@ -148,7 +148,7 @@ Window {
         target: sessionController
 
         function onRequestAnnotationReset() {
-            toolbar.activeTool = ""
+            toolbar.activeTool = AnnotationTools.NoTool
             annotationLayer.clear()
         }
 
@@ -218,7 +218,7 @@ Window {
 
         Keys.onEnterPressed: {
             if (hasSelection) {
-                confirmSelection("copy")
+                confirmSelection(CaptureActions.Copy)
             }
         }
         Keys.onEscapePressed: {
@@ -243,9 +243,9 @@ Window {
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
                     if (event.modifiers & Qt.ShiftModifier) {
-                        confirmSelection("redo")
+                        confirmSelection(CaptureActions.Redo)
                     } else {
-                        confirmSelection("undo")
+                        confirmSelection(CaptureActions.Undo)
                     }
                     event.accepted = true
                 }
@@ -253,7 +253,7 @@ Window {
         }
         Keys.onReturnPressed: {
             if (hasSelection) {
-                confirmSelection("copy")
+                confirmSelection(CaptureActions.Copy)
             }
         }
 
@@ -478,32 +478,32 @@ Window {
             mosaicType: annotationLayer.activeMosaicType
             mode: {
                 if (annotationLayer.selectedItem) {
-                    return annotationLayer.selectedItem.type
+                    return annotationLayer.itemTypeToTool[annotationLayer.selectedItem.type] || AnnotationTools.Arrow
                 }
-                if (toolbar.activeTool === "arrow")
-                    return "arrow"
-                if (toolbar.activeTool === "rectangle")
-                    return "rectangle"
-                if (toolbar.activeTool === "circle")
-                    return "circle"
-                if (toolbar.activeTool === "counter")
-                    return "counter"
-                if (toolbar.activeTool === "text")
-                    return "text"
-                if (toolbar.activeTool === "mosaic")
-                    return "mosaic"
-                return "arrow"
+                if (toolbar.activeTool === AnnotationTools.Arrow)
+                    return AnnotationTools.Arrow
+                if (toolbar.activeTool === AnnotationTools.Rectangle)
+                    return AnnotationTools.Rectangle
+                if (toolbar.activeTool === AnnotationTools.Circle)
+                    return AnnotationTools.Circle
+                if (toolbar.activeTool === AnnotationTools.Counter)
+                    return AnnotationTools.Counter
+                if (toolbar.activeTool === AnnotationTools.Text)
+                    return AnnotationTools.Text
+                if (toolbar.activeTool === AnnotationTools.Mosaic)
+                    return AnnotationTools.Mosaic
+                return AnnotationTools.Arrow
             }
             activeSize: {
-                if (mode === "counter")
+                if (mode === AnnotationTools.Counter)
                     return annotationLayer.activeCounterSize
-                if (mode === "text")
+                if (mode === AnnotationTools.Text)
                     return annotationLayer.activeFontSize
-                if (mode === "mosaic")
+                if (mode === AnnotationTools.Mosaic)
                     return annotationLayer.activeIntensity
                 return annotationLayer.activeLineWidth
             }
-            visible: controller.state === states.locked && (toolbar.activeTool === "arrow" || toolbar.activeTool === "rectangle" || toolbar.activeTool === "circle" || toolbar.activeTool === "counter" || toolbar.activeTool === "text" || toolbar.activeTool === "mosaic" || annotationLayer.selectedItem)
+            visible: controller.state === states.locked && (toolbar.activeTool === AnnotationTools.Arrow || toolbar.activeTool === AnnotationTools.Rectangle || toolbar.activeTool === AnnotationTools.Circle || toolbar.activeTool === AnnotationTools.Counter || toolbar.activeTool === AnnotationTools.Text || toolbar.activeTool === AnnotationTools.Mosaic || annotationLayer.selectedItem)
 
             x: pos.x
             y: pos.y
@@ -514,11 +514,11 @@ Window {
             onRequestStrokeChange: enabled => annotationLayer.activeHasStroke = enabled
             onRequestMosaicTypeChange: type => annotationLayer.activeMosaicType = type
             onRequestSizeChange: size => {
-                if (mode === "counter")
+                if (mode === AnnotationTools.Counter)
                     annotationLayer.activeCounterSize = size
-                else if (mode === "text")
+                else if (mode === AnnotationTools.Text)
                     annotationLayer.activeFontSize = size
-                else if (mode === "mosaic")
+                else if (mode === AnnotationTools.Mosaic)
                     annotationLayer.activeIntensity = size
                 else
                     annotationLayer.activeLineWidth = size

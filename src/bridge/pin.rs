@@ -9,43 +9,36 @@ mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QString, image_path, cxx_name = "imagePath")]
-        #[qproperty(bool, auto_ocr, cxx_name = "autoOcr")]
+        #[qproperty(QString, image_path)]
+        #[qproperty(bool, auto_ocr)]
         type PinController = super::PinControllerRust;
 
         #[qinvokable]
-        #[cxx_name = "copyImage"]
         fn copy_image(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "saveImage"]
         fn save_image(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "close"]
         fn close(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "closeAll"]
         fn close_all(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "triggerOcr"]
         fn trigger_ocr(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "closeRequested"]
         fn close_requested(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "closeAllRequested"]
         fn close_all_requested(self: Pin<&mut Self>);
 
         #[qsignal]
-        #[cxx_name = "ocrRequested"]
         fn ocr_requested(self: Pin<&mut Self>);
     }
 
@@ -66,7 +59,8 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
+                    crate::core::capture::action::CaptureAction::Copy
+                        .execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)
@@ -86,7 +80,8 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
+                    crate::core::capture::action::CaptureAction::Save
+                        .execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)

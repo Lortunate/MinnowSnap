@@ -13,29 +13,27 @@ mod qobject {
         type QString = cxx_qt_lib::QString;
     }
 
+    #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, enabled)]
-        #[qproperty(bool, is_downloading, cxx_name = "isDownloading")]
-        #[qproperty(f32, download_progress, cxx_name = "downloadProgress")]
-        #[qproperty(bool, is_model_ready, cxx_name = "isModelReady")]
-        #[qproperty(QString, status_message, cxx_name = "statusMessage")]
+        #[qproperty(bool, is_downloading)]
+        #[qproperty(f32, download_progress)]
+        #[qproperty(bool, is_model_ready)]
+        #[qproperty(QString, status_message)]
         type OcrManager = super::OcrManagerRust;
 
         #[qinvokable]
         fn init(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "setOcrEnabledPersist"]
         fn set_ocr_enabled_persist(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        #[cxx_name = "checkStatus"]
         fn check_status(self: Pin<&mut Self>);
 
         #[qinvokable]
-        #[cxx_name = "downloadModels"]
         fn download_models(self: Pin<&mut Self>);
     }
 
@@ -101,22 +99,24 @@ impl qobject::OcrManager {
             });
         });
 
-        crate::spawn_qt_task!(self, async move {
-            ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await
-        }, |mut qobject: Pin<&mut qobject::OcrManager>, result| {
-            qobject.as_mut().set_is_downloading(false);
-            match result {
-                Ok(_) => {
-                    info!("OCR model download completed successfully");
-                    qobject.as_mut().set_is_model_ready(true);
-                    qobject.as_mut().set_download_progress(1.0);
-                    qobject.as_mut().set_status_message(QString::from("Download complete"));
-                }
-                Err(e) => {
-                    error!("Download failed: {}", e);
-                    qobject.as_mut().set_status_message(QString::from("Download failed"));
+        crate::spawn_qt_task!(
+            self,
+            async move { ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await },
+            |mut qobject: Pin<&mut qobject::OcrManager>, result| {
+                qobject.as_mut().set_is_downloading(false);
+                match result {
+                    Ok(_) => {
+                        info!("OCR model download completed successfully");
+                        qobject.as_mut().set_is_model_ready(true);
+                        qobject.as_mut().set_download_progress(1.0);
+                        qobject.as_mut().set_status_message(QString::from("Download complete"));
+                    }
+                    Err(e) => {
+                        error!("Download failed: {}", e);
+                        qobject.as_mut().set_status_message(QString::from("Download failed"));
+                    }
                 }
             }
-        });
+        );
     }
 }

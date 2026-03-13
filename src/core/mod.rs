@@ -10,5 +10,7 @@ pub mod hotkey;
 pub mod io;
 pub mod logging;
 pub mod notify;
+pub mod ocr;
 pub mod settings;
+pub mod tray;
 pub mod window;

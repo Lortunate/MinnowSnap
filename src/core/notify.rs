@@ -1,4 +1,4 @@
-use crate::core::app::{APP_ID, APP_NAME};
+use crate::core::app::{APP_NAME};
 use crate::core::settings::SETTINGS;
 use tracing::error;
 
@@ -6,11 +6,13 @@ use tracing::error;
 use notify_rust::Notification;
 #[cfg(target_os = "windows")]
 use tauri_winrt_notification::{IconCrop, Toast};
+#[cfg(target_os = "windows")]
+use crate::core::app::APP_ID;
 
 #[cfg(target_os = "windows")]
 use std::{fs, path::PathBuf};
 #[cfg(target_os = "windows")]
-use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+use winreg::{RegKey, enums::HKEY_CURRENT_USER};
 
 #[cfg(target_os = "windows")]
 const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
@@ -57,18 +59,16 @@ pub fn play_shutter() {
 #[cfg(target_os = "windows")]
 fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
     let path = std::env::temp_dir().join(WINDOWS_TOAST_ICON_FILE);
-    
+
     let needs_update = fs::metadata(&path)
         .map(|m| m.len() != WINDOWS_TOAST_ICON_BYTES.len() as u64)
         .unwrap_or(true);
 
-    if needs_update {
-        if let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
-            error!("Failed to write toast icon file: {}", e);
-            return None;
-        }
+    if needs_update && let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
+        error!("Failed to write toast icon file: {}", e);
+        return None;
     }
-    
+
     Some(path)
 }
 
@@ -76,12 +76,12 @@ fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
 pub fn init_windows_notification_app_id() {
     let key_path = format!(r"Software\Classes\AppUserModelId\{APP_ID}");
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    
+
     let Ok((key, _)) = hkcu.create_subkey(&key_path) else {
         error!("Failed to create AppUserModelId registry key: {}", key_path);
         return;
     };
-    
+
     if let Err(e) = key.set_value("DisplayName", &APP_NAME) {
         error!("Failed to set DisplayName for AppUserModelId: {}", e);
     }

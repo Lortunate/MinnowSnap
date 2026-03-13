@@ -1,7 +1,7 @@
+pub mod action;
 pub mod scroll_worker;
 pub mod service;
 pub mod stitcher;
-pub mod action;
 
 use image::RgbaImage;
 use std::sync::{LazyLock, Mutex};
