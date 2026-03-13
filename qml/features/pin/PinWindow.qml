@@ -13,7 +13,6 @@ Window {
     property alias imageSource: controller.imagePath
     property int shadowMargin: 20
     property var screenCapture: null
-    property alias autoOcr: controller.autoOcr
 
     visible: true
     width: 300
@@ -91,7 +90,7 @@ Window {
             Image {
                 id: img
                 anchors.fill: parent
-                source: controller.imagePath
+                source: imageSource
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 mipmap: true
@@ -167,7 +166,7 @@ Window {
         anchors.fill: contentItem
         z: 10
         targetImage: img
-        sourcePath: controller.imagePath
+        sourcePath: imageSource
         onRequestMenu: (x, y) => {
             if (Qt.platform.os === "osx") {
                 nativeMenu.open();
