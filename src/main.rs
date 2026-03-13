@@ -2,6 +2,7 @@
 
 pub mod bridge;
 pub mod core;
+pub mod interop;
 
 #[cfg(target_os = "macos")]
 use crate::core::app::APP_ID;

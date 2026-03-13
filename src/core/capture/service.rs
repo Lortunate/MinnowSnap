@@ -1,6 +1,7 @@
 use crate::core::capture::action::CaptureInputMode;
 use crate::core::capture::datasource::{self, VirtualCaptureSource};
 use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
+use crate::core::geometry::Rect;
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
@@ -62,13 +63,13 @@ impl CaptureService {
         serde_json::to_string(&windows).unwrap_or_else(|_| "[]".to_string())
     }
 
-    pub fn capture_region(x: i32, y: i32, width: i32, height: i32) -> Option<RgbaImage> {
-        info!("Capturing region: x={}, y={}, w={}, h={}", x, y, width, height);
+    pub fn capture_region(rect: Rect) -> Option<RgbaImage> {
+        info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
         let scale_factor = get_primary_monitor_scale();
 
-        if width > 0 && height > 0 {
+        if rect.has_area() {
             if let Some(monitor_img) = capture_primary_monitor() {
-                perform_crop(&monitor_img, x, y, width, height, scale_factor)
+                perform_crop(&monitor_img, rect, scale_factor)
             } else {
                 None
             }
@@ -77,22 +78,22 @@ impl CaptureService {
         }
     }
 
-    pub fn resolve_image(path: &str, x: i32, y: i32, width: i32, height: i32, input_mode: CaptureInputMode) -> Option<RgbaImage> {
+    pub fn resolve_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
         let img = Self::resolve_image_from_path(path)?;
 
         if input_mode == CaptureInputMode::FullImage {
             return Some(img);
         }
 
-        if width <= 0 || height <= 0 {
+        if !rect.has_area() {
             return Some(img);
         }
 
         let scale_factor = get_primary_monitor_scale();
-        let x_phys = (x as f32 * scale_factor) as i32;
-        let y_phys = (y as f32 * scale_factor) as i32;
-        let w_phys = (width as f32 * scale_factor) as i32;
-        let h_phys = (height as f32 * scale_factor) as i32;
+        let x_phys = (rect.x as f32 * scale_factor) as i32;
+        let y_phys = (rect.y as f32 * scale_factor) as i32;
+        let w_phys = (rect.width as f32 * scale_factor) as i32;
+        let h_phys = (rect.height as f32 * scale_factor) as i32;
         let img_w = img.width() as i32;
         let img_h = img.height() as i32;
 
@@ -108,12 +109,11 @@ impl CaptureService {
             return Some(img);
         }
 
-        perform_crop(&img, x, y, width, height, scale_factor)
+        perform_crop(&img, rect, scale_factor)
     }
 
-    pub fn save_region_to_user_dir(path: &str, x: i32, y: i32, width: i32, height: i32, input_mode: CaptureInputMode) -> Result<String, String> {
-        let img =
-            Self::resolve_image(path, x, y, width, height, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
+    pub fn save_region_to_user_dir(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Result<String, String> {
+        let img = Self::resolve_image(path, rect, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
         let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
 
@@ -124,9 +124,9 @@ impl CaptureService {
         result.ok_or_else(|| "Failed to save image to disk".to_string())
     }
 
-    pub fn run_quick_capture_workflow(x: i32, y: i32, width: i32, height: i32) -> Option<String> {
+    pub fn run_quick_capture_workflow(rect: Rect) -> Option<String> {
         info!("Starting quick capture workflow");
-        let image = Self::capture_region(x, y, width, height)?;
+        let image = Self::capture_region(rect)?;
         crate::core::notify::play_shutter();
 
         let settings = SETTINGS.lock().ok()?.get();
@@ -159,8 +159,8 @@ impl CaptureService {
         save_image_to_unique_temp(image, false).map(|path| path.replace('\\', "/"))
     }
 
-    pub fn detect_qrcode(path: &str, x: i32, y: i32, width: i32, height: i32, input_mode: CaptureInputMode) -> Option<String> {
-        if let Some(cropped) = Self::resolve_image(path, x, y, width, height, input_mode) {
+    pub fn detect_qrcode(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<String> {
+        if let Some(cropped) = Self::resolve_image(path, rect, input_mode) {
             let gray = image::imageops::grayscale(&cropped);
             let (w, h) = gray.dimensions();
             let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);

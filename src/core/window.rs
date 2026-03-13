@@ -1,14 +1,7 @@
+use crate::core::geometry::Rect;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use xcap::{Monitor, Window};
-
-#[derive(Debug, Clone, Copy)]
-struct Rect {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WindowInfo {
@@ -18,45 +11,6 @@ pub struct WindowInfo {
     pub width: u32,
     pub height: u32,
     pub app_name: String,
-}
-
-impl Rect {
-    #[must_use]
-    #[inline]
-    pub fn intersect(&self, other: &Rect) -> Option<Rect> {
-        let x1 = self.x.max(other.x);
-        let y1 = self.y.max(other.y);
-
-        let s_x2 = i64::from(self.x) + i64::from(self.width);
-        let o_x2 = i64::from(other.x) + i64::from(other.width);
-        let x2 = s_x2.min(o_x2);
-
-        let s_y2 = i64::from(self.y) + i64::from(self.height);
-        let o_y2 = i64::from(other.y) + i64::from(other.height);
-        let y2 = s_y2.min(o_y2);
-
-        if x2 > i64::from(x1) && y2 > i64::from(y1) {
-            Some(Rect {
-                x: x1,
-                y: y1,
-                width: (x2 - i64::from(x1)) as u32,
-                height: (y2 - i64::from(y1)) as u32,
-            })
-        } else {
-            None
-        }
-    }
-
-    #[must_use]
-    #[inline]
-    pub fn is_inside(&self, other: &Rect) -> bool {
-        let s_x2 = i64::from(self.x) + i64::from(self.width);
-        let s_y2 = i64::from(self.y) + i64::from(self.height);
-        let o_x2 = i64::from(other.x) + i64::from(other.width);
-        let o_y2 = i64::from(other.y) + i64::from(other.height);
-
-        self.x >= other.x && self.y >= other.y && s_x2 <= o_x2 && s_y2 <= o_y2
-    }
 }
 
 #[must_use]
@@ -83,16 +37,16 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
             .fold((i32::MAX, i32::MAX, i32::MIN, i32::MIN), |(min_x, min_y, max_x, max_y), m| {
                 let x = m.x().unwrap_or(0);
                 let y = m.y().unwrap_or(0);
-                let w = m.width().unwrap_or(0) as i32;
-                let h = m.height().unwrap_or(0) as i32;
+                let w = i32::try_from(m.width().unwrap_or(0)).unwrap_or(0);
+                let h = i32::try_from(m.height().unwrap_or(0)).unwrap_or(0);
                 (min_x.min(x), min_y.min(y), max_x.max(x + w), max_y.max(y + h))
             });
 
         Rect {
             x: min_x,
             y: min_y,
-            width: (max_x - min_x).max(1920).try_into().unwrap_or(1920),
-            height: (max_y - min_y).max(1080).try_into().unwrap_or(1080),
+            width: (max_x - min_x).max(1920),
+            height: (max_y - min_y).max(1080),
         }
     };
 
@@ -107,11 +61,18 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
             let h = window.height().ok().filter(|&h| h > 0)?;
             let x = window.x().unwrap_or(0);
             let y = window.y().unwrap_or(0);
+            let w_i32 = i32::try_from(w).ok()?;
+            let h_i32 = i32::try_from(h).ok()?;
 
-            let current_rect = Rect { x, y, width: w, height: h };
-            let valid_rect = current_rect.intersect(&screen_rect)?;
+            let current_rect = Rect {
+                x,
+                y,
+                width: w_i32,
+                height: h_i32,
+            };
+            let valid_rect = current_rect.intersect(screen_rect)?;
 
-            if visible_rects.iter().any(|blocker| valid_rect.is_inside(blocker)) {
+            if visible_rects.iter().any(|blocker| valid_rect.is_inside(*blocker)) {
                 return None;
             }
 

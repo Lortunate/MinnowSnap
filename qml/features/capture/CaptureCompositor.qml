@@ -167,10 +167,7 @@ Item {
                 screenCapture.submitCapture(
                     overlayWindow.backgroundImageSource,
                     action,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height
+                    rect
                 )
             }
         }
@@ -180,10 +177,7 @@ Item {
                 screenCapture.submitCompositedCapture(
                     path,
                     action,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height
+                    rect
                 )
             }
         }
@@ -207,8 +201,8 @@ Item {
 
     Connections {
         target: screenCapture
-        function onPinWindowRequested(path, x, y, w, h, autoOcr) {
-            showPin(path, Qt.rect(x,y,w,h), autoOcr)
+        function onPinWindowRequested(path, selectionRect, autoOcr) {
+            showPin(path, selectionRect, autoOcr)
         }
     }
 }

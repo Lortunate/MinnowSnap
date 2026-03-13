@@ -78,8 +78,8 @@ Item {
     Connections {
         target: screenCapture
 
-        function onScrollCaptureStarted(x, y, w, h) {
-            controller.start(x, y, w, h)
+        function onScrollCaptureStarted(selectionRect) {
+            controller.start(selectionRect)
         }
 
         function onCaptureReady() {

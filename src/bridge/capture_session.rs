@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use crate::bridge::screen_capture::{is_redo_action, is_undo_action};
+use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt_lib::{QPointF, QRectF, QString};
 use std::pin::Pin;
 
@@ -71,7 +72,7 @@ pub mod qobject {
         fn request_capture_flag(self: Pin<&mut Self>, value: bool);
 
         #[qsignal]
-        fn request_action_dispatch(self: Pin<&mut Self>, action: i32, x: i32, y: i32, width: i32, height: i32, has_annotations: bool);
+        fn request_action_dispatch(self: Pin<&mut Self>, action: i32, selection_rect: QRectF, has_annotations: bool);
 
         #[qsignal]
         fn request_undo(self: Pin<&mut Self>);
@@ -119,10 +120,6 @@ impl Default for CaptureSessionControllerRust {
     }
 }
 
-fn normalize_selection_rect(rect: &QRectF) -> (i32, i32, i32, i32) {
-    crate::core::geometry::normalize_rect(rect.x(), rect.y(), rect.width(), rect.height())
-}
-
 impl qobject::CaptureSessionController {
     pub fn confirm_action(mut self: Pin<&mut Self>, action: i32, selection_rect: QRectF, has_annotations: bool) {
         if *self.busy() || !*self.has_screen_capture() {
@@ -138,9 +135,9 @@ impl qobject::CaptureSessionController {
             return;
         }
 
-        let (x, y, width, height) = normalize_selection_rect(&selection_rect);
+        let selection = SelectionRect::from_qrect(&selection_rect);
         self.as_mut().set_action_processing(true);
-        self.as_mut().request_action_dispatch(action, x, y, width, height, has_annotations);
+        self.as_mut().request_action_dispatch(action, selection.to_qrect(), has_annotations);
     }
 
     pub fn cancel_session(mut self: Pin<&mut Self>, force: bool) {

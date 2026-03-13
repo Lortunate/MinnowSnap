@@ -1,13 +1,5 @@
+use crate::core::geometry::RectF;
 use serde::Deserialize;
-
-#[derive(Clone, Copy, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RectData {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +20,7 @@ pub fn parse_screens(screens_json: &str) -> Vec<ScreenData> {
     serde_json::from_str(screens_json).unwrap_or_default()
 }
 
-pub fn parse_geometry(geometry_json: &str) -> Option<RectData> {
+pub fn parse_geometry(geometry_json: &str) -> Option<RectF> {
     let trimmed = geometry_json.trim();
     if trimmed.is_empty() || trimmed == "null" {
         return None;
@@ -43,7 +35,7 @@ pub fn centered_position(screen: ScreenData, menu_width: f64, menu_height: f64) 
     )
 }
 
-pub fn normalize_geometry(mut rect: RectData, screens: &[ScreenData], platform_os: &str) -> RectData {
+pub fn normalize_geometry(mut rect: RectF, screens: &[ScreenData], platform_os: &str) -> RectF {
     if platform_os != "windows" {
         return rect;
     }
@@ -76,7 +68,7 @@ pub fn normalize_geometry(mut rect: RectData, screens: &[ScreenData], platform_o
     rect
 }
 
-pub fn find_screen(rect: RectData, screens: &[ScreenData]) -> Option<ScreenData> {
+pub fn find_screen(rect: RectF, screens: &[ScreenData]) -> Option<ScreenData> {
     let cx = rect.x + rect.width / 2.0;
     let cy = rect.y + rect.height / 2.0;
     screens
@@ -86,7 +78,7 @@ pub fn find_screen(rect: RectData, screens: &[ScreenData]) -> Option<ScreenData>
         .or_else(|| screens.first().copied())
 }
 
-pub fn calculate_position(rect: RectData, screen: ScreenData, menu_width: f64, menu_height: f64) -> (f64, f64) {
+pub fn calculate_position(rect: RectF, screen: ScreenData, menu_width: f64, menu_height: f64) -> (f64, f64) {
     let cy = rect.y + rect.height / 2.0;
 
     let mut target_x = rect.x;

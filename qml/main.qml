@@ -52,7 +52,7 @@ ApplicationWindow {
             screenCapture.registerHotkeys();
         }
 
-        onQuickCaptureShortcutTriggered: quickCapture(0, 0, 0, 0)
+        onQuickCaptureShortcutTriggered: quickCapture(Qt.rect(0, 0, 0, 0))
         onScreenCaptureShortcutTriggered: {
             if (!overlay.visible) {
                 prepareCapture();
@@ -73,7 +73,7 @@ ApplicationWindow {
                 screenCapture.prepareCapture();
             }
         }
-        onQuickCaptureRequested: screenCapture.quickCapture(0, 0, 0, 0)
+        onQuickCaptureRequested: screenCapture.quickCapture(Qt.rect(0, 0, 0, 0))
         onQuitRequested: Qt.quit()
     }
 
@@ -94,7 +94,7 @@ ApplicationWindow {
         }
         MenuItem {
             text: trayMenu.controller.quickCaptureText
-            onTriggered: screenCapture.quickCapture(0, 0, 0, 0)
+            onTriggered: screenCapture.quickCapture(Qt.rect(0, 0, 0, 0))
         }
         MenuSeparator {}
         MenuItem {

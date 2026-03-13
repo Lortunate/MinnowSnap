@@ -1,9 +1,10 @@
 pub mod action;
+pub mod datasource;
 pub mod scroll_worker;
 pub mod service;
-pub mod datasource;
 pub mod stitcher;
 
+use crate::core::geometry::Rect;
 use image::RgbaImage;
 use std::sync::{LazyLock, Mutex};
 use tracing::{debug, error};
@@ -28,15 +29,18 @@ pub fn get_primary_monitor_scale() -> f32 {
 
 #[must_use]
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-pub fn perform_crop(image: &RgbaImage, x: i32, y: i32, width: i32, height: i32, scale: f32) -> Option<RgbaImage> {
-    debug!("Performing crop: rect={x},{y} {width}x{height}, scale={scale}");
+pub fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
+    debug!(
+        "Performing crop: rect={},{} {}x{}, scale={scale}",
+        rect.x, rect.y, rect.width, rect.height
+    );
     let img_w = image.width();
     let img_h = image.height();
 
-    let x_phys = (x as f32 * scale) as i32;
-    let y_phys = (y as f32 * scale) as i32;
-    let w_phys = (width as f32 * scale) as i32;
-    let h_phys = (height as f32 * scale) as i32;
+    let x_phys = (rect.x as f32 * scale) as i32;
+    let y_phys = (rect.y as f32 * scale) as i32;
+    let w_phys = (rect.width as f32 * scale) as i32;
+    let h_phys = (rect.height as f32 * scale) as i32;
 
     let crop_x = x_phys.max(0) as u32;
     let crop_y = y_phys.max(0) as u32;

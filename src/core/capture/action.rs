@@ -1,4 +1,5 @@
 use crate::core::capture::service::CaptureService;
+use crate::core::geometry::Rect;
 use crate::core::io::clipboard::copy_image_to_clipboard;
 use std::str::FromStr;
 use tracing::info;
@@ -48,32 +49,23 @@ pub enum CaptureInputMode {
 
 pub struct ActionContext {
     pub path: String,
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
+    pub rect: Rect,
     pub input_mode: CaptureInputMode,
 }
 
 impl ActionContext {
-    pub fn crop_selection(path: String, x: i32, y: i32, width: i32, height: i32) -> Self {
+    pub fn crop_selection(path: String, rect: Rect) -> Self {
         Self {
             path,
-            x,
-            y,
-            width,
-            height,
+            rect,
             input_mode: CaptureInputMode::CropSelection,
         }
     }
 
-    pub fn full_image(path: String, x: i32, y: i32, width: i32, height: i32) -> Self {
+    pub fn full_image(path: String) -> Self {
         Self {
             path,
-            x,
-            y,
-            width,
-            height,
+            rect: Rect::empty(),
             input_mode: CaptureInputMode::FullImage,
         }
     }
@@ -94,7 +86,7 @@ impl CaptureAction {
     }
 
     fn handle_copy(ctx: ActionContext) -> ActionResult {
-        match CaptureService::resolve_image(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode) {
+        match CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode) {
             Some(img) => {
                 if copy_image_to_clipboard(&img) {
                     ActionResult::Copied
@@ -107,14 +99,14 @@ impl CaptureAction {
     }
 
     fn handle_save(ctx: ActionContext) -> ActionResult {
-        match CaptureService::save_region_to_user_dir(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode) {
+        match CaptureService::save_region_to_user_dir(&ctx.path, ctx.rect, ctx.input_mode) {
             Ok(path) => ActionResult::Saved(path),
             Err(e) => ActionResult::Error(e),
         }
     }
 
     fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode)
+        if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode)
             && let Some(temp_path) = CaptureService::save_temp(&cropped)
         {
             return ActionResult::PinRequested(temp_path, auto_ocr);
@@ -123,7 +115,7 @@ impl CaptureAction {
     }
 
     fn handle_qrcode(ctx: ActionContext) -> ActionResult {
-        if let Some(content) = CaptureService::detect_qrcode(&ctx.path, ctx.x, ctx.y, ctx.width, ctx.height, ctx.input_mode) {
+        if let Some(content) = CaptureService::detect_qrcode(&ctx.path, ctx.rect, ctx.input_mode) {
             ActionResult::OcrResult(content)
         } else {
             ActionResult::Error("No QR Code detected".to_string())

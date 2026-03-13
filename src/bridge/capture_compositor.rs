@@ -79,8 +79,7 @@ impl Default for CaptureCompositorControllerRust {
 }
 
 fn normalize_rect(rect: &QRectF) -> QRectF {
-    let (x, y, width, height) = crate::core::geometry::normalize_rect(rect.x(), rect.y(), rect.width(), rect.height());
-    QRectF::new(f64::from(x), f64::from(y), f64::from(width), f64::from(height))
+    crate::interop::qt_rect_adapter::SelectionRect::from_qrect(rect).to_qrect()
 }
 
 impl qobject::CaptureCompositorController {
