@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 use crate::bridge::screen_capture::{is_redo_action, is_undo_action};
 use cxx_qt_lib::{QPointF, QRectF, QString};
 use std::pin::Pin;

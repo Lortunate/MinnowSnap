@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use std::pin::Pin;

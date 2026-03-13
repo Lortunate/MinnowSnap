@@ -43,7 +43,8 @@ pub fn ensure_single_instance(uniq_id: &str) -> bool {
 pub fn get_instance_id() -> String {
     #[cfg(target_os = "macos")]
     return env::temp_dir().join(APP_LOCK_ID).to_string_lossy().into();
-    APP_LOCK_ID.to_string()
+    #[cfg(not(target_os = "macos"))]
+    return APP_LOCK_ID.to_string();
 }
 
 pub fn set_auto_start(enabled: bool) {

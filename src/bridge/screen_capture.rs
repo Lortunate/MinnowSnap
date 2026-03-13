@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 #[cxx_qt::bridge]
 pub mod qobject {
     #[qml_element]
