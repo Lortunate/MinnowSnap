@@ -158,15 +158,15 @@ use std::sync::{
 };
 use tracing::{error, info};
 
-pub const UI_ACTION_COPY: i32 = qobject::UiAction::Copy.repr as i32;
-pub const UI_ACTION_SAVE: i32 = qobject::UiAction::Save.repr as i32;
-pub const UI_ACTION_PIN: i32 = qobject::UiAction::Pin.repr as i32;
-pub const UI_ACTION_OCR: i32 = qobject::UiAction::Ocr.repr as i32;
-pub const UI_ACTION_SCROLL: i32 = qobject::UiAction::Scroll.repr as i32;
-pub const UI_ACTION_QRCODE: i32 = qobject::UiAction::QrCode.repr as i32;
-pub const UI_ACTION_UNDO: i32 = qobject::UiAction::Undo.repr as i32;
-pub const UI_ACTION_REDO: i32 = qobject::UiAction::Redo.repr as i32;
-pub const UI_ACTION_CANCEL: i32 = qobject::UiAction::Cancel.repr as i32;
+pub const UI_ACTION_COPY: i32 = qobject::UiAction::Copy.repr;
+pub const UI_ACTION_SAVE: i32 = qobject::UiAction::Save.repr;
+pub const UI_ACTION_PIN: i32 = qobject::UiAction::Pin.repr;
+pub const UI_ACTION_OCR: i32 = qobject::UiAction::Ocr.repr;
+pub const UI_ACTION_SCROLL: i32 = qobject::UiAction::Scroll.repr;
+pub const UI_ACTION_QRCODE: i32 = qobject::UiAction::QrCode.repr;
+pub const UI_ACTION_UNDO: i32 = qobject::UiAction::Undo.repr;
+pub const UI_ACTION_REDO: i32 = qobject::UiAction::Redo.repr;
+pub const UI_ACTION_CANCEL: i32 = qobject::UiAction::Cancel.repr;
 
 pub fn is_undo_action(action: i32) -> bool {
     action == UI_ACTION_UNDO
