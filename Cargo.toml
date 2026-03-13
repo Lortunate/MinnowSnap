@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["Lortuante"]
 
 [workspace]
-members = ["build-tools", "plugins/ocr"]
+members = ["rust/build-tools", "rust/ocr"]
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -76,7 +76,7 @@ auto-launch = { workspace = true }
 font-kit = { workspace = true }
 notify-rust = { workspace = true }
 rodio = { workspace = true }
-ocr = { path = "plugins/ocr" }
+ocr = { path = "rust/ocr" }
 tokio = { workspace = true }
 once_cell = { workspace = true }
 rdev = { workspace = true }
@@ -97,7 +97,7 @@ winreg = "0.55"
 [build-dependencies]
 cxx-qt-build = { workspace = true }
 cc = { workspace = true }
-build-tools = { path = "build-tools" }
+build-tools = { path = "rust/build-tools" }
 
 [profile.release]
 lto = true

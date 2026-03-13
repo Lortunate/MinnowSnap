@@ -12,7 +12,7 @@ from typing import Sequence
 
 APP_NAME = "MinnowSnap"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEPLOY_DIR = PROJECT_ROOT / "deploy"
+DEPLOY_DIR = PROJECT_ROOT / "target" / "deploy"
 
 WINDOWS_STYLE_DIRS = (
     "qml/QtQuick/Controls/FluentWinUI3",
