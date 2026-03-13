@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use xcap::{Monitor, Window};
 
+const MIN_VIRTUAL_WIDTH: i32 = 1920;
+const MIN_VIRTUAL_HEIGHT: i32 = 1080;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WindowInfo {
     pub title: String,
@@ -45,8 +48,8 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
         Rect {
             x: min_x,
             y: min_y,
-            width: (max_x - min_x).max(1920),
-            height: (max_y - min_y).max(1080),
+            width: (max_x - min_x).max(MIN_VIRTUAL_WIDTH),
+            height: (max_y - min_y).max(MIN_VIRTUAL_HEIGHT),
         }
     };
 
