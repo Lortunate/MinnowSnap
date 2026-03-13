@@ -1,0 +1,56 @@
+name: Validation
+
+on:
+  push:
+    branches: ["master"]
+    tags-ignore: ["*"]
+  pull_request:
+    branches: ["master"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: ${{ matrix.os_name }} - ${{ github.event_name == 'pull_request' && 'Clippy' || 'Check' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            os_name: Windows
+            qt_arch: win64_msvc2022_64
+          - os: macos-15
+            os_name: macOS
+            qt_arch: clang_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.10.0"
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+          modules: "qtimageformats"
+
+      - name: Run Clippy
+        if: github.event_name == 'pull_request'
+        run: cargo clippy -- -D warnings
+
+      - name: Run Check
+        if: github.event_name != 'pull_request'
+        run: cargo check
