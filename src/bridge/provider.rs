@@ -1,6 +1,6 @@
 use crate::core::capture::datasource::{self, VirtualCaptureSource};
 use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
-use cxx_qt_lib::{QImage, QQmlApplicationEngine, QString};
+use cxx_qt_lib::{QImage, QImageFormat, QQmlApplicationEngine, QString};
 use std::pin::Pin;
 use tracing::{info, warn};
 
@@ -17,7 +17,6 @@ mod ffi {
         include!("cpp/image_provider.hpp");
 
         unsafe fn register_provider(engine: Pin<&mut QQmlApplicationEngine>);
-        unsafe fn create_from_rgba(data: *const u8, width: i32, height: i32) -> QImage;
     }
 
     extern "Rust" {
@@ -29,18 +28,15 @@ pub fn register_image_provider(engine: Pin<&mut QQmlApplicationEngine>) {
     unsafe { ffi::register_provider(engine) }
 }
 
-static DUMMY_PIXEL: [u8; 4] = [0, 0, 0, 0];
-
 fn empty_qimage() -> QImage {
-    unsafe { ffi::create_from_rgba(DUMMY_PIXEL.as_ptr(), 1, 1) }
+    unsafe { QImage::from_raw_bytes(vec![0, 0, 0, 0], 1, 1, QImageFormat::Format_RGBA8888) }
 }
 
 fn make_qimage(img: &image::RgbaImage) -> QImage {
     let width = img.width().try_into().unwrap_or(0);
     let height = img.height().try_into().unwrap_or(0);
-    let raw_data = img.as_raw();
     info!("Providing image: {width}x{height}");
-    unsafe { ffi::create_from_rgba(raw_data.as_ptr(), width, height) }
+    unsafe { QImage::from_raw_bytes(img.as_raw().clone(), width, height, QImageFormat::Format_RGBA8888) }
 }
 
 fn get_capture_qimage(id: QString) -> QImage {
