@@ -4,6 +4,7 @@ import com.lortunate.minnow
 Item {
     id: root
 
+    property int annotationId: -1
     property color color: AppTheme.danger
     property bool hasOutline: true
     property bool hasStroke: false
@@ -18,6 +19,7 @@ Item {
     readonly property point localP2: Qt.point(p2.x - x, p2.y - y)
 
     property bool draggable: true
+    property bool interactionEnabled: true
     property bool resizable: true
     property bool maintainAspectRatio: false
     property int padding: 0
@@ -42,7 +44,7 @@ Item {
         property point dragStartParent: Qt.point(0, 0)
 
         anchors.fill: parent
-        enabled: root.draggable && !root.drawingMode
+        enabled: root.draggable && !root.drawingMode && root.interactionEnabled
         hoverEnabled: true
 
         cursorShape: {
@@ -54,9 +56,9 @@ Item {
 
         onPositionChanged: mouse => {
             if (pressed) {
-                var currentParent = mapToItem(root.parent, mouse.x, mouse.y);
-                var dx = currentParent.x - dragStartParent.x;
-                var dy = currentParent.y - dragStartParent.y;
+                const currentParent = mapToItem(root.parent, mouse.x, mouse.y);
+                const dx = currentParent.x - dragStartParent.x;
+                const dy = currentParent.y - dragStartParent.y;
 
                 root.p1 = Qt.point(root.p1.x + dx, root.p1.y + dy);
 
@@ -85,7 +87,7 @@ Item {
 
         onWheel: wheel => {
             if (root.selected) {
-                var delta = wheel.angleDelta.y > 0 ? 1 : -1;
+                const delta = wheel.angleDelta.y > 0 ? 1 : -1;
                 root.handleResize(delta);
                 wheel.accepted = true;
             } else {

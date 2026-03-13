@@ -15,15 +15,15 @@ Window {
     readonly property int infoTooltipSpacing: 8
     readonly property int resolutionTooltipSpacing: 8
 
-    property string backgroundImageSource: ""
+    property string backgroundImageSource: sessionController.backgroundImageSource
     property alias currentSelection: controller.selectionRect
     readonly property rect activeRect: {
         if (isLockedState || controller.state === states.dragging) {
-            return controller.selectionRect;
+            return controller.selectionRect
         } else if (isBrowsingWithTarget) {
-            return controller.targetRect;
+            return controller.targetRect
         }
-        return Qt.rect(0, 0, 0, 0);
+        return Qt.rect(0, 0, 0, 0)
     }
     readonly property bool hasSelection: activeRect.width > 0 && activeRect.height > 0
 
@@ -31,104 +31,76 @@ Window {
     readonly property bool isBrowsingWithTarget: controller.state === states.browsing && controller.hasTarget
 
     readonly property color maskColor: AppTheme.overlayMask
-    property bool processing: false
+    property bool actionProcessing: sessionController.actionProcessing
+    readonly property bool processing: actionProcessing || captureCompositor.processing
+    property bool annotationDisplayReady: sessionController.annotationDisplayReady
     property var screenCapture: null
     readonly property color selectionColor: AppTheme.selection
     readonly property color selectionFillColor: AppTheme.selectionFill
 
     signal cancelled
-    signal selectionMade(int x, int y, int width, int height)
 
-    function cancelCapture() {
-        if (processing)
-            return;
-        overlayWindow.hide();
-        resetState();
-        cancelled();
+    function cancelSession(force) {
+        sessionController.cancelSession(force === true)
     }
 
     function confirmSelection(action) {
-        if (processing)
-            return;
-
-        if (action === "undo") {
-            annotationLayer.undo();
-            return;
-        }
-        if (action === "redo") {
-            annotationLayer.redo();
-            return;
-        }
-
-        if (action === "scroll") {
-            longCaptureManager.start(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
-            return;
-        }
-
-        if (action === "qrcode") {
-            let text = screenCapture.detectQrcode(overlayWindow.backgroundImageSource, currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height);
-            if (text !== "") {
-                screenCapture.copyQrcodeResult(text);
-                cancelCapture();
-            }
-            return;
-        }
-
-        captureCompositor.capture(currentSelection, action);
+        sessionController.confirmAction(action, currentSelection, annotationLayer.hasAnnotations)
     }
 
     function endResize() {
-        controller.endResize();
-    }
-
-    function resetState() {
-        processing = false;
-        controller.reset();
-        annotationLayer.clear();
-        screenCapture.isCapturing = false;
-    }
-
-    function constrainToolbarPos(targetX, targetY, targetW, targetH, itemW, itemH, isAbove) {
-        let desiredX = targetX + targetW - itemW;
-        let x = Math.max(toolbarPadding, Math.min(overlayWindow.width - itemW - toolbarPadding, desiredX));
-
-        let y;
-        if (isAbove) {
-            let aboveY = targetY - itemH - toolbarSpacingAbove;
-            y = (aboveY >= 0) ? aboveY : (targetY + targetH + toolbarSpacingAbove);
-        } else {
-            let belowY = targetY + targetH + toolbarSpacingBelow;
-            let aboveY = targetY - itemH - toolbarSpacingBelow;
-            y = (belowY + itemH <= overlayWindow.height) ? belowY : (aboveY >= 0 ? aboveY : defaultY);
-        }
-
-        return Qt.point(x, y);
+        controller.endResize()
     }
 
     function startResize(corner, mouseX, mouseY) {
-        controller.startResize(corner, mouseX, mouseY);
+        controller.startResize(corner, mouseX, mouseY)
     }
 
     function updateResize(mouseX, mouseY) {
-        controller.updateResize(mouseX, mouseY);
+        controller.updateResize(mouseX, mouseY)
     }
 
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
     height: Screen.height
+    opacity: 0
     visible: false
     width: Screen.width
     x: Screen.virtualX
     y: Screen.virtualY
 
     Component.onCompleted: {
-        controller.setupWindow(overlayWindow);
+        controller.setupWindow(overlayWindow)
     }
 
     onVisibleChanged: {
         if (visible) {
-            focusScope.forceActiveFocus();
+            focusScope.forceActiveFocus()
         }
+    }
+
+    onIsLockedStateChanged: {
+        sessionController.onLockedStateChanged(isLockedState)
+        if (isLockedState && !annotationDisplayReady) {
+            Qt.callLater(function () {
+                if (isLockedState) {
+                    sessionController.promoteAnnotationDisplayReady()
+                }
+            })
+        }
+    }
+
+    CaptureSessionController {
+        id: sessionController
+
+        busy: overlayWindow.processing
+        hasScreenCapture: overlayWindow.screenCapture !== null
+        screenWidth: overlayWindow.width
+        screenHeight: overlayWindow.height
+        toolbarPadding: overlayWindow.toolbarPadding
+        toolbarSpacingAbove: overlayWindow.toolbarSpacingAbove
+        toolbarSpacingBelow: overlayWindow.toolbarSpacingBelow
+        defaultToolbarY: overlayWindow.defaultY
     }
 
     OverlayController {
@@ -151,25 +123,91 @@ Window {
     Connections {
         function onScreenshotCaptured(path) {
             if (path !== "") {
-                overlayWindow.backgroundImageSource = PathUtils.addTimestamp(PathUtils.toUrl(path));
-                overlayWindow.show();
-                overlayWindow.raise();
-                overlayWindow.requestActivate();
-                resetState();
+                sessionController.beginSession(PathUtils.addTimestamp(PathUtils.toUrl(path)))
             }
         }
         function onWindowInfoReady(json) {
-            controller.updateWindowList(json);
+            controller.updateWindowList(json)
         }
         function onCaptureReady() {
-            overlayWindow.backgroundImageSource = PathUtils.addTimestamp("image://minnow/preview");
-            overlayWindow.show();
-            overlayWindow.raise();
-            overlayWindow.requestActivate();
-            resetState();
+            sessionController.beginSession(PathUtils.addTimestamp("image://minnow/preview"))
+        }
+
+        function onActionFinished() {
+            cancelSession(true)
+        }
+
+        function onRequestComposition(action, x, y, w, h) {
+            captureCompositor.performComposition(Qt.rect(x, y, w, h), action)
         }
 
         target: screenCapture
+    }
+
+    Connections {
+        target: sessionController
+
+        function onRequestAnnotationReset() {
+            toolbar.activeTool = ""
+            annotationLayer.clear()
+        }
+
+        function onRequestCompositorAbort() {
+            captureCompositor.abortComposition()
+        }
+
+        function onRequestOverlayControllerReset() {
+            controller.reset()
+            overlayWindow.opacity = 0
+        }
+
+        function onRequestOverlayHide() {
+            overlayWindow.hide()
+        }
+
+        function onRequestOverlayPresent() {
+            overlayWindow.opacity = 0
+            overlayWindow.show()
+            overlayWindow.raise()
+            overlayWindow.requestActivate()
+            Qt.callLater(function () {
+                if (overlayWindow.visible) {
+                    overlayWindow.opacity = 1
+                }
+            })
+        }
+
+        function onRequestCaptureFlag(value) {
+            if (screenCapture) {
+                screenCapture.isCapturing = value
+            }
+        }
+
+        function onRequestActionDispatch(action, x, y, width, height, hasAnnotations) {
+            if (screenCapture) {
+                screenCapture.requestAction(
+                    sessionController.backgroundImageSource,
+                    action,
+                    x,
+                    y,
+                    width,
+                    height,
+                    hasAnnotations
+                )
+            }
+        }
+
+        function onRequestUndo() {
+            annotationLayer.undo()
+        }
+
+        function onRequestRedo() {
+            annotationLayer.redo()
+        }
+
+        function onSessionCancelled() {
+            cancelled()
+        }
     }
 
     FocusScope {
@@ -179,24 +217,25 @@ Window {
         focus: true
 
         Keys.onEnterPressed: {
-            if (hasSelection && !processing)
-                confirmSelection("copy");
+            if (hasSelection) {
+                confirmSelection("copy")
+            }
         }
         Keys.onEscapePressed: {
-            cancelCapture();
+            cancelSession(false)
         }
         Keys.onPressed: event => {
             if (!isLockedState && controller.state !== states.dragging) {
                 if (event.key === Qt.Key_C) {
                     if (colorPicker.visible) {
-                        colorPicker.copyColor();
-                        event.accepted = true;
+                        colorPicker.copyColor()
+                        event.accepted = true
                     }
                 }
                 if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
                     if (colorPicker.visible) {
-                        colorPicker.cycleFormat();
-                        event.accepted = true;
+                        colorPicker.cycleFormat()
+                        event.accepted = true
                     }
                 }
             }
@@ -204,17 +243,18 @@ Window {
             if ((event.key === Qt.Key_Z) && (event.modifiers & Qt.ControlModifier)) {
                 if (controller.state === states.locked) {
                     if (event.modifiers & Qt.ShiftModifier) {
-                        annotationLayer.redo();
+                        confirmSelection("redo")
                     } else {
-                        annotationLayer.undo();
+                        confirmSelection("undo")
                     }
-                    event.accepted = true;
+                    event.accepted = true
                 }
             }
         }
         Keys.onReturnPressed: {
-            if (hasSelection && !processing)
-                confirmSelection("copy");
+            if (hasSelection) {
+                confirmSelection("copy")
+            }
         }
 
         Image {
@@ -226,7 +266,7 @@ Window {
             source: overlayWindow.backgroundImageSource
             verticalAlignment: Image.AlignTop
             layer.enabled: true
-            cache: true
+            cache: false
             asynchronous: false
         }
 
@@ -254,60 +294,61 @@ Window {
             cursorShape: {
                 if (controller.state === states.locked) {
                     if (containsMouseInRect(mouseX, mouseY)) {
-                        return Qt.SizeAllCursor;
+                        return Qt.SizeAllCursor
                     }
-                    return Qt.ArrowCursor;
+                    return Qt.ArrowCursor
                 }
                 if (colorPicker.visible) {
-                    return Qt.CrossCursor;
+                    return Qt.CrossCursor
                 }
-                return (controller.state === states.browsing && controller.hasTarget) ? Qt.PointingHandCursor : Qt.CrossCursor;
+                return (controller.state === states.browsing && controller.hasTarget) ? Qt.PointingHandCursor : Qt.CrossCursor
             }
             hoverEnabled: true
 
             function containsMouseInRect(mx, my) {
-                return mx >= currentSelection.x && mx <= currentSelection.x + currentSelection.width && my >= currentSelection.y && my <= currentSelection.y + currentSelection.height;
+                return mx >= currentSelection.x && mx <= currentSelection.x + currentSelection.width && my >= currentSelection.y && my <= currentSelection.y + currentSelection.height
             }
 
             onPositionChanged: mouse => {
                 if (controller.state === states.browsing) {
-                    controller.updateHover(mouse.x, mouse.y);
+                    controller.updateHover(mouse.x, mouse.y)
                     if (colorPicker.visible) {
-                        colorPicker.mouseX = mouse.x;
-                        colorPicker.mouseY = mouse.y;
+                        colorPicker.mouseX = mouse.x
+                        colorPicker.mouseY = mouse.y
                     }
                 } else if (controller.state === states.dragging) {
-                    controller.updateSelection(mouse.x, mouse.y);
+                    controller.updateSelection(mouse.x, mouse.y)
                 } else if (controller.state === states.moving) {
-                    controller.updateMove(mouse.x, mouse.y);
+                    controller.updateMove(mouse.x, mouse.y)
                 }
             }
 
             onPressed: mouse => {
                 if (mouse.button === Qt.RightButton) {
                     if (controller.state === states.locked) {
-                        controller.reset();
+                        controller.reset()
                     } else {
-                        cancelCapture();
+                        cancelSession(false)
                     }
-                    return;
+                    return
                 }
 
                 if (controller.state === states.locked) {
-                    annotationLayer.deselectAll();
+                    annotationLayer.deselectAll()
                     if (containsMouseInRect(mouse.x, mouse.y)) {
-                        controller.startMove(mouse.x, mouse.y);
+                        controller.startMove(mouse.x, mouse.y)
                     }
                 } else if (controller.state === states.browsing) {
-                    controller.startSelection(mouse.x, mouse.y);
+                    sessionController.resetAnnotationState()
+                    controller.startSelection(mouse.x, mouse.y)
                 }
             }
 
             onReleased: mouse => {
                 if (controller.state === states.dragging) {
-                    controller.endSelection();
+                    controller.endSelection()
                 } else if (controller.state === states.moving) {
-                    controller.endMove();
+                    controller.endMove()
                 }
             }
         }
@@ -340,7 +381,7 @@ Window {
                     sourceImage: bgImage
                     layerX: unifiedSelectionRect.x
                     layerY: unifiedSelectionRect.y
-                    visible: isLockedState
+                    visible: isLockedState && annotationDisplayReady
                     onRequestSetTool: tool => toolbar.activeTool = tool
                 }
             }
@@ -351,8 +392,8 @@ Window {
                 visible: isBrowsingWithTarget
                 x: activeRect.x
                 y: {
-                    let val = activeRect.y - height - infoTooltipSpacing;
-                    return val < 0 ? activeRect.y + activeRect.height + infoTooltipSpacing : val;
+                    let val = activeRect.y - height - infoTooltipSpacing
+                    return val < 0 ? activeRect.y + activeRect.height + infoTooltipSpacing : val
                 }
             }
 
@@ -384,30 +425,52 @@ Window {
                 visible: !isLockedState && controller.state !== states.dragging
                 z: 1000
 
-                onColorCopied: cancelCapture()
+                onColorCopied: {
+                    cancelSession(false)
+                }
             }
         }
 
         SelectionToolbar {
             id: toolbar
 
-            property point pos: constrainToolbarPos(currentSelection.x, currentSelection.y, currentSelection.width, currentSelection.height, width, height, false)
+            property point pos: sessionController.toolbarPosition(
+                Qt.rect(
+                    currentSelection.x,
+                    currentSelection.y,
+                    currentSelection.width,
+                    currentSelection.height
+                ),
+                width,
+                height,
+                false
+            )
 
             visible: controller.state === states.locked
             x: pos.x
             y: pos.y
             z: 999
 
-            onActionConfirmed: action => overlayWindow.confirmSelection(action)
+            onActionConfirmed: action => confirmSelection(action)
             onCanceled: {
-                cancelCapture();
+                cancelSession(false)
             }
         }
 
         AnnotationProperties {
             id: propBar
 
-            property point pos: constrainToolbarPos(toolbar.x, toolbar.y, toolbar.width, toolbar.height, width, height, false)
+            property point pos: sessionController.toolbarPosition(
+                Qt.rect(
+                    toolbar.x,
+                    toolbar.y,
+                    toolbar.width,
+                    toolbar.height
+                ),
+                width,
+                height,
+                false
+            )
 
             activeColor: annotationLayer.activeColor
             hasOutline: annotationLayer.activeHasOutline
@@ -415,30 +478,30 @@ Window {
             mosaicType: annotationLayer.activeMosaicType
             mode: {
                 if (annotationLayer.selectedItem) {
-                    return annotationLayer.selectedItem.type;
+                    return annotationLayer.selectedItem.type
                 }
                 if (toolbar.activeTool === "arrow")
-                    return "arrow";
+                    return "arrow"
                 if (toolbar.activeTool === "rectangle")
-                    return "rectangle";
+                    return "rectangle"
                 if (toolbar.activeTool === "circle")
-                    return "circle";
+                    return "circle"
                 if (toolbar.activeTool === "counter")
-                    return "counter";
+                    return "counter"
                 if (toolbar.activeTool === "text")
-                    return "text";
+                    return "text"
                 if (toolbar.activeTool === "mosaic")
-                    return "mosaic";
-                return "arrow";
+                    return "mosaic"
+                return "arrow"
             }
             activeSize: {
                 if (mode === "counter")
-                    return annotationLayer.activeCounterSize;
+                    return annotationLayer.activeCounterSize
                 if (mode === "text")
-                    return annotationLayer.activeFontSize;
+                    return annotationLayer.activeFontSize
                 if (mode === "mosaic")
-                    return annotationLayer.activeIntensity;
-                return annotationLayer.activeLineWidth;
+                    return annotationLayer.activeIntensity
+                return annotationLayer.activeLineWidth
             }
             visible: controller.state === states.locked && (toolbar.activeTool === "arrow" || toolbar.activeTool === "rectangle" || toolbar.activeTool === "circle" || toolbar.activeTool === "counter" || toolbar.activeTool === "text" || toolbar.activeTool === "mosaic" || annotationLayer.selectedItem)
 
@@ -452,13 +515,13 @@ Window {
             onRequestMosaicTypeChange: type => annotationLayer.activeMosaicType = type
             onRequestSizeChange: size => {
                 if (mode === "counter")
-                    annotationLayer.activeCounterSize = size;
+                    annotationLayer.activeCounterSize = size
                 else if (mode === "text")
-                    annotationLayer.activeFontSize = size;
+                    annotationLayer.activeFontSize = size
                 else if (mode === "mosaic")
-                    annotationLayer.activeIntensity = size;
+                    annotationLayer.activeIntensity = size
                 else
-                    annotationLayer.activeLineWidth = size;
+                    annotationLayer.activeLineWidth = size
             }
         }
     }
@@ -469,8 +532,7 @@ Window {
         screenCapture: overlayWindow.screenCapture
 
         onRequestHide: overlayWindow.hide()
-        onRequestReset: resetState()
-        onRequestShow: overlayWindow.show()
+        onRequestReset: sessionController.resetSession()
     }
 
     CaptureCompositor {
@@ -480,11 +542,8 @@ Window {
         annotationLayer: annotationLayer
         lockedSelectionRect: unifiedSelectionRect
         overlayWindow: overlayWindow
+        sessionController: sessionController
         screenCapture: overlayWindow.screenCapture
 
-        onProcessingChanged: overlayWindow.processing = processing
-        onRequestHide: overlayWindow.hide()
-        onRequestResetState: resetState()
-        onSelectionMade: (x, y, w, h) => overlayWindow.selectionMade(x, y, w, h)
     }
 }

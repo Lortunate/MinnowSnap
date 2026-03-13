@@ -10,10 +10,10 @@ import "components"
 Window {
     id: pinWindow
 
-    property string imageSource: ""
+    property alias imageSource: controller.imagePath
     property int shadowMargin: 20
     property var screenCapture: null
-    property bool autoOcr: false
+    property alias autoOcr: controller.autoOcr
 
     visible: true
     width: 300
@@ -21,13 +21,24 @@ Window {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
 
+    PinController {
+        id: controller
+        onCloseRequested: pinWindow.close()
+        onCloseAllRequested: {
+            if (pinWindow.screenCapture) {
+                pinWindow.screenCapture.emitCloseAllPins();
+            }
+        }
+        onOcrRequested: ocrOverlay.recognize()
+    }
+
     Component.onCompleted: {
         if (pinWindow.screenCapture) {
             pinWindow.screenCapture.incrementPinCount();
         }
         pinWindow.raise();
-        if (autoOcr) {
-            ocrOverlay.recognize();
+        if (controller.autoOcr) {
+            ocrOverlay.triggerOcr();
         }
     }
 
@@ -43,54 +54,16 @@ Window {
         target: pinWindow.screenCapture
         ignoreUnknownSignals: true
         function onCloseAllPins() {
-            pinWindow.close();
-        }
-    }
-
-    QtObject {
-        id: menuActions
-
-        function copy() {
-            var focusItem = pinWindow.activeFocusItem;
-            if (focusItem && typeof focusItem.copy === "function" && focusItem.selectedText && focusItem.selectedText.length > 0) {
-                focusItem.copy();
-                focusItem.deselect();
-                return;
-            }
-
-            if (ocrOverlay.copySelection()) {
-                return;
-            }
-
-            if (pinWindow.screenCapture) {
-                pinWindow.screenCapture.copyImage(PathUtils.toLocalPath(pinWindow.imageSource), 0, 0, 0, 0);
-            }
-        }
-
-        function save() {
-            if (pinWindow.screenCapture) {
-                pinWindow.screenCapture.saveImage(PathUtils.toLocalPath(pinWindow.imageSource), 0, 0, 0, 0);
-            }
-        }
-
-        function close() {
-            pinWindow.close();
-        }
-
-        function closeAll() {
-            if (pinWindow.screenCapture) {
-                pinWindow.screenCapture.emitCloseAllPins();
-            }
-        }
-
-        function triggerOcr() {
-            ocrOverlay.recognize();
+            controller.close();
         }
     }
 
     Shortcut {
         sequences: [StandardKey.Copy]
-        onActivated: menuActions.copy()
+        onActivated: {
+            if (ocrOverlay.copySelection()) return;
+            controller.copyImage();
+        }
     }
 
     Shortcut {
@@ -99,7 +72,7 @@ Window {
             if (ocrOverlay.hasSelection || ocrOverlay.activeTextBlock) {
                 ocrOverlay.clearSelection();
             } else {
-                pinWindow.close();
+                controller.close();
             }
         }
     }
@@ -118,7 +91,7 @@ Window {
             Image {
                 id: img
                 anchors.fill: parent
-                source: pinWindow.imageSource
+                source: controller.imagePath
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 mipmap: true
@@ -174,7 +147,6 @@ Window {
             const factor = wheel.angleDelta.y > 0 ? 1.1 : 0.9;
             const newW = pinWindow.width * factor;
             const newH = pinWindow.height * factor;
-
             const maxTextureSize = 16384 - 50;
             const dpr = Screen.devicePixelRatio || 1.0;
             const maxSize = maxTextureSize / dpr;
@@ -195,7 +167,7 @@ Window {
         anchors.fill: contentItem
         z: 10
         targetImage: img
-        sourcePath: pinWindow.imageSource
+        sourcePath: controller.imagePath
         onRequestMenu: (x, y) => {
             if (Qt.platform.os === "osx") {
                 nativeMenu.open();
@@ -211,33 +183,30 @@ Window {
 
         Platform.MenuItem {
             text: qsTr("Copy")
-            enabled: pinWindow.screenCapture !== null
-            onTriggered: menuActions.copy()
+            onTriggered: controller.copyImage()
         }
 
         Platform.MenuItem {
             text: qsTr("Save")
-            enabled: pinWindow.screenCapture !== null
-            onTriggered: menuActions.save()
+            onTriggered: controller.saveImage()
         }
 
         Platform.MenuItem {
             text: qsTr("OCR")
-            onTriggered: menuActions.triggerOcr()
+            onTriggered: controller.triggerOcr()
         }
 
         Platform.MenuSeparator {}
 
         Platform.MenuItem {
             text: qsTr("Close")
-            onTriggered: menuActions.close()
+            onTriggered: controller.close()
         }
 
         Platform.MenuItem {
             text: qsTr("Close All")
-            enabled: pinWindow.screenCapture !== null
             visible: pinWindow.screenCapture && pinWindow.screenCapture.pinCount > 1
-            onTriggered: menuActions.closeAll()
+            onTriggered: controller.closeAll()
         }
     }
 
@@ -256,34 +225,29 @@ Window {
             const items = [
                 {
                     text: qsTr("Copy"),
-                    enabled: pinWindow.screenCapture !== null,
-                    action: menuActions.copy
+                    action: controller.copyImage
                 },
                 {
                     text: qsTr("Save"),
-                    enabled: pinWindow.screenCapture !== null,
-                    action: menuActions.save
+                    action: controller.saveImage
                 },
                 {
                     text: qsTr("OCR"),
-                    enabled: true,
-                    action: menuActions.triggerOcr
+                    action: controller.triggerOcr
                 },
                 {
                     isDivider: true
                 },
                 {
                     text: qsTr("Close"),
-                    enabled: true,
-                    action: menuActions.close
+                    action: controller.close
                 }
             ];
 
             if (pinWindow.screenCapture && pinWindow.screenCapture.pinCount > 1) {
                 items.push({
                     text: qsTr("Close All"),
-                    enabled: pinWindow.screenCapture !== null,
-                    action: menuActions.closeAll
+                    action: controller.closeAll
                 });
             }
 

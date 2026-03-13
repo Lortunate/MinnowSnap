@@ -33,10 +33,10 @@ impl Default for WindowHelperRust {
 }
 
 impl ffi::WindowHelper {
-    pub fn setup_unified_titlebar(self: Pin<&mut Self>, window: *mut ffi::QObject) {
+    pub fn setup_unified_titlebar(self: Pin<&mut Self>, _window: *mut ffi::QObject) {
         #[cfg(target_os = "macos")]
         unsafe {
-            let ptr = window as usize;
+            let ptr = _window as usize;
             ffi::setup_unified_titlebar_cpp(ptr);
         }
     }

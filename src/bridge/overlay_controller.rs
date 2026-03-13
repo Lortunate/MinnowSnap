@@ -339,10 +339,10 @@ impl qobject::OverlayController {
     }
 
     #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn setup_window(self: Pin<&mut Self>, window: *mut QObject) {
+    pub unsafe fn setup_window(self: Pin<&mut Self>, _window: *mut QObject) {
         #[cfg(target_os = "macos")]
         {
-            let ptr = window as usize;
+            let ptr = _window as usize;
             crate::bridge::window::setup_macos_window(ptr);
         }
     }

@@ -50,7 +50,13 @@ pub mod qobject {
         #[qproperty(QString, version)]
         #[qproperty(QString, capture_shortcut, cxx_name = "captureShortcut")]
         #[qproperty(QString, quick_capture_shortcut, cxx_name = "quickCaptureShortcut")]
+        #[qproperty(bool, has_shortcut_conflicts, cxx_name = "hasShortcutConflicts")]
+        #[qproperty(QString, shortcut_conflict_msg, cxx_name = "shortcutConflictMsg")]
         type Config = super::ConfigRust;
+
+        #[qinvokable]
+        #[cxx_name = "checkShortcutConflicts"]
+        fn check_shortcut_conflicts(self: Pin<&mut Self>, capture: QString, quick: QString);
 
         #[qinvokable]
         #[cxx_name = "updateTheme"]
@@ -142,6 +148,8 @@ pub struct ConfigRust {
     version: QString,
     capture_shortcut: QString,
     quick_capture_shortcut: QString,
+    has_shortcut_conflicts: bool,
+    shortcut_conflict_msg: QString,
 }
 
 impl Default for ConfigRust {
@@ -169,6 +177,8 @@ impl ConfigRust {
             version: QString::from(env!("CARGO_PKG_VERSION")),
             capture_shortcut: QString::from(&settings.shortcuts.capture),
             quick_capture_shortcut: QString::from(&settings.shortcuts.quick_capture),
+            has_shortcut_conflicts: false,
+            shortcut_conflict_msg: QString::default(),
         }
     }
 }
@@ -264,6 +274,19 @@ impl qobject::Config {
         crate::bridge::app::install_translator(&language_str);
         self.as_mut().set_language(language);
         crate::bridge::app::retranslate();
+    }
+
+    pub fn check_shortcut_conflicts(mut self: Pin<&mut Self>, capture: QString, quick: QString) {
+        let capture_str = if capture.is_empty() { "F1" } else { &capture.to_string() };
+        let quick_str = if quick.is_empty() { "F2" } else { &quick.to_string() };
+
+        if capture_str == quick_str {
+            self.as_mut().set_has_shortcut_conflicts(true);
+            self.as_mut().set_shortcut_conflict_msg(crate::bridge::app::tr("Preferences", "Shortcuts cannot be identical."));
+        } else {
+            self.as_mut().set_has_shortcut_conflicts(false);
+            self.as_mut().set_shortcut_conflict_msg(QString::default());
+        }
     }
 
     pub fn update_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {

@@ -31,15 +31,21 @@ fn main() {
     let mut builder = CxxQtBuilder::new_qml_module(QmlModule::new("com.lortunate.minnow").qml_files(qml_files))
         .qrc("resources.qrc")
         .files([
+            "src/bridge/annotation.rs",
             "src/bridge/app.rs",
+            "src/bridge/capture_session.rs",
             "src/bridge/window.rs",
             "src/bridge/screen_capture.rs",
             "src/bridge/provider.rs",
+            "src/bridge/long_capture.rs",
             "src/bridge/overlay_controller.rs",
+            "src/bridge/tray_menu.rs",
             "src/bridge/shortcut_helper.rs",
             "src/bridge/config.rs",
+            "src/bridge/capture_compositor.rs",
             "src/bridge/ocr.rs",
             "src/bridge/ocr_overlay.rs",
+            "src/bridge/pin.rs",
         ])
         .qt_module("Quick");
 
@@ -54,3 +60,4 @@ fn main() {
 
     builder.build();
 }
+
