@@ -1,7 +1,8 @@
+use crate::core::capture::datasource::{self, VirtualCaptureSource};
 use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
 use cxx_qt_lib::{QImage, QQmlApplicationEngine, QString};
 use std::pin::Pin;
-use tracing::info;
+use tracing::{info, warn};
 
 #[cxx::bridge]
 mod ffi {
@@ -30,32 +31,42 @@ pub fn register_image_provider(engine: Pin<&mut QQmlApplicationEngine>) {
 
 static DUMMY_PIXEL: [u8; 4] = [0, 0, 0, 0];
 
+fn empty_qimage() -> QImage {
+    unsafe { ffi::create_from_rgba(DUMMY_PIXEL.as_ptr(), 1, 1) }
+}
+
+fn make_qimage(img: &image::RgbaImage) -> QImage {
+    let width = img.width().try_into().unwrap_or(0);
+    let height = img.height().try_into().unwrap_or(0);
+    let raw_data = img.as_raw();
+    info!("Providing image: {width}x{height}");
+    unsafe { ffi::create_from_rgba(raw_data.as_ptr(), width, height) }
+}
+
 fn get_capture_qimage(id: QString) -> QImage {
     let id_str = id.to_string();
-    info!("ImageProvider request: {id_str}");
+    info!("ImageProvider request: {}", datasource::normalize_provider_id(&id_str));
 
-    let make_qimage = |img: &image::RgbaImage| {
-        let width = img.width().try_into().unwrap_or(0);
-        let height = img.height().try_into().unwrap_or(0);
-        let raw_data = img.as_raw();
-        info!("Providing image: {width}x{height}");
-        unsafe { ffi::create_from_rgba(raw_data.as_ptr(), width, height) }
-    };
-
-    if id_str.starts_with("scroll") {
-        if let Ok(guard) = SCROLL_CAPTURE.lock()
-            && let Some(img) = &*guard
-        {
-            return make_qimage(img);
-        } else {
-            info!("SCROLL_CAPTURE is None or lock failed");
+    match datasource::parse_provider_source(&id_str) {
+        Some(VirtualCaptureSource::Preview) => {
+            if let Ok(guard) = LAST_CAPTURE.lock()
+                && let Some(img) = &*guard
+            {
+                return make_qimage(img);
+            }
         }
-    } else if let Ok(guard) = LAST_CAPTURE.lock()
-        && let Some(img) = &*guard
-    {
-        return make_qimage(img);
+        Some(VirtualCaptureSource::Scroll) => {
+            if let Ok(guard) = SCROLL_CAPTURE.lock()
+                && let Some(img) = &*guard
+            {
+                return make_qimage(img);
+            }
+        }
+        None => {
+            warn!("Unknown image provider id: {}", id_str);
+        }
     }
 
     info!("Provider: No image in cache, providing empty QImage");
-    unsafe { ffi::create_from_rgba(DUMMY_PIXEL.as_ptr(), 1, 1) }
+    empty_qimage()
 }

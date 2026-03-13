@@ -92,6 +92,9 @@ pub mod qobject {
         #[qinvokable]
         fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: i32, x: i32, y: i32, width: i32, height: i32);
 
+        #[qinvokable]
+        fn release_capture_buffers(self: Pin<&mut Self>);
+
         #[qsignal]
         fn screen_capture_shortcut_triggered(self: Pin<&mut Self>);
 
@@ -138,10 +141,11 @@ pub mod qobject {
     impl cxx_qt::Threading for ScreenCapture {}
 }
 
-use crate::core::capture::SCROLL_CAPTURE;
 use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction, CaptureInputMode};
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
+use crate::core::capture::datasource;
+use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
 use crate::core::hotkey::HotkeyManager;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use cxx_qt::{CxxQtType, Threading};
@@ -471,6 +475,16 @@ impl qobject::ScreenCapture {
             .submit_capture_internal(path, action, x, y, width, height, CaptureInputMode::FullImage);
     }
 
+    pub fn release_capture_buffers(mut self: Pin<&mut Self>) {
+        if let Ok(mut cache) = LAST_CAPTURE.lock() {
+            *cache = None;
+        }
+        if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
+            *cache = None;
+        }
+        self.as_mut().rust_mut().last_scroll_path = None;
+    }
+
     fn submit_capture_internal(
         mut self: Pin<&mut Self>,
         path: QString,
@@ -558,7 +572,7 @@ impl qobject::ScreenCapture {
 impl ScreenCaptureRust {
     fn resolve_path(&self, path: &QString) -> String {
         let mut path_str = path.to_string();
-        if (path_str.is_empty() || path_str.starts_with("image://minnow/preview"))
+        if (path_str.is_empty() || datasource::parse_virtual_source(&path_str).is_some())
             && let Some(last) = self.last_scroll_path.as_deref()
         {
             path_str = last.to_string();

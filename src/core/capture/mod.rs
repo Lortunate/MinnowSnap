@@ -1,6 +1,7 @@
 pub mod action;
 pub mod scroll_worker;
 pub mod service;
+pub mod datasource;
 pub mod stitcher;
 
 use image::RgbaImage;

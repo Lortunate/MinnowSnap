@@ -1,5 +1,6 @@
 use crate::core::capture::action::CaptureInputMode;
-use crate::core::capture::{LAST_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
+use crate::core::capture::datasource::{self, VirtualCaptureSource};
+use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
 use crate::core::settings::SETTINGS;
 use crate::core::window::fetch_windows_data;
@@ -10,14 +11,32 @@ pub struct CaptureService;
 
 impl CaptureService {
     fn resolve_image_from_path(path_str: &str) -> Option<RgbaImage> {
-        if (path_str.is_empty() || path_str.starts_with("image://minnow/preview"))
-            && let Ok(cache) = LAST_CAPTURE.lock()
-            && let Some(cached_img) = &*cache
-        {
-            return Some(cached_img.clone());
+        if path_str.is_empty() {
+            if let Ok(cache) = LAST_CAPTURE.lock()
+                && let Some(cached_img) = &*cache
+            {
+                return Some(cached_img.clone());
+            }
+        } else if let Some(virtual_source) = datasource::parse_virtual_source(path_str) {
+            match virtual_source {
+                VirtualCaptureSource::Preview => {
+                    if let Ok(cache) = LAST_CAPTURE.lock()
+                        && let Some(cached_img) = &*cache
+                    {
+                        return Some(cached_img.clone());
+                    }
+                }
+                VirtualCaptureSource::Scroll => {
+                    if let Ok(cache) = SCROLL_CAPTURE.lock()
+                        && let Some(cached_img) = &*cache
+                    {
+                        return Some(cached_img.clone());
+                    }
+                }
+            }
         }
 
-        match image::open(path_str) {
+        match image::open(datasource::normalize_virtual_source(path_str)) {
             Ok(img) => Some(img.to_rgba8()),
             Err(e) => {
                 error!("Failed to load source image '{path_str}': {e}");
