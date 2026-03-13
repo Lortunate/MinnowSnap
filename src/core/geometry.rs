@@ -1,4 +1,77 @@
+use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Rect {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+pub struct RectF {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl RectF {
+    #[must_use]
+    pub const fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self { x, y, width, height }
+    }
+}
+
+impl Rect {
+    #[must_use]
+    pub const fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
+        Self { x, y, width, height }
+    }
+
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self::new(0, 0, 0, 0)
+    }
+
+    #[must_use]
+    pub const fn has_area(self) -> bool {
+        self.width > 0 && self.height > 0
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn intersect(self, other: Self) -> Option<Self> {
+        let x1 = self.x.max(other.x);
+        let y1 = self.y.max(other.y);
+
+        let s_x2 = i64::from(self.x) + i64::from(self.width.max(0));
+        let o_x2 = i64::from(other.x) + i64::from(other.width.max(0));
+        let x2 = s_x2.min(o_x2);
+
+        let s_y2 = i64::from(self.y) + i64::from(self.height.max(0));
+        let o_y2 = i64::from(other.y) + i64::from(other.height.max(0));
+        let y2 = s_y2.min(o_y2);
+
+        if x2 > i64::from(x1) && y2 > i64::from(y1) {
+            Some(Self::new(x1, y1, (x2 - i64::from(x1)) as i32, (y2 - i64::from(y1)) as i32))
+        } else {
+            None
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn is_inside(self, other: Self) -> bool {
+        let s_x2 = i64::from(self.x) + i64::from(self.width.max(0));
+        let s_y2 = i64::from(self.y) + i64::from(self.height.max(0));
+        let o_x2 = i64::from(other.x) + i64::from(other.width.max(0));
+        let o_y2 = i64::from(other.y) + i64::from(other.height.max(0));
+
+        self.x >= other.x && self.y >= other.y && s_x2 <= o_x2 && s_y2 <= o_y2
+    }
+}
 
 pub struct NormalizedRect {
     pub cx: f64,
@@ -194,10 +267,10 @@ pub fn calculate_resize(
     clamp_rect_resize(new_x, new_y, new_w, new_h, screen_w, screen_h)
 }
 
-pub fn normalize_rect(x: f64, y: f64, w: f64, h: f64) -> (i32, i32, i32, i32) {
+pub fn normalize_rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
     let nx = x.floor() as i32;
     let ny = y.floor() as i32;
     let nw = w.ceil().max(1.0) as i32;
     let nh = h.ceil().max(1.0) as i32;
-    (nx, ny, nw, nh)
+    Rect::new(nx, ny, nw, nh)
 }

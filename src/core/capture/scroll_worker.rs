@@ -1,5 +1,6 @@
 use crate::core::capture::stitcher::{ScrollStitcher, StitchResult};
 use crate::core::capture::{get_primary_monitor, get_primary_monitor_scale, perform_crop};
+use crate::core::geometry::Rect;
 use image::RgbaImage;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,7 +14,7 @@ pub trait ScrollObserver: Send + 'static {
     fn on_finished(&self, final_image: Option<RgbaImage>);
 }
 
-pub fn start_scroll_capture_thread(x: i32, y: i32, width: i32, height: i32, active_flag: Arc<AtomicBool>, observer: Box<dyn ScrollObserver>) {
+pub fn start_scroll_capture_thread(rect: Rect, active_flag: Arc<AtomicBool>, observer: Box<dyn ScrollObserver>) {
     let scale_factor = get_primary_monitor_scale();
 
     crate::core::RUNTIME.spawn_blocking(move || {
@@ -32,7 +33,7 @@ pub fn start_scroll_capture_thread(x: i32, y: i32, width: i32, height: i32, acti
 
         while active_flag.load(Ordering::SeqCst) {
             if let Ok(full_screen) = monitor.capture_image() {
-                if let Some(cropped) = perform_crop(&full_screen, x, y, width, height, scale_factor) {
+                if let Some(cropped) = perform_crop(&full_screen, rect, scale_factor) {
                     let result = stitcher.process_frame(cropped);
 
                     match result {

@@ -59,8 +59,7 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Copy
-                        .execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
+                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext::full_image(clean_path))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)
@@ -80,8 +79,7 @@ impl qobject::PinController {
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Save
-                        .execute(crate::core::capture::action::ActionContext::full_image(clean_path, 0, 0, 0, 0))
+                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext::full_image(clean_path))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)

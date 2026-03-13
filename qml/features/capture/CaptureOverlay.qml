@@ -137,8 +137,8 @@ Window {
             cancelSession(true)
         }
 
-        function onRequestComposition(action, x, y, w, h) {
-            captureCompositor.performComposition(Qt.rect(x, y, w, h), action)
+        function onRequestComposition(action, selectionRect) {
+            captureCompositor.performComposition(selectionRect, action)
         }
 
         target: screenCapture
@@ -183,15 +183,12 @@ Window {
             }
         }
 
-        function onRequestActionDispatch(action, x, y, width, height, hasAnnotations) {
+        function onRequestActionDispatch(action, selectionRect, hasAnnotations) {
             if (screenCapture) {
                 screenCapture.requestAction(
                     sessionController.backgroundImageSource,
                     action,
-                    x,
-                    y,
-                    width,
-                    height,
+                    selectionRect,
                     hasAnnotations
                 )
             }

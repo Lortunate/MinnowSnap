@@ -1,4 +1,5 @@
 use crate::bridge::screen_capture::is_cancel_action;
+use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt_lib::{QRectF, QString};
 use std::pin::Pin;
 
@@ -24,7 +25,7 @@ pub mod qobject {
         type LongCaptureController = super::LongCaptureControllerRust;
 
         #[qinvokable]
-        fn start(self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32);
+        fn start(self: Pin<&mut Self>, selection_rect: QRectF);
 
         #[qinvokable]
         fn finish(self: Pin<&mut Self>);
@@ -75,9 +76,9 @@ pub struct LongCaptureControllerRust {
 }
 
 impl qobject::LongCaptureController {
-    pub fn start(mut self: Pin<&mut Self>, x: i32, y: i32, width: i32, height: i32) {
-        self.as_mut()
-            .set_selection_rect(QRectF::new(f64::from(x), f64::from(y), f64::from(width), f64::from(height)));
+    pub fn start(mut self: Pin<&mut Self>, selection_rect: QRectF) {
+        let selection = SelectionRect::from_qrect(&selection_rect);
+        self.as_mut().set_selection_rect(selection.to_qrect());
         self.as_mut().set_frame_visible(true);
         self.as_mut().set_toolbar_visible(true);
         self.as_mut().set_preview_visible(true);
