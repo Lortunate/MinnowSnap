@@ -1,13 +1,13 @@
-use crate::core::app::{APP_NAME};
+use crate::core::app::APP_NAME;
 use crate::core::settings::SETTINGS;
 use tracing::error;
 
+#[cfg(target_os = "windows")]
+use crate::core::app::APP_ID;
 #[cfg(not(target_os = "windows"))]
 use notify_rust::Notification;
 #[cfg(target_os = "windows")]
 use tauri_winrt_notification::{IconCrop, Toast};
-#[cfg(target_os = "windows")]
-use crate::core::app::APP_ID;
 
 #[cfg(target_os = "windows")]
 use std::{fs, path::PathBuf};

@@ -14,7 +14,6 @@ mod ffi {
     }
 }
 
-
 pub fn quit_app() {
     unsafe { ffi::quit_app() }
 }
