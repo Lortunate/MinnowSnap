@@ -2,6 +2,7 @@
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use std::pin::Pin;
+use qobject::AnnotationTool;
 
 struct AnnotationState {
     id: i32,
@@ -434,7 +435,7 @@ impl qobject::AnnotationController {
     }
 }
 
-const TOOL_NO_TOOL: i32 = 0;
-const TOOL_ARROW: i32 = 1;
-const TOOL_COUNTER: i32 = 4;
-const TOOL_TEXT: i32 = 5;
+const TOOL_NO_TOOL: i32 = AnnotationTool::NoTool.repr;
+const TOOL_ARROW: i32 = AnnotationTool::Arrow.repr;
+const TOOL_COUNTER: i32 = AnnotationTool::Counter.repr;
+const TOOL_TEXT: i32 = AnnotationTool::Text.repr;
