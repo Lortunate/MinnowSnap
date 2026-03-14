@@ -1,6 +1,6 @@
 use crate::core::capture::action::CaptureInputMode;
 use crate::core::capture::datasource::{self, VirtualCaptureSource};
-use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE, capture_primary_monitor, get_primary_monitor_scale, perform_crop, update_last_capture};
+use crate::core::capture::{capture_primary_monitor, get_cached_capture, get_primary_monitor_scale, perform_crop, update_last_capture};
 use crate::core::geometry::Rect;
 use crate::core::io::clipboard::copy_image_to_clipboard;
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
@@ -12,22 +12,26 @@ use tracing::{error, info};
 
 pub struct CaptureService;
 
-impl CaptureService {
-    fn get_cached_source_image(path_str: &str) -> Option<Arc<RgbaImage>> {
-        if path_str.is_empty() {
-            return LAST_CAPTURE.lock().ok().and_then(|cache| cache.as_ref().cloned());
-        }
+enum SourceImage {
+    Shared(Arc<RgbaImage>),
+    Owned(RgbaImage),
+}
 
-        let virtual_source = datasource::parse_virtual_source(path_str)?;
-        match virtual_source {
-            VirtualCaptureSource::Preview => LAST_CAPTURE.lock().ok().and_then(|cache| cache.as_ref().cloned()),
-            VirtualCaptureSource::Scroll => SCROLL_CAPTURE.lock().ok().and_then(|cache| cache.as_ref().cloned()),
-        }
+impl CaptureService {
+    fn is_full_request(rect: Rect, input_mode: CaptureInputMode) -> bool {
+        input_mode == CaptureInputMode::FullImage || !rect.has_area()
     }
 
-    fn with_cached_source_image<T>(path_str: &str, mut f: impl FnMut(&RgbaImage) -> T) -> Option<T> {
-        let shared = Self::get_cached_source_image(path_str)?;
-        Some(f(shared.as_ref()))
+    fn parse_cached_source(path_str: &str) -> Option<VirtualCaptureSource> {
+        if path_str.is_empty() {
+            return Some(VirtualCaptureSource::Preview);
+        }
+        datasource::parse_virtual_source(path_str)
+    }
+
+    fn get_cached_source_image(path_str: &str) -> Option<Arc<RgbaImage>> {
+        let source = Self::parse_cached_source(path_str)?;
+        get_cached_capture(source)
     }
 
     fn resolve_image_from_path(path_str: &str) -> Option<RgbaImage> {
@@ -40,11 +44,14 @@ impl CaptureService {
         }
     }
 
-    fn resolve_from_borrowed_image(img: &RgbaImage, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
-        if input_mode == CaptureInputMode::FullImage || !rect.has_area() {
-            return Some(img.clone());
+    fn resolve_source_image(path_str: &str) -> Option<SourceImage> {
+        if let Some(shared) = Self::get_cached_source_image(path_str) {
+            return Some(SourceImage::Shared(shared));
         }
+        Self::resolve_image_from_path(path_str).map(SourceImage::Owned)
+    }
 
+    fn crop_selection(img: &RgbaImage, rect: Rect) -> Option<RgbaImage> {
         let scale_factor = get_primary_monitor_scale();
         let x_phys = (rect.x as f32 * scale_factor) as i32;
         let y_phys = (rect.y as f32 * scale_factor) as i32;
@@ -68,32 +75,18 @@ impl CaptureService {
         perform_crop(img, rect, scale_factor)
     }
 
+    fn resolve_from_shared_image(img: Arc<RgbaImage>, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
+        if Self::is_full_request(rect, input_mode) {
+            return Some(img.as_ref().clone());
+        }
+        Self::crop_selection(img.as_ref(), rect)
+    }
+
     fn resolve_from_owned_image(img: RgbaImage, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
-        if input_mode == CaptureInputMode::FullImage || !rect.has_area() {
+        if Self::is_full_request(rect, input_mode) {
             return Some(img);
         }
-
-        let scale_factor = get_primary_monitor_scale();
-        let x_phys = (rect.x as f32 * scale_factor) as i32;
-        let y_phys = (rect.y as f32 * scale_factor) as i32;
-        let w_phys = (rect.width as f32 * scale_factor) as i32;
-        let h_phys = (rect.height as f32 * scale_factor) as i32;
-        let img_w = img.width() as i32;
-        let img_h = img.height() as i32;
-
-        let exceeds_bounds = x_phys < 0
-            || y_phys < 0
-            || x_phys >= img_w
-            || y_phys >= img_h
-            || x_phys.saturating_add(w_phys) > img_w
-            || y_phys.saturating_add(h_phys) > img_h;
-
-        let almost_full_image = (w_phys - img_w).abs() <= 2 && (h_phys - img_h).abs() <= 2;
-        if exceeds_bounds && almost_full_image {
-            return Some(img);
-        }
-
-        perform_crop(&img, rect, scale_factor)
+        Self::crop_selection(&img, rect)
     }
 
     pub fn capture_screen() -> bool {
@@ -129,19 +122,17 @@ impl CaptureService {
     }
 
     pub fn resolve_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
-        if let Some(shared) = Self::get_cached_source_image(path) {
-            return Self::resolve_from_borrowed_image(shared.as_ref(), rect, input_mode);
+        match Self::resolve_source_image(path)? {
+            SourceImage::Shared(img) => Self::resolve_from_shared_image(img, rect, input_mode),
+            SourceImage::Owned(img) => Self::resolve_from_owned_image(img, rect, input_mode),
         }
-
-        let img = Self::resolve_image_from_path(path)?;
-        Self::resolve_from_owned_image(img, rect, input_mode)
     }
 
     pub fn copy_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> bool {
-        if (input_mode == CaptureInputMode::FullImage || !rect.has_area())
-            && let Some(copied) = Self::with_cached_source_image(path, copy_image_to_clipboard)
+        if Self::is_full_request(rect, input_mode)
+            && let Some(shared) = Self::get_cached_source_image(path)
         {
-            return copied;
+            return copy_image_to_clipboard(shared.as_ref());
         }
 
         if let Some(img) = Self::resolve_image(path, rect, input_mode) {
@@ -215,16 +206,14 @@ impl CaptureService {
     pub fn get_pixel_hex(x: i32, y: i32, scale: f64) -> Option<String> {
         let x_phys = (x as f64 * scale) as i32;
         let y_phys = (y as f64 * scale) as i32;
-
-        if let Ok(lock) = LAST_CAPTURE.lock()
-            && let Some(img) = &*lock
-            && let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys))
-            && u_x < img.as_ref().width()
-            && u_y < img.as_ref().height()
-        {
-            let pixel = img.as_ref().get_pixel(u_x, u_y);
-            return Some(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]));
+        let img = get_cached_capture(VirtualCaptureSource::Preview)?;
+        let (Ok(u_x), Ok(u_y)) = (u32::try_from(x_phys), u32::try_from(y_phys)) else {
+            return None;
+        };
+        if u_x >= img.width() || u_y >= img.height() {
+            return None;
         }
-        None
+        let pixel = img.get_pixel(u_x, u_y);
+        Some(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]))
     }
 }

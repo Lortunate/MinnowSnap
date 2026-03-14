@@ -4,6 +4,7 @@ pub mod scroll_worker;
 pub mod service;
 pub mod stitcher;
 
+use crate::core::capture::datasource::VirtualCaptureSource;
 use crate::core::geometry::Rect;
 use image::RgbaImage;
 use std::sync::{Arc, LazyLock, Mutex};
@@ -13,10 +14,34 @@ use xcap::Monitor;
 pub static LAST_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
 pub static SCROLL_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
 
-pub fn update_last_capture(image: RgbaImage) {
-    if let Ok(mut cache) = LAST_CAPTURE.lock() {
+fn cache_cell(source: VirtualCaptureSource) -> &'static Mutex<Option<Arc<RgbaImage>>> {
+    match source {
+        VirtualCaptureSource::Preview => &LAST_CAPTURE,
+        VirtualCaptureSource::Scroll => &SCROLL_CAPTURE,
+    }
+}
+
+pub fn get_cached_capture(source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
+    cache_cell(source).lock().ok().and_then(|cache| cache.as_ref().cloned())
+}
+
+pub fn set_cached_capture(source: VirtualCaptureSource, image: RgbaImage) {
+    if let Ok(mut cache) = cache_cell(source).lock() {
         *cache = Some(Arc::new(image));
     }
+}
+
+pub fn clear_cached_captures() {
+    if let Ok(mut cache) = LAST_CAPTURE.lock() {
+        *cache = None;
+    }
+    if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
+        *cache = None;
+    }
+}
+
+pub fn update_last_capture(image: RgbaImage) {
+    set_cached_capture(VirtualCaptureSource::Preview, image);
 }
 
 #[must_use]

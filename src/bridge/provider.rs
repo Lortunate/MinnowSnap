@@ -1,10 +1,9 @@
 use crate::core::capture::datasource::{self, VirtualCaptureSource};
-use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
+use crate::core::capture::get_cached_capture;
 use cxx_qt_lib::{QImage, QImageFormat, QQmlApplicationEngine, QString};
 use image::RgbaImage;
 use std::cell::RefCell;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tracing::{debug, warn};
 
@@ -46,21 +45,6 @@ struct CachedQImage {
     generation: u64,
 }
 
-#[derive(Clone, Copy)]
-enum CacheSlot {
-    Preview,
-    Scroll,
-}
-
-impl CacheSlot {
-    fn from_source(source: VirtualCaptureSource) -> Self {
-        match source {
-            VirtualCaptureSource::Preview => Self::Preview,
-            VirtualCaptureSource::Scroll => Self::Scroll,
-        }
-    }
-}
-
 #[derive(Default)]
 struct ProviderImageCache {
     preview: Option<CachedQImage>,
@@ -68,24 +52,24 @@ struct ProviderImageCache {
 }
 
 impl ProviderImageCache {
-    fn get(&self, slot: CacheSlot) -> Option<&CachedQImage> {
-        match slot {
-            CacheSlot::Preview => self.preview.as_ref(),
-            CacheSlot::Scroll => self.scroll.as_ref(),
+    fn get(&self, source: VirtualCaptureSource) -> Option<&CachedQImage> {
+        match source {
+            VirtualCaptureSource::Preview => self.preview.as_ref(),
+            VirtualCaptureSource::Scroll => self.scroll.as_ref(),
         }
     }
 
-    fn set(&mut self, slot: CacheSlot, cached: CachedQImage) {
-        match slot {
-            CacheSlot::Preview => self.preview = Some(cached),
-            CacheSlot::Scroll => self.scroll = Some(cached),
+    fn set(&mut self, source: VirtualCaptureSource, cached: CachedQImage) {
+        match source {
+            VirtualCaptureSource::Preview => self.preview = Some(cached),
+            VirtualCaptureSource::Scroll => self.scroll = Some(cached),
         }
     }
 
-    fn clear_slot(&mut self, slot: CacheSlot) {
-        match slot {
-            CacheSlot::Preview => self.preview = None,
-            CacheSlot::Scroll => self.scroll = None,
+    fn clear_slot(&mut self, source: VirtualCaptureSource) {
+        match source {
+            VirtualCaptureSource::Preview => self.preview = None,
+            VirtualCaptureSource::Scroll => self.scroll = None,
         }
     }
 
@@ -127,20 +111,16 @@ fn make_qimage(img: &image::RgbaImage) -> QImage {
 }
 
 fn with_source_image<T>(source: VirtualCaptureSource, mut f: impl FnMut(&RgbaImage) -> T) -> Option<T> {
-    let shared: Arc<RgbaImage> = match source {
-        VirtualCaptureSource::Preview => LAST_CAPTURE.lock().ok().and_then(|g| g.as_ref().cloned())?,
-        VirtualCaptureSource::Scroll => SCROLL_CAPTURE.lock().ok().and_then(|g| g.as_ref().cloned())?,
-    };
-
+    let shared = get_cached_capture(source)?;
     Some(f(shared.as_ref()))
 }
 
-fn get_cached_qimage(img: &RgbaImage, slot: CacheSlot) -> QImage {
+fn get_cached_qimage(img: &RgbaImage, source: VirtualCaptureSource) -> QImage {
     let key = make_image_key(img);
     let generation = current_cache_generation();
 
     QIMAGE_CACHE.with(|cache| {
-        if let Some(cached) = cache.borrow().get(slot)
+        if let Some(cached) = cache.borrow().get(source)
             && cached.key == key
             && cached.generation == generation
         {
@@ -150,7 +130,7 @@ fn get_cached_qimage(img: &RgbaImage, slot: CacheSlot) -> QImage {
         let image = make_qimage(img);
         let image_for_cache = image.clone();
         cache.borrow_mut().set(
-            slot,
+            source,
             CachedQImage {
                 key,
                 image: image_for_cache,
@@ -161,8 +141,8 @@ fn get_cached_qimage(img: &RgbaImage, slot: CacheSlot) -> QImage {
     })
 }
 
-fn clear_cached_qimage_slot(slot: CacheSlot) {
-    QIMAGE_CACHE.with(|cache| cache.borrow_mut().clear_slot(slot));
+fn clear_cached_qimage_slot(source: VirtualCaptureSource) {
+    QIMAGE_CACHE.with(|cache| cache.borrow_mut().clear_slot(source));
 }
 
 pub fn clear_cached_qimages() {
@@ -182,11 +162,10 @@ fn get_capture_qimage(id: QString) -> QImage {
         return empty_qimage();
     };
 
-    let slot = CacheSlot::from_source(source);
-    if let Some(image) = with_source_image(source, |img| get_cached_qimage(img, slot)) {
+    if let Some(image) = with_source_image(source, |img| get_cached_qimage(img, source)) {
         return image;
     }
-    clear_cached_qimage_slot(slot);
+    clear_cached_qimage_slot(source);
 
     debug!("Provider: No image in cache, providing empty QImage");
     empty_qimage()

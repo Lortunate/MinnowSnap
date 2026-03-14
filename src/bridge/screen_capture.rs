@@ -151,7 +151,7 @@ use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction, C
 use crate::core::capture::datasource;
 use crate::core::capture::scroll_worker::{ScrollObserver, start_scroll_capture_thread};
 use crate::core::capture::service::CaptureService;
-use crate::core::capture::{LAST_CAPTURE, SCROLL_CAPTURE};
+use crate::core::capture::{clear_cached_captures, set_cached_capture};
 use crate::core::geometry::Rect;
 use crate::core::hotkey::HotkeyManager;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
@@ -236,9 +236,7 @@ struct QtScrollObserver {
 
 impl ScrollObserver for QtScrollObserver {
     fn on_update(&self, height: i32, thumbnail: RgbaImage) {
-        if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
-            *cache = Some(Arc::new(thumbnail));
-        }
+        set_cached_capture(datasource::VirtualCaptureSource::Scroll, thumbnail);
         let _ = self.qt_thread.queue(move |mut qobject| {
             qobject.as_mut().scroll_capture_updated(height);
         });
@@ -466,7 +464,7 @@ impl qobject::ScreenCapture {
                 if has_annotations {
                     self.request_composition(action, selection.to_qrect());
                 } else {
-                    self.submit_capture_internal(path, action, rect, CaptureInputMode::CropSelection);
+                    self.submit_action_internal(path, action_enum, rect, CaptureInputMode::CropSelection);
                 }
             }
         }
@@ -474,21 +472,16 @@ impl qobject::ScreenCapture {
 
     pub fn submit_capture(mut self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF) {
         let rect = SelectionRect::from_qrect(&selection_rect).rect();
-        self.as_mut().submit_capture_internal(path, action, rect, CaptureInputMode::CropSelection);
+        self.as_mut().submit_capture_by_code(path, action, rect, CaptureInputMode::CropSelection);
     }
 
     pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF) {
         let rect = SelectionRect::from_qrect(&selection_rect).rect();
-        self.as_mut().submit_capture_internal(path, action, rect, CaptureInputMode::FullImage);
+        self.as_mut().submit_capture_by_code(path, action, rect, CaptureInputMode::FullImage);
     }
 
     pub fn release_capture_buffers(mut self: Pin<&mut Self>) {
-        if let Ok(mut cache) = LAST_CAPTURE.lock() {
-            *cache = None;
-        }
-        if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
-            *cache = None;
-        }
+        clear_cached_captures();
         crate::bridge::provider::clear_cached_qimages();
         self.as_mut().rust_mut().last_scroll_path = None;
     }
@@ -497,18 +490,22 @@ impl qobject::ScreenCapture {
         crate::core::RUNTIME.spawn_blocking(collect_process_memory);
     }
 
-    fn submit_capture_internal(mut self: Pin<&mut Self>, path: QUrl, action: i32, rect: Rect, input_mode: CaptureInputMode) {
+    fn submit_capture_by_code(mut self: Pin<&mut Self>, path: QUrl, action: i32, rect: Rect, input_mode: CaptureInputMode) {
         let Some(action_enum) = capture_action_from_code(action) else {
             self.as_mut().action_finished();
             return;
         };
+        self.as_mut().submit_action_internal(path, action_enum, rect, input_mode);
+    }
+
+    fn submit_action_internal(mut self: Pin<&mut Self>, path: QUrl, action: CaptureAction, rect: Rect, input_mode: CaptureInputMode) {
         let path_str = self.rust().resolve_path(&path);
 
-        info!("Submitting capture action: {}, path: {}", action, path_str);
+        info!("Submitting capture action: {:?}, path: {}", action, path_str);
 
-        match action_enum {
+        match action {
             CaptureAction::Copy | CaptureAction::Save | CaptureAction::Pin | CaptureAction::Ocr | CaptureAction::QrCode => {
-                self.process_action(action_enum, path_str, rect, input_mode)
+                self.process_action(action, path_str, rect, input_mode)
             }
             _ => {
                 self.as_mut().action_finished();
