@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Lortuante"]
 
+[features]
+default = []
+dhat-heap = ["dep:dhat"]
+
 [workspace]
 members = ["rust/build-tools", "rust/ocr"]
 
@@ -86,6 +90,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = "0.2.4"
 tracing-log = "0.2.0"
+dhat = { version = "0.3", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { workspace = true }

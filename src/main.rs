@@ -10,12 +10,18 @@ use crate::core::app::{QML_MAIN, ensure_single_instance, get_instance_id, init_l
 use cxx::UniquePtr;
 use cxx_qt::casting::Upcast;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlEngine, QUrl};
+#[cfg(not(feature = "dhat-heap"))]
 use mimalloc::MiMalloc;
 use std::pin::Pin;
 #[cfg(target_os = "macos")]
 use tracing::error;
 use tracing::info;
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static GLOBAL: dhat::Alloc = dhat::Alloc;
+
+#[cfg(not(feature = "dhat-heap"))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
@@ -59,6 +65,9 @@ impl MinnowApp {
 }
 
 fn main() {
+    #[cfg(feature = "dhat-heap")]
+    let _dhat_profiler = dhat::Profiler::new_heap();
+
     let _guard = init_logger();
     info!("Starting MinnowSnap...");
 
