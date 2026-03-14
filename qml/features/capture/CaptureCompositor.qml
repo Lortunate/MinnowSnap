@@ -85,12 +85,23 @@ Item {
 
         pinnedWindows.push(win)
 
-        win.closing.connect(function () {
-            removePinnedWindow(win)
-        })
-        win.destroyed.connect(function () {
-            removePinnedWindow(win)
-        })
+        if (win.closing && win.closing.connect) {
+            win.closing.connect(function () {
+                removePinnedWindow(win)
+            })
+        }
+        if (win.visibleChanged && win.visibleChanged.connect) {
+            win.visibleChanged.connect(function () {
+                if (!win.visible) {
+                    removePinnedWindow(win)
+                }
+            })
+        }
+        if (win.destroyed && win.destroyed.connect) {
+            win.destroyed.connect(function () {
+                removePinnedWindow(win)
+            })
+        }
 
         win.show()
     }

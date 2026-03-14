@@ -87,7 +87,7 @@ Window {
             cache: false
             // Default to cropping (showing latest content) for better feedback during scroll
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
-            mipmap: true
+            mipmap: false
             smooth: true
             source: root.visible ? root.scrollSource : ""
             sourceSize.width: parent.width * Screen.devicePixelRatio

@@ -118,8 +118,8 @@ fn make_qimage(img: &image::RgbaImage) -> QImage {
 
 fn with_source_image<T>(source: VirtualCaptureSource, mut f: impl FnMut(&RgbaImage) -> T) -> Option<T> {
     match source {
-        VirtualCaptureSource::Preview => LAST_CAPTURE.lock().ok().and_then(|g| g.as_ref().map(&mut f)),
-        VirtualCaptureSource::Scroll => SCROLL_CAPTURE.lock().ok().and_then(|g| g.as_ref().map(f)),
+        VirtualCaptureSource::Preview => LAST_CAPTURE.lock().ok().and_then(|g| g.as_ref().map(|img| f(img))),
+        VirtualCaptureSource::Scroll => SCROLL_CAPTURE.lock().ok().and_then(|g| g.as_ref().map(|img| f(img))),
     }
 }
 
