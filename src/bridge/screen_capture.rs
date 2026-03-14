@@ -489,6 +489,7 @@ impl qobject::ScreenCapture {
         if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
             *cache = None;
         }
+        crate::bridge::provider::clear_cached_qimages();
         self.as_mut().rust_mut().last_scroll_path = None;
     }
 
