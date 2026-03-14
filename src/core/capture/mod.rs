@@ -6,16 +6,16 @@ pub mod stitcher;
 
 use crate::core::geometry::Rect;
 use image::RgbaImage;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use tracing::{debug, error};
 use xcap::Monitor;
 
-pub static LAST_CAPTURE: LazyLock<Mutex<Option<RgbaImage>>> = LazyLock::new(|| Mutex::new(None));
-pub static SCROLL_CAPTURE: LazyLock<Mutex<Option<RgbaImage>>> = LazyLock::new(|| Mutex::new(None));
+pub static LAST_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
+pub static SCROLL_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn update_last_capture(image: RgbaImage) {
     if let Ok(mut cache) = LAST_CAPTURE.lock() {
-        *cache = Some(image);
+        *cache = Some(Arc::new(image));
     }
 }
 

@@ -237,7 +237,7 @@ struct QtScrollObserver {
 impl ScrollObserver for QtScrollObserver {
     fn on_update(&self, height: i32, thumbnail: RgbaImage) {
         if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
-            *cache = Some(thumbnail);
+            *cache = Some(Arc::new(thumbnail));
         }
         let _ = self.qt_thread.queue(move |mut qobject| {
             qobject.as_mut().scroll_capture_updated(height);
