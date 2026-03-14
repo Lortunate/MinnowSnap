@@ -1,6 +1,7 @@
 use crate::core::ocr::{OcrBlock, format_selected_blocks};
+use crate::interop::qt_url_adapter;
 use cxx_qt::Threading;
-use cxx_qt_lib::QString;
+use cxx_qt_lib::{QString, QUrl};
 use ocr::{OcrContext, OcrModelType};
 use std::pin::Pin;
 use tracing::error;
@@ -10,6 +11,8 @@ mod qobject {
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     #[auto_cxx_name]
@@ -21,7 +24,7 @@ mod qobject {
         type OcrController = super::OcrControllerRust;
 
         #[qinvokable]
-        fn recognize_image(self: Pin<&mut Self>, image_path: QString);
+        fn recognize_image(self: Pin<&mut Self>, image_path: QUrl);
 
         #[qinvokable]
         fn copy_selected_text(self: Pin<&mut Self>, selected_indices_json: QString);
@@ -37,12 +40,12 @@ pub struct OcrControllerRust {
 }
 
 impl qobject::OcrController {
-    pub fn recognize_image(mut self: Pin<&mut Self>, image_path: QString) {
+    pub fn recognize_image(mut self: Pin<&mut Self>, image_path: QUrl) {
         if *self.is_processing() {
             return;
         }
 
-        let path_str = image_path.to_string();
+        let path_str = qt_url_adapter::qurl_to_local_or_uri(&image_path);
         self.as_mut().set_is_processing(true);
         self.as_mut().set_ocr_data_json(QString::from("[]"));
 
@@ -50,8 +53,7 @@ impl qobject::OcrController {
             self,
             async move {
                 let res = async {
-                    let clean_path = crate::core::io::storage::clean_url_path(&path_str);
-                    let image = tokio::task::spawn_blocking(move || image::open(&clean_path).map_err(|e| e.to_string()))
+                    let image = tokio::task::spawn_blocking(move || image::open(&path_str).map_err(|e| e.to_string()))
                         .await
                         .map_err(|e| e.to_string())??;
 

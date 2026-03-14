@@ -1,6 +1,6 @@
 use crate::bridge::screen_capture::{is_redo_action, is_undo_action};
 use crate::interop::qt_rect_adapter::SelectionRect;
-use cxx_qt_lib::{QPointF, QRectF, QString};
+use cxx_qt_lib::{QPointF, QRectF, QUrl};
 use std::pin::Pin;
 
 #[cxx_qt::bridge]
@@ -10,8 +10,8 @@ pub mod qobject {
         type QPointF = cxx_qt_lib::QPointF;
         include!("cxx-qt-lib/qrectf.h");
         type QRectF = cxx_qt_lib::QRectF;
-        include!("cxx-qt-lib/qstring.h");
-        type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     #[auto_cxx_name]
@@ -20,7 +20,7 @@ pub mod qobject {
         #[qml_element]
         #[qproperty(bool, action_processing)]
         #[qproperty(bool, annotation_display_ready)]
-        #[qproperty(QString, background_image_source)]
+        #[qproperty(QUrl, background_image_source)]
         #[qproperty(bool, busy)]
         #[qproperty(bool, has_screen_capture)]
         #[qproperty(f64, screen_width)]
@@ -38,7 +38,7 @@ pub mod qobject {
         fn cancel_session(self: Pin<&mut Self>, force: bool);
 
         #[qinvokable]
-        fn begin_session(self: Pin<&mut Self>, source: QString);
+        fn begin_session(self: Pin<&mut Self>, source: QUrl);
 
         #[qinvokable]
         fn reset_session(self: Pin<&mut Self>);
@@ -90,7 +90,7 @@ pub mod qobject {
 pub struct CaptureSessionControllerRust {
     action_processing: bool,
     annotation_display_ready: bool,
-    background_image_source: QString,
+    background_image_source: QUrl,
     busy: bool,
     has_screen_capture: bool,
     screen_width: f64,
@@ -106,7 +106,7 @@ impl Default for CaptureSessionControllerRust {
         Self {
             action_processing: false,
             annotation_display_ready: false,
-            background_image_source: QString::default(),
+            background_image_source: QUrl::default(),
             busy: false,
             has_screen_capture: false,
             screen_width: 0.0,
@@ -148,7 +148,7 @@ impl qobject::CaptureSessionController {
         self.as_mut().session_cancelled();
     }
 
-    pub fn begin_session(mut self: Pin<&mut Self>, source: QString) {
+    pub fn begin_session(mut self: Pin<&mut Self>, source: QUrl) {
         self.as_mut().reset_session();
         self.as_mut().set_background_image_source(source);
         self.as_mut().request_overlay_hide();
@@ -161,7 +161,7 @@ impl qobject::CaptureSessionController {
         self.as_mut().set_action_processing(false);
         self.as_mut().set_annotation_display_ready(false);
         self.as_mut().request_annotation_reset();
-        self.as_mut().set_background_image_source(QString::default());
+        self.as_mut().set_background_image_source(QUrl::default());
         if *self.has_screen_capture() {
             self.as_mut().request_capture_flag(false);
         }

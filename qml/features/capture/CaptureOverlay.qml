@@ -15,7 +15,7 @@ Window {
     readonly property int infoTooltipSpacing: 8
     readonly property int resolutionTooltipSpacing: 8
 
-    property string backgroundImageSource: sessionController.backgroundImageSource
+    property url backgroundImageSource: sessionController.backgroundImageSource
     property alias currentSelection: controller.selectionRect
     readonly property rect activeRect: {
         if (isLockedState || controller.state === states.dragging) {
@@ -39,6 +39,44 @@ Window {
     readonly property color selectionFillColor: AppTheme.selectionFill
 
     signal cancelled
+
+    property int cleanupGeneration: 0
+
+    function canRunPostSessionCleanup() {
+        return !overlayWindow.visible
+            && sessionController.backgroundImageSource.toString() === ""
+            && !processing
+            && (!screenCapture || !screenCapture.isCapturing)
+    }
+
+    function runPostSessionCleanup(callGc) {
+        if (!screenCapture || !canRunPostSessionCleanup()) {
+            return
+        }
+        screenCapture.collectMemory()
+        if (callGc === true && typeof gc === "function") {
+            gc()
+        }
+    }
+
+    function schedulePostSessionCleanup() {
+        cleanupGeneration += 1
+        let token = cleanupGeneration
+
+        Qt.callLater(function () {
+            if (token !== cleanupGeneration) {
+                return
+            }
+            runPostSessionCleanup(true)
+
+            Qt.callLater(function () {
+                if (token !== cleanupGeneration) {
+                    return
+                }
+                runPostSessionCleanup(false)
+            })
+        })
+    }
 
     function cancelSession(force) {
         sessionController.cancelSession(force === true)
@@ -206,6 +244,7 @@ Window {
             if (screenCapture) {
                 screenCapture.releaseCaptureBuffers()
             }
+            schedulePostSessionCleanup()
             cancelled()
         }
     }
@@ -263,9 +302,9 @@ Window {
             anchors.fill: parent
             fillMode: Image.PreserveAspectCrop
             horizontalAlignment: Image.AlignLeft
-            source: overlayWindow.backgroundImageSource
+            source: overlayWindow.visible ? overlayWindow.backgroundImageSource : ""
             verticalAlignment: Image.AlignTop
-            layer.enabled: true
+            layer.enabled: overlayWindow.visible && annotationLayer.hasAnnotations
             cache: false
             asynchronous: false
         }

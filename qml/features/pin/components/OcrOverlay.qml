@@ -7,7 +7,7 @@ Item {
     id: root
 
     property Item targetImage
-    property string sourcePath
+    property url sourcePath
 
     property bool hasSelection: Object.keys(selectedIndices).length > 0
     property var selectedIndices: ({})
@@ -21,7 +21,7 @@ Item {
 
     function recognize() {
         if (sourcePath)
-            ocrController.recognizeImage(PathUtils.toLocalPath(sourcePath));
+            ocrController.recognizeImage(sourcePath);
     }
 
     function clearSelection() {

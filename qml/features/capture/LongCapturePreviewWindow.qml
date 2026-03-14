@@ -25,14 +25,17 @@ Window {
     property int selectionWidth: 0
     property int selectionX: 0
     property int selectionY: 0
+    property int sourceRevision: 0
     property bool showFull: false // Toggle between full view and latest view
-    readonly property string scrollSource: "image://minnow/scroll"
+    readonly property string scrollSourceBase: "image://minnow/scroll"
+    readonly property string scrollSource: scrollSourceBase + "?rev=" + sourceRevision
 
     function refresh(h) {
         if (h)
             currentHeight = h;
-        previewImg.source = "";
-        previewImg.source = scrollSource;
+        if (!root.visible)
+            return;
+        sourceRevision += 1;
     }
 
     color: "transparent"
@@ -84,9 +87,9 @@ Window {
             cache: false
             // Default to cropping (showing latest content) for better feedback during scroll
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
-            mipmap: true
+            mipmap: false
             smooth: true
-            source: root.scrollSource
+            source: root.visible ? root.scrollSource : ""
             sourceSize.width: parent.width * Screen.devicePixelRatio
             verticalAlignment: Image.AlignBottom
 

@@ -29,6 +29,13 @@ Item {
         compositorController.abort()
     }
 
+    function removePinnedWindow(win) {
+        let index = pinnedWindows.indexOf(win)
+        if (index > -1) {
+            pinnedWindows.splice(index, 1)
+        }
+    }
+
     function getPinWindowComponent() {
         if (!pinWindowComponent) {
             pinWindowComponent = Qt.createComponent("../pin/PinWindow.qml")
@@ -78,12 +85,23 @@ Item {
 
         pinnedWindows.push(win)
 
-        win.closing.connect(function () {
-            let index = pinnedWindows.indexOf(win)
-            if (index > -1) {
-                pinnedWindows.splice(index, 1)
-            }
-        })
+        if (win.closing && win.closing.connect) {
+            win.closing.connect(function () {
+                removePinnedWindow(win)
+            })
+        }
+        if (win.visibleChanged && win.visibleChanged.connect) {
+            win.visibleChanged.connect(function () {
+                if (!win.visible) {
+                    removePinnedWindow(win)
+                }
+            })
+        }
+        if (win.destroyed && win.destroyed.connect) {
+            win.destroyed.connect(function () {
+                removePinnedWindow(win)
+            })
+        }
 
         win.show()
     }
@@ -107,7 +125,7 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 height: overlayWindow ? overlayWindow.height : 0
                 horizontalAlignment: Image.AlignLeft
-                source: overlayWindow ? overlayWindow.backgroundImageSource : ""
+                source: (root.processing && overlayWindow) ? overlayWindow.backgroundImageSource : ""
                 verticalAlignment: Image.AlignTop
                 width: overlayWindow ? overlayWindow.width : 0
                 cache: false
@@ -175,7 +193,7 @@ Item {
         function onRequestSubmitComposited(path, action, rect) {
             if (screenCapture) {
                 screenCapture.submitCompositedCapture(
-                    path,
+                    PathUtils.toUrl(path),
                     action,
                     rect
                 )

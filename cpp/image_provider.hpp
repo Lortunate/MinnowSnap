@@ -30,7 +30,3 @@ public:
 inline void register_provider(QQmlApplicationEngine& engine) {
     engine.addImageProvider("minnow", new MinnowImageProvider());
 }
-
-inline QImage create_from_rgba(const unsigned char* data, int width, int height) {
-    return QImage(data, width, height, QImage::Format_RGBA8888).copy();
-}

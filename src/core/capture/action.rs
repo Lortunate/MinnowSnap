@@ -1,6 +1,5 @@
 use crate::core::capture::service::CaptureService;
 use crate::core::geometry::Rect;
-use crate::core::io::clipboard::copy_image_to_clipboard;
 use std::str::FromStr;
 use tracing::info;
 
@@ -86,15 +85,10 @@ impl CaptureAction {
     }
 
     fn handle_copy(ctx: ActionContext) -> ActionResult {
-        match CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode) {
-            Some(img) => {
-                if copy_image_to_clipboard(&img) {
-                    ActionResult::Copied
-                } else {
-                    ActionResult::Error("Failed to copy image to clipboard".to_string())
-                }
-            }
-            None => ActionResult::Error("Failed to process image for Copy".to_string()),
+        if CaptureService::copy_image(&ctx.path, ctx.rect, ctx.input_mode) {
+            ActionResult::Copied
+        } else {
+            ActionResult::Error("Failed to process image for Copy".to_string())
         }
     }
 

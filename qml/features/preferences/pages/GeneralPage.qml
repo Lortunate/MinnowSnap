@@ -15,8 +15,7 @@ Item {
         title: qsTr("Select Save Directory")
 
         onAccepted: {
-            var path = PathUtils.toLocalPath(folderDialog.folder.toString());
-            Config.updateSavePath(path);
+            Config.updateSavePath(folderDialog.folder);
         }
     }
 

@@ -14,6 +14,17 @@ Window {
     property alias autoOcr: controller.autoOcr
     property int shadowMargin: 20
     property var screenCapture: null
+    property bool resourcesReleased: false
+
+    function releaseGraphicsResources() {
+        if (resourcesReleased)
+            return;
+        resourcesReleased = true;
+        ocrOverlay.clearSelection();
+        controller.imagePath = "";
+        img.source = "";
+        shadowEffect.source = null;
+    }
 
     visible: true
     width: 300
@@ -43,12 +54,16 @@ Window {
     }
 
     Component.onDestruction: {
+        releaseGraphicsResources();
         if (pinWindow.screenCapture) {
             pinWindow.screenCapture.decrementPinCount();
         }
     }
 
-    onClosing: pinWindow.destroy()
+    onClosing: {
+        releaseGraphicsResources();
+        pinWindow.destroy();
+    }
 
     Connections {
         target: pinWindow.screenCapture
@@ -94,8 +109,9 @@ Window {
                 source: imageSource
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
-                mipmap: true
+                mipmap: false
                 smooth: true
+                cache: false
             }
         }
     }
