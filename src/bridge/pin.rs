@@ -1,5 +1,6 @@
+use crate::interop::qt_url_adapter;
 use cxx_qt::Threading;
-use cxx_qt_lib::QString;
+use cxx_qt_lib::QUrl;
 use std::pin::Pin;
 
 #[cxx_qt::bridge]
@@ -7,13 +8,15 @@ mod qobject {
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     #[auto_cxx_name]
     extern "RustQt" {
         #[qobject]
         #[qml_element]
-        #[qproperty(QString, image_path)]
+        #[qproperty(QUrl, image_path)]
         #[qproperty(bool, auto_ocr)]
         type PinController = super::PinControllerRust;
 
@@ -47,19 +50,18 @@ mod qobject {
 
 #[derive(Default)]
 pub struct PinControllerRust {
-    image_path: QString,
+    image_path: QUrl,
     auto_ocr: bool,
 }
 
 impl qobject::PinController {
     pub fn copy_image(self: Pin<&mut Self>) {
-        let path = self.image_path().to_string();
-        let clean_path = crate::core::io::storage::clean_url_path(&path);
+        let resolved_path = qt_url_adapter::qurl_to_local_or_uri(self.image_path());
         crate::spawn_qt_task!(
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext::full_image(clean_path))
+                    crate::core::capture::action::CaptureAction::Copy.execute(crate::core::capture::action::ActionContext::full_image(resolved_path))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)
@@ -73,13 +75,12 @@ impl qobject::PinController {
     }
 
     pub fn save_image(self: Pin<&mut Self>) {
-        let path = self.image_path().to_string();
-        let clean_path = crate::core::io::storage::clean_url_path(&path);
+        let resolved_path = qt_url_adapter::qurl_to_local_or_uri(self.image_path());
         crate::spawn_qt_task!(
             self,
             async move {
                 tokio::task::spawn_blocking(move || {
-                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext::full_image(clean_path))
+                    crate::core::capture::action::CaptureAction::Save.execute(crate::core::capture::action::ActionContext::full_image(resolved_path))
                 })
                 .await
                 .unwrap_or(crate::core::capture::action::ActionResult::NoOp)

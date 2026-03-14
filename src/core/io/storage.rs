@@ -16,14 +16,6 @@ pub fn get_default_save_path() -> String {
     String::new()
 }
 
-pub fn clean_url_path(path: &str) -> String {
-    let mut clean_path = path.strip_prefix("file://").unwrap_or(path).to_string();
-    if cfg!(target_os = "windows") && clean_path.starts_with('/') {
-        clean_path.remove(0);
-    }
-    clean_path
-}
-
 #[must_use]
 pub fn save_image_to_temp(image: &RgbaImage, compress: bool) -> Option<String> {
     let mut path = std::env::temp_dir();

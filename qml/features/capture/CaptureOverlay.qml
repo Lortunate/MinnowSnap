@@ -15,7 +15,7 @@ Window {
     readonly property int infoTooltipSpacing: 8
     readonly property int resolutionTooltipSpacing: 8
 
-    property string backgroundImageSource: sessionController.backgroundImageSource
+    property url backgroundImageSource: sessionController.backgroundImageSource
     property alias currentSelection: controller.selectionRect
     readonly property rect activeRect: {
         if (isLockedState || controller.state === states.dragging) {
@@ -44,7 +44,7 @@ Window {
 
     function canRunPostSessionCleanup() {
         return !overlayWindow.visible
-            && sessionController.backgroundImageSource === ""
+            && sessionController.backgroundImageSource.toString() === ""
             && !processing
             && (!screenCapture || !screenCapture.isCapturing)
     }

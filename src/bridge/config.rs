@@ -1,7 +1,8 @@
 use crate::core::io::fonts::get_system_fonts;
-use crate::core::io::storage::{clean_url_path, get_default_save_path};
+use crate::core::io::storage::get_default_save_path;
 use crate::core::settings::SETTINGS;
-use cxx_qt_lib::{QString, QStringList};
+use crate::interop::qt_url_adapter;
+use cxx_qt_lib::{QString, QStringList, QUrl};
 use std::pin::Pin;
 
 macro_rules! update_prop {
@@ -29,6 +30,8 @@ pub mod qobject {
         type QString = cxx_qt_lib::QString;
         include!("cxx-qt-lib/qstringlist.h");
         type QStringList = cxx_qt_lib::QStringList;
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     #[auto_cxx_name]
@@ -89,7 +92,7 @@ pub mod qobject {
         fn update_shutter_sound(self: Pin<&mut Self>, enabled: bool);
 
         #[qinvokable]
-        fn update_save_path(self: Pin<&mut Self>, path: QString);
+        fn update_save_path(self: Pin<&mut Self>, path: QUrl);
 
         #[qinvokable]
         fn update_font_family(self: Pin<&mut Self>, family: QString);
@@ -241,16 +244,15 @@ impl qobject::Config {
         update_prop!(self, enabled, shutter_sound, set_shutter_sound, set_shutter_sound, bool);
     }
 
-    pub fn update_save_path(mut self: Pin<&mut Self>, path: QString) {
-        let path_str = path.to_string();
-        let clean_path = clean_url_path(&path_str);
+    pub fn update_save_path(mut self: Pin<&mut Self>, path: QUrl) {
+        let resolved_path = qt_url_adapter::qurl_to_local_or_uri(&path);
 
-        if self.save_path().to_string() == clean_path {
+        if self.save_path().to_string() == resolved_path {
             return;
         }
 
-        self.as_mut().set_save_path(QString::from(&clean_path));
-        SETTINGS.lock().unwrap().set_save_path(clean_path);
+        self.as_mut().set_save_path(QString::from(&resolved_path));
+        SETTINGS.lock().unwrap().set_save_path(resolved_path);
     }
 
     pub fn update_font_family(mut self: Pin<&mut Self>, family: QString) {

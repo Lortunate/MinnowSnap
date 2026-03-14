@@ -175,7 +175,7 @@ Item {
         function onRequestSubmitComposited(path, action, rect) {
             if (screenCapture) {
                 screenCapture.submitCompositedCapture(
-                    path,
+                    PathUtils.toUrl(path),
                     action,
                     rect
                 )

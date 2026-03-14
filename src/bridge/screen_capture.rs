@@ -23,6 +23,8 @@ pub mod qobject {
         type QRectF = cxx_qt_lib::QRectF;
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     #[auto_cxx_name]
@@ -79,7 +81,7 @@ pub mod qobject {
         fn decrement_pin_count(self: Pin<&mut Self>);
 
         #[qinvokable]
-        fn request_action(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF, has_annotations: bool);
+        fn request_action(self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF, has_annotations: bool);
 
         #[qinvokable]
         fn request_scroll_action(self: Pin<&mut Self>, action: i32);
@@ -88,10 +90,10 @@ pub mod qobject {
         fn cancel_scroll_capture(self: Pin<&mut Self>);
 
         #[qinvokable]
-        fn submit_capture(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF);
+        fn submit_capture(self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF);
 
         #[qinvokable]
-        fn submit_composited_capture(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF);
+        fn submit_composited_capture(self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF);
 
         #[qinvokable]
         fn release_capture_buffers(self: Pin<&mut Self>);
@@ -154,8 +156,9 @@ use crate::core::geometry::Rect;
 use crate::core::hotkey::HotkeyManager;
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use crate::interop::qt_rect_adapter::{CaptureRequestRect, SelectionRect, rect_to_qrect};
+use crate::interop::qt_url_adapter;
 use cxx_qt::{CxxQtType, Threading};
-use cxx_qt_lib::{QRectF, QString};
+use cxx_qt_lib::{QRectF, QString, QUrl};
 use image::RgbaImage;
 use std::pin::Pin;
 use std::sync::{
@@ -259,10 +262,9 @@ impl ScrollObserver for QtScrollObserver {
                     qobject.as_mut().scroll_capture_finished(QString::from(&path));
 
                     if let Some(action_enum) = action {
-                        let path_clean = crate::core::io::storage::clean_url_path(&path);
                         qobject
                             .as_mut()
-                            .process_action(action_enum, path_clean, Rect::empty(), CaptureInputMode::FullImage);
+                            .process_action(action_enum, path, Rect::empty(), CaptureInputMode::FullImage);
                     }
                 });
             }
@@ -444,7 +446,7 @@ impl qobject::ScreenCapture {
         }
     }
 
-    pub fn request_action(self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF, has_annotations: bool) {
+    pub fn request_action(self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF, has_annotations: bool) {
         let selection = SelectionRect::from_qrect(&selection_rect);
         let rect = selection.rect();
         let Some(action_enum) = capture_action_from_code(action) else {
@@ -470,12 +472,12 @@ impl qobject::ScreenCapture {
         }
     }
 
-    pub fn submit_capture(mut self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF) {
+    pub fn submit_capture(mut self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF) {
         let rect = SelectionRect::from_qrect(&selection_rect).rect();
         self.as_mut().submit_capture_internal(path, action, rect, CaptureInputMode::CropSelection);
     }
 
-    pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QString, action: i32, selection_rect: QRectF) {
+    pub fn submit_composited_capture(mut self: Pin<&mut Self>, path: QUrl, action: i32, selection_rect: QRectF) {
         let rect = SelectionRect::from_qrect(&selection_rect).rect();
         self.as_mut().submit_capture_internal(path, action, rect, CaptureInputMode::FullImage);
     }
@@ -494,7 +496,7 @@ impl qobject::ScreenCapture {
         crate::core::RUNTIME.spawn_blocking(collect_process_memory);
     }
 
-    fn submit_capture_internal(mut self: Pin<&mut Self>, path: QString, action: i32, rect: Rect, input_mode: CaptureInputMode) {
+    fn submit_capture_internal(mut self: Pin<&mut Self>, path: QUrl, action: i32, rect: Rect, input_mode: CaptureInputMode) {
         let Some(action_enum) = capture_action_from_code(action) else {
             self.as_mut().action_finished();
             return;
@@ -577,14 +579,14 @@ impl qobject::ScreenCapture {
 }
 
 impl ScreenCaptureRust {
-    fn resolve_path(&self, path: &QString) -> String {
-        let mut path_str = path.to_string();
+    fn resolve_path(&self, path: &QUrl) -> String {
+        let mut path_str = qt_url_adapter::qurl_to_local_or_uri(path);
         if (path_str.is_empty() || datasource::parse_virtual_source(&path_str).is_some())
             && let Some(last) = self.last_scroll_path.as_deref()
         {
             path_str = last.to_string();
         }
 
-        crate::core::io::storage::clean_url_path(&path_str)
+        path_str
     }
 }
