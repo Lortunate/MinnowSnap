@@ -29,6 +29,13 @@ Item {
         compositorController.abort()
     }
 
+    function removePinnedWindow(win) {
+        let index = pinnedWindows.indexOf(win)
+        if (index > -1) {
+            pinnedWindows.splice(index, 1)
+        }
+    }
+
     function getPinWindowComponent() {
         if (!pinWindowComponent) {
             pinWindowComponent = Qt.createComponent("../pin/PinWindow.qml")
@@ -79,10 +86,10 @@ Item {
         pinnedWindows.push(win)
 
         win.closing.connect(function () {
-            let index = pinnedWindows.indexOf(win)
-            if (index > -1) {
-                pinnedWindows.splice(index, 1)
-            }
+            removePinnedWindow(win)
+        })
+        win.destroyed.connect(function () {
+            removePinnedWindow(win)
         })
 
         win.show()
