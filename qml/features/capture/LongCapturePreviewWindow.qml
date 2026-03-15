@@ -5,37 +5,33 @@ import com.lortunate.minnow
 Window {
     id: root
 
-    // Calculate expected height to fit the image aspect ratio
-    // currentHeight is physical px. selectionWidth is logical px.
     readonly property real contentHeight: {
-        if (selectionWidth <= 0)
-            return 150;
-        let scale = Screen.devicePixelRatio || 2; // Default to 2 if unsure, safe bet
-        let imgPhysicalW = selectionWidth * scale;
+        if (selectionRect.width <= 0)
+            return 150
+        let scale = viewportScale > 0 ? viewportScale : 1
+        let imgPhysicalW = selectionRect.width * scale
         if (imgPhysicalW <= 0)
-            return 150;
+            return 150
 
-        let viewW = width;
-        let ratio = viewW / imgPhysicalW;
-        let h = currentHeight * ratio;
-        return Math.max(100, h);
+        let ratio = width / imgPhysicalW
+        let h = currentHeight * ratio
+        return Math.max(100, h)
     }
     property int currentHeight: 0
-    property int selectionHeight: 0
-    property int selectionWidth: 0
-    property int selectionX: 0
-    property int selectionY: 0
+    property rect selectionRect: Qt.rect(0, 0, 0, 0)
+    property rect viewportRect: Qt.rect(0, 0, 0, 0)
+    property real viewportScale: 1.0
     property int sourceRevision: 0
-    property bool showFull: false // Toggle between full view and latest view
+    property bool showFull: false
     readonly property string scrollSourceBase: "image://minnow/scroll"
     readonly property string scrollSource: scrollSourceBase + "?rev=" + sourceRevision
 
     function refresh(h) {
         if (h)
-            currentHeight = h;
+            currentHeight = h
         if (!root.visible)
-            return;
-        sourceRevision += 1;
+            return
+        sourceRevision += 1
     }
 
     color: "transparent"
@@ -44,16 +40,16 @@ Window {
 
     width: 300
 
-    // Position logic: Keep it to the side.
     x: {
-        let rightSpace = Screen.width - (selectionX + selectionWidth);
-        if (rightSpace > width + 20)
-            return selectionX + selectionWidth + 20;
-        return selectionX - width - 20;
+        let rightSpace = viewportRect.width - (selectionRect.x + selectionRect.width)
+        let preferred = rightSpace > width + 20 ? (selectionRect.x + selectionRect.width + 20) : (selectionRect.x - width - 20)
+        let minX = 20
+        let maxX = Math.max(minX, viewportRect.width - width - 20)
+        let localX = Math.max(minX, Math.min(maxX, preferred))
+        return viewportRect.x + localX
     }
-    y: Math.max(Math.min(selectionY, Screen.height - height - 20), 20)
+    y: viewportRect.y + Math.max(Math.min(selectionRect.y, viewportRect.height - height - 20), 20)
 
-    // Shadow for depth
     Rectangle {
         color: AppTheme.shadowMedium
         height: parent.height
@@ -70,7 +66,6 @@ Window {
         color: AppTheme.surface
         radius: AppTheme.radiusLarge
 
-        // Interaction Area (Drag & Click)
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
@@ -85,12 +80,11 @@ Window {
 
             anchors.fill: parent
             cache: false
-            // Default to cropping (showing latest content) for better feedback during scroll
             fillMode: root.showFull ? Image.PreserveAspectFit : Image.PreserveAspectCrop
             mipmap: false
             smooth: true
             source: root.visible ? root.scrollSource : ""
-            sourceSize.width: parent.width * Screen.devicePixelRatio
+            sourceSize.width: parent.width * (viewportScale > 0 ? viewportScale : 1)
             verticalAlignment: Image.AlignBottom
 
             Item {
@@ -134,7 +128,6 @@ Window {
             }
         }
 
-        // Minimal Floating Badge
         Rectangle {
             anchors.bottom: parent.bottom
             anchors.margins: 8
@@ -143,7 +136,6 @@ Window {
             height: 24
             opacity: 0.9
 
-            // Add shadow to badge too
             layer.enabled: true
             radius: 12
             visible: root.currentHeight > 0

@@ -14,34 +14,50 @@ Item {
         id: controller
     }
 
+    function resolveViewport() {
+        let rect = Qt.rect(0, 0, 0, 0)
+        let scale = 1.0
+        if (screenCapture) {
+            rect = screenCapture.captureScreenRect
+            scale = screenCapture.captureScreenScale > 0 ? screenCapture.captureScreenScale : 1.0
+        }
+        if (rect.width <= 0 || rect.height <= 0) {
+            let screens = Qt.application.screens
+            if (screens && screens.length > 0) {
+                let s = screens[0]
+                rect = Qt.rect(s.virtualX, s.virtualY, s.width, s.height)
+                scale = s.devicePixelRatio > 0 ? s.devicePixelRatio : 1.0
+            }
+        }
+        return {
+            rect: rect,
+            scale: scale
+        }
+    }
+
     resources: [
         LongCaptureFrame {
             id: scrollFrame
             visible: controller.frameVisible
-            selectionX: controller.selectionRect.x
-            selectionY: controller.selectionRect.y
-            selectionWidth: controller.selectionRect.width
-            selectionHeight: controller.selectionRect.height
+            selectionRect: controller.selectionRect
+            viewportRect: controller.viewportRect
             warningText: controller.warningText
         },
         LongCaptureToolbarWindow {
             id: scrollToolbar
             visible: controller.toolbarVisible
             isBusy: controller.toolbarBusy
-            selectionX: controller.selectionRect.x
-            selectionY: controller.selectionRect.y
-            selectionWidth: controller.selectionRect.width
-            selectionHeight: controller.selectionRect.height
+            selectionRect: controller.selectionRect
+            viewportRect: controller.viewportRect
 
             onActionClicked: action => controller.handleToolbarAction(action)
         },
         LongCapturePreviewWindow {
             id: scrollPreview
             visible: controller.previewVisible
-            selectionX: controller.selectionRect.x
-            selectionY: controller.selectionRect.y
-            selectionWidth: controller.selectionRect.width
-            selectionHeight: controller.selectionRect.height
+            selectionRect: controller.selectionRect
+            viewportRect: controller.viewportRect
+            viewportScale: controller.viewportScale
         }
     ]
 
@@ -79,7 +95,8 @@ Item {
         target: screenCapture
 
         function onScrollCaptureStarted(selectionRect) {
-            controller.start(selectionRect)
+            const viewport = resolveViewport()
+            controller.start(selectionRect, viewport.rect, viewport.scale)
         }
 
         function onCaptureReady() {

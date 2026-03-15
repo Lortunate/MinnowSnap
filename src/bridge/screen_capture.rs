@@ -34,6 +34,7 @@ pub mod qobject {
         #[qproperty(bool, is_capturing)]
         #[qproperty(i32, pin_count)]
         #[qproperty(QRectF, capture_screen_rect)]
+        #[qproperty(f64, capture_screen_scale)]
         type ScreenCapture = super::ScreenCaptureRust;
 
         #[qinvokable]
@@ -214,6 +215,7 @@ pub struct ScreenCaptureRust {
     is_capturing: bool,
     pin_count: i32,
     capture_screen_rect: QRectF,
+    capture_screen_scale: f64,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
     pending_scroll_action: Option<CaptureAction>,
@@ -226,6 +228,7 @@ impl Default for ScreenCaptureRust {
             is_capturing: false,
             pin_count: 0,
             capture_screen_rect: QRectF::default(),
+            capture_screen_scale: 1.0,
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
             last_scroll_path: None,
             pending_scroll_action: None,
@@ -603,13 +606,14 @@ impl qobject::ScreenCapture {
     }
 
     fn apply_capture_target(mut self: Pin<&mut Self>, target: Option<crate::core::capture::CaptureMonitorTarget>) {
-        let rect = if let Some(target) = target {
+        let (rect, scale) = if let Some(target) = target {
             let (x, y, width, height) = target.logical_geometry();
-            QRectF::new(x, y, width, height)
+            (QRectF::new(x, y, width, height), f64::from(target.effective_scale()))
         } else {
-            QRectF::default()
+            (QRectF::default(), 1.0)
         };
         self.as_mut().set_capture_screen_rect(rect);
+        self.as_mut().set_capture_screen_scale(scale);
     }
 }
 
