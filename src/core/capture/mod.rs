@@ -99,9 +99,9 @@ pub fn update_last_capture(image: RgbaImage) {
 
 #[must_use]
 pub fn active_monitor_scale() -> f32 {
-    active_monitor_target()
-        .map(CaptureMonitorTarget::effective_scale)
-        .or_else(|| active_monitor().and_then(|monitor| monitor.scale_factor().ok()))
+    active_monitor()
+        .and_then(|m| m.scale_factor().ok())
+        .or_else(|| active_monitor_target().map(|t| t.effective_scale()))
         .unwrap_or(1.0)
 }
 
@@ -230,10 +230,11 @@ fn monitor_for_target(target: CaptureMonitorTarget) -> Option<Monitor> {
 }
 
 fn resolve_active_monitor() -> Option<Monitor> {
-    if let Some(target) = active_monitor_target()
-        && let Some(monitor) = monitor_for_target(target)
-    {
-        return Some(monitor);
+    if let Some(target) = active_monitor_target() {
+        if let Some(monitor) = monitor_for_target(target) {
+            return Some(monitor);
+        }
+        set_active_monitor_target(None);
     }
     Monitor::all().ok()?.into_iter().next()
 }
