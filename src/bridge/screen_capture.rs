@@ -439,7 +439,7 @@ impl qobject::ScreenCapture {
         let effective_scale = target
             .map(|target| f64::from(target.effective_scale()))
             .filter(|scale| *scale > 0.0)
-            .unwrap_or_else(|| if scale > 0.0 { scale } else { 1.0 });
+            .unwrap_or(if scale > 0.0 { scale } else { 1.0 });
         let (sx, sy) = if cfg!(target_os = "macos") {
             (global_x, global_y)
         } else {

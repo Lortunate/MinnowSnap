@@ -8,7 +8,7 @@ use crate::core::capture::datasource::VirtualCaptureSource;
 use crate::core::geometry::Rect;
 use image::RgbaImage;
 use std::sync::{Arc, LazyLock, Mutex};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use xcap::Monitor;
 
 pub static LAST_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
@@ -189,6 +189,21 @@ fn monitor_target_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
 #[must_use]
 pub fn activate_monitor_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
     let target = monitor_target_at_point(x, y).or_else(primary_monitor_target);
+    if let Some(target) = target {
+        info!(
+            "Capture monitor selected: cursor=({},{}), id={}, scale={}, rect=({},{} {}x{})",
+            x,
+            y,
+            target.id,
+            target.effective_scale(),
+            target.x,
+            target.y,
+            target.width,
+            target.height
+        );
+    } else {
+        error!("Capture monitor selection failed: cursor=({},{})", x, y);
+    }
     set_active_monitor_target(target);
     target
 }
@@ -211,10 +226,7 @@ fn monitor_for_target(target: CaptureMonitorTarget) -> Option<Monitor> {
         return Some(monitor);
     }
 
-    Monitor::all()
-        .ok()?
-        .into_iter()
-        .find(|monitor| monitor_matches_target(monitor, target))
+    Monitor::all().ok()?.into_iter().find(|monitor| monitor_matches_target(monitor, target))
 }
 
 fn resolve_active_monitor() -> Option<Monitor> {

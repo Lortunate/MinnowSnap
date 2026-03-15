@@ -2,6 +2,7 @@ use crate::bridge::screen_capture::is_cancel_action;
 use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt_lib::{QRectF, QString};
 use std::pin::Pin;
+use tracing::info;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -82,6 +83,18 @@ pub struct LongCaptureControllerRust {
 impl qobject::LongCaptureController {
     pub fn start(mut self: Pin<&mut Self>, selection_rect: QRectF, viewport_rect: QRectF, viewport_scale: f64) {
         let selection = SelectionRect::from_qrect(&selection_rect);
+        info!(
+            "Long capture start: viewport=({},{} {}x{}, scale={}), selection=({},{} {}x{})",
+            viewport_rect.x(),
+            viewport_rect.y(),
+            viewport_rect.width(),
+            viewport_rect.height(),
+            viewport_scale,
+            selection_rect.x(),
+            selection_rect.y(),
+            selection_rect.width(),
+            selection_rect.height()
+        );
         self.as_mut().set_selection_rect(selection.to_qrect());
         self.as_mut().set_viewport_rect(viewport_rect);
         self.as_mut().set_viewport_scale(if viewport_scale > 0.0 { viewport_scale } else { 1.0 });
