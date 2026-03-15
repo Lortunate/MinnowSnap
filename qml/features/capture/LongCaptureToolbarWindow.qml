@@ -9,33 +9,28 @@ Window {
 
     property string busyText: qsTr("Processing...")
     property bool isBusy: false
-    property int selectionHeight: 0
-    property int selectionWidth: 0
-    property int selectionX: 0
-    property int selectionY: 0
+    property rect selectionRect: Qt.rect(0, 0, 0, 0)
+    property rect viewportRect: Qt.rect(0, 0, 0, 0)
 
     signal actionClicked(int action)
 
     color: "transparent"
 
-    // Interactable window
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
     height: isBusy ? busyRect.height : toolbar.height
-
-    // Size logic
     width: isBusy ? busyRect.width : toolbar.width
 
-    // Position logic
     x: {
-        let desiredX = selectionX + selectionWidth - width;
-        let sW = Screen.width;
-        return Math.max(10, Math.min(sW - width - 10, desiredX));
+        let desiredX = selectionRect.x + selectionRect.width - width
+        let maxX = Math.max(10, viewportRect.width - width - 10)
+        let localX = Math.max(10, Math.min(maxX, desiredX))
+        return viewportRect.x + localX
     }
     y: {
-        let desiredY = selectionY + selectionHeight + 8;
-        let topY = selectionY - height - 8;
-        let sH = Screen.height;
-        return (desiredY + height <= sH) ? desiredY : (topY >= 0 ? topY : 40);
+        let desiredY = selectionRect.y + selectionRect.height + 8
+        let topY = selectionRect.y - height - 8
+        let localY = (desiredY + height <= viewportRect.height) ? desiredY : (topY >= 0 ? topY : 40)
+        return viewportRect.y + localY
     }
 
     SelectionToolbar {

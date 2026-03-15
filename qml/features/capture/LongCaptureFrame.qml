@@ -8,10 +8,8 @@ Window {
     readonly property color maskColor: AppTheme.overlayMask
 
     readonly property int padding: 4
-    property int selectionHeight: 0
-    property int selectionWidth: 0
-    property int selectionX: 0
-    property int selectionY: 0
+    property rect selectionRect: Qt.rect(0, 0, 0, 0)
+    property rect viewportRect: Qt.rect(0, 0, 0, 0)
     property string warningText: ""
 
     function flashSuccess() {
@@ -21,39 +19,39 @@ Window {
     color: "transparent"
 
     flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput | Qt.Tool
-    height: Screen.height
-    width: Screen.width
+    height: viewportRect.height
+    width: viewportRect.width
 
-    x: Screen.virtualX
-    y: Screen.virtualY
+    x: viewportRect.x
+    y: viewportRect.y
 
     Rectangle {
         color: maskColor
-        height: selectionY - padding
+        height: selectionRect.y - padding
         width: parent.width
         x: 0
         y: 0
     }
     Rectangle {
         color: maskColor
-        height: parent.height - (selectionY + selectionHeight + padding)
+        height: parent.height - (selectionRect.y + selectionRect.height + padding)
         width: parent.width
         x: 0
-        y: selectionY + selectionHeight + padding
+        y: selectionRect.y + selectionRect.height + padding
     }
     Rectangle {
         color: maskColor
-        height: selectionHeight + (padding * 2)
-        width: selectionX - padding
+        height: selectionRect.height + (padding * 2)
+        width: selectionRect.x - padding
         x: 0
-        y: selectionY - padding
+        y: selectionRect.y - padding
     }
     Rectangle {
         color: maskColor
-        height: selectionHeight + (padding * 2)
-        width: parent.width - (selectionX + selectionWidth + padding)
-        x: selectionX + selectionWidth + padding
-        y: selectionY - padding
+        height: selectionRect.height + (padding * 2)
+        width: parent.width - (selectionRect.x + selectionRect.width + padding)
+        x: selectionRect.x + selectionRect.width + padding
+        y: selectionRect.y - padding
     }
 
     Rectangle {
@@ -64,10 +62,10 @@ Window {
         border.color: warningText !== "" ? AppTheme.danger : (successFlash.opacity > 0 ? AppTheme.success : pulsedColor)
         border.width: warningText !== "" ? 3 : 2
         color: "transparent"
-        height: selectionHeight + (padding * 2)
-        width: selectionWidth + (padding * 2)
-        x: selectionX - padding
-        y: selectionY - padding
+        height: selectionRect.height + (padding * 2)
+        width: selectionRect.width + (padding * 2)
+        x: selectionRect.x - padding
+        y: selectionRect.y - padding
 
         SequentialAnimation on pulsedColor {
             loops: Animation.Infinite

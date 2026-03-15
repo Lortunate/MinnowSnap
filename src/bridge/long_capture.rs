@@ -2,6 +2,7 @@ use crate::bridge::screen_capture::is_cancel_action;
 use crate::interop::qt_rect_adapter::SelectionRect;
 use cxx_qt_lib::{QRectF, QString};
 use std::pin::Pin;
+use tracing::info;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -22,10 +23,12 @@ pub mod qobject {
         #[qproperty(bool, toolbar_busy)]
         #[qproperty(QString, warning_text)]
         #[qproperty(QRectF, selection_rect)]
+        #[qproperty(QRectF, viewport_rect)]
+        #[qproperty(f64, viewport_scale)]
         type LongCaptureController = super::LongCaptureControllerRust;
 
         #[qinvokable]
-        fn start(self: Pin<&mut Self>, selection_rect: QRectF);
+        fn start(self: Pin<&mut Self>, selection_rect: QRectF, viewport_rect: QRectF, viewport_scale: f64);
 
         #[qinvokable]
         fn finish(self: Pin<&mut Self>);
@@ -73,35 +76,42 @@ pub struct LongCaptureControllerRust {
     toolbar_busy: bool,
     warning_text: QString,
     selection_rect: QRectF,
+    viewport_rect: QRectF,
+    viewport_scale: f64,
 }
 
 impl qobject::LongCaptureController {
-    pub fn start(mut self: Pin<&mut Self>, selection_rect: QRectF) {
+    pub fn start(mut self: Pin<&mut Self>, selection_rect: QRectF, viewport_rect: QRectF, viewport_scale: f64) {
         let selection = SelectionRect::from_qrect(&selection_rect);
+        info!(
+            "Long capture start: viewport=({},{} {}x{}, scale={}), selection=({},{} {}x{})",
+            viewport_rect.x(),
+            viewport_rect.y(),
+            viewport_rect.width(),
+            viewport_rect.height(),
+            viewport_scale,
+            selection_rect.x(),
+            selection_rect.y(),
+            selection_rect.width(),
+            selection_rect.height()
+        );
         self.as_mut().set_selection_rect(selection.to_qrect());
-        self.as_mut().set_frame_visible(true);
-        self.as_mut().set_toolbar_visible(true);
-        self.as_mut().set_preview_visible(true);
+        self.as_mut().set_viewport_rect(viewport_rect);
+        self.as_mut().set_viewport_scale(if viewport_scale > 0.0 { viewport_scale } else { 1.0 });
+        self.as_mut().set_visibility(true, true, true);
         self.as_mut().set_toolbar_busy(false);
         self.as_mut().set_warning_text(QString::default());
         self.as_mut().request_hide_overlay();
     }
 
     pub fn finish(mut self: Pin<&mut Self>) {
-        self.as_mut().set_toolbar_busy(false);
-        self.as_mut().set_frame_visible(false);
-        self.as_mut().set_toolbar_visible(false);
-        self.as_mut().set_preview_visible(false);
-        self.as_mut().set_warning_text(QString::default());
+        self.as_mut().reset_visibility_state();
         self.as_mut().request_reset_overlay();
     }
 
     pub fn handle_toolbar_action(mut self: Pin<&mut Self>, action: i32) {
         if is_cancel_action(action) {
-            self.as_mut().set_toolbar_busy(false);
-            self.as_mut().set_frame_visible(false);
-            self.as_mut().set_toolbar_visible(false);
-            self.as_mut().set_preview_visible(false);
+            self.as_mut().reset_visibility_state();
             self.as_mut().request_cancel_scroll_capture();
             self.as_mut().request_reset_overlay();
             return;
@@ -130,5 +140,19 @@ impl qobject::LongCaptureController {
 
     pub fn on_scroll_capture_warning(mut self: Pin<&mut Self>, message: QString) {
         self.as_mut().set_warning_text(message);
+    }
+
+    fn set_visibility(mut self: Pin<&mut Self>, frame: bool, toolbar: bool, preview: bool) {
+        self.as_mut().set_frame_visible(frame);
+        self.as_mut().set_toolbar_visible(toolbar);
+        self.as_mut().set_preview_visible(preview);
+    }
+
+    fn reset_visibility_state(mut self: Pin<&mut Self>) {
+        self.as_mut().set_toolbar_busy(false);
+        self.as_mut().set_visibility(false, false, false);
+        self.as_mut().set_warning_text(QString::default());
+        self.as_mut().set_viewport_rect(QRectF::default());
+        self.as_mut().set_viewport_scale(1.0);
     }
 }

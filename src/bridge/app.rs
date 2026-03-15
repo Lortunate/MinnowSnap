@@ -10,6 +10,8 @@ mod ffi {
         unsafe fn set_window_icon();
         unsafe fn install_translator(locale: &str);
         unsafe fn retranslate_all();
+        unsafe fn cursor_x() -> i32;
+        unsafe fn cursor_y() -> i32;
         fn translate(context: &str, source_text: &str) -> QString;
     }
 }
@@ -36,4 +38,8 @@ pub fn retranslate() {
 
 pub fn tr(context: &str, source_text: &str) -> cxx_qt_lib::QString {
     ffi::translate(context, source_text)
+}
+
+pub fn cursor_position() -> (i32, i32) {
+    unsafe { (ffi::cursor_x(), ffi::cursor_y()) }
 }

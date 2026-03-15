@@ -10,6 +10,7 @@
 #include <QtQml>
 #include <QIcon>
 #include <QWindow>
+#include <QCursor>
 #include <string>
 #include "rust/cxx.h"
 
@@ -31,6 +32,14 @@ inline QString translate(rust::Str context, rust::Str sourceText) {
     return QCoreApplication::translate(
         std::string(context.data(), context.size()).c_str(),
         std::string(sourceText.data(), sourceText.size()).c_str());
+}
+
+inline int cursor_x() {
+    return QCursor::pos().x();
+}
+
+inline int cursor_y() {
+    return QCursor::pos().y();
 }
 
 inline void install_translator(rust::Str localeName) {

@@ -1,5 +1,5 @@
 use crate::core::capture::stitcher::{ScrollStitcher, StitchResult};
-use crate::core::capture::{get_primary_monitor, get_primary_monitor_scale, perform_crop};
+use crate::core::capture::{active_monitor, active_monitor_scale, perform_crop};
 use crate::core::geometry::Rect;
 use image::RgbaImage;
 use std::sync::Arc;
@@ -15,15 +15,15 @@ pub trait ScrollObserver: Send + 'static {
 }
 
 pub fn start_scroll_capture_thread(rect: Rect, active_flag: Arc<AtomicBool>, observer: Box<dyn ScrollObserver>) {
-    let scale_factor = get_primary_monitor_scale();
+    let scale_factor = active_monitor_scale();
 
     crate::core::RUNTIME.spawn_blocking(move || {
         info!("Scroll capture thread started");
         // Small delay to let UI hide if needed
         thread::sleep(Duration::from_millis(250));
 
-        let Some(monitor) = get_primary_monitor() else {
-            error!("No primary monitor found for scroll capture");
+        let Some(monitor) = active_monitor() else {
+            error!("No active monitor found for scroll capture");
             observer.on_finished(None);
             return;
         };

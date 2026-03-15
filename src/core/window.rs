@@ -20,20 +20,31 @@ pub struct WindowInfo {
 pub fn fetch_windows_data() -> Vec<WindowInfo> {
     let windows = Window::all().unwrap_or_default();
     let monitors = Monitor::all().unwrap_or_default();
-    let scale_factor = monitors.first().and_then(|m| m.scale_factor().ok()).unwrap_or(1.0);
+    let active_target = crate::core::capture::active_monitor_target();
+    let scale_factor = active_target
+        .map(|target| target.effective_scale())
+        .or_else(|| monitors.first().and_then(|m| m.scale_factor().ok()))
+        .filter(|scale| *scale > 0.0)
+        .unwrap_or(1.0);
     info!(
         "Fetching window data, total windows found: {}, scale_factor: {}",
         windows.len(),
         scale_factor
     );
 
-    let screen_rect = if monitors.is_empty() {
-        Rect {
-            x: 0,
-            y: 0,
-            width: 10000,
-            height: 10000,
-        }
+    let (screen_rect, offset_x, offset_y) = if let Some(target) = active_target {
+        (target.rect(), target.x, target.y)
+    } else if monitors.is_empty() {
+        (
+            Rect {
+                x: 0,
+                y: 0,
+                width: 10000,
+                height: 10000,
+            },
+            0,
+            0,
+        )
     } else {
         let (min_x, min_y, max_x, max_y) = monitors
             .iter()
@@ -45,12 +56,16 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
                 (min_x.min(x), min_y.min(y), max_x.max(x + w), max_y.max(y + h))
             });
 
-        Rect {
-            x: min_x,
-            y: min_y,
-            width: (max_x - min_x).max(MIN_VIRTUAL_WIDTH),
-            height: (max_y - min_y).max(MIN_VIRTUAL_HEIGHT),
-        }
+        (
+            Rect {
+                x: min_x,
+                y: min_y,
+                width: (max_x - min_x).max(MIN_VIRTUAL_WIDTH),
+                height: (max_y - min_y).max(MIN_VIRTUAL_HEIGHT),
+            },
+            0,
+            0,
+        )
     };
 
     let mut visible_rects: Vec<Rect> = Vec::with_capacity(windows.len());
@@ -81,15 +96,20 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
 
             let app_name = window.app_name().unwrap_or_else(|_| "Unknown".to_string());
             if !SYSTEM_OVERLAYS.contains(&app_name.as_str()) {
-                visible_rects.push(current_rect);
+                visible_rects.push(valid_rect);
             }
+
+            let logical_x = ((valid_rect.x - offset_x) as f32 / scale_factor) as i32;
+            let logical_y = ((valid_rect.y - offset_y) as f32 / scale_factor) as i32;
+            let logical_w = (valid_rect.width as f32 / scale_factor).max(1.0) as u32;
+            let logical_h = (valid_rect.height as f32 / scale_factor).max(1.0) as u32;
 
             Some(WindowInfo {
                 title: window.title().unwrap_or_else(|_| "Unknown".to_string()),
-                x: (x as f32 / scale_factor) as i32,
-                y: (y as f32 / scale_factor) as i32,
-                width: (w as f32 / scale_factor) as u32,
-                height: (h as f32 / scale_factor) as u32,
+                x: logical_x,
+                y: logical_y,
+                width: logical_w,
+                height: logical_h,
                 app_name,
             })
         })

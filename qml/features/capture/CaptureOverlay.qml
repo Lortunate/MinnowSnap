@@ -78,6 +78,20 @@ Window {
         })
     }
 
+    function syncFrameFromCaptureTarget() {
+        if (screenCapture && screenCapture.captureScreenRect.width > 0 && screenCapture.captureScreenRect.height > 0) {
+            x = screenCapture.captureScreenRect.x
+            y = screenCapture.captureScreenRect.y
+            width = screenCapture.captureScreenRect.width
+            height = screenCapture.captureScreenRect.height
+        } else {
+            x = Screen.virtualX
+            y = Screen.virtualY
+            width = Screen.width
+            height = Screen.height
+        }
+    }
+
     function cancelSession(force) {
         sessionController.cancelSession(force === true)
     }
@@ -204,6 +218,7 @@ Window {
         }
 
         function onRequestOverlayPresent() {
+            overlayWindow.syncFrameFromCaptureTarget()
             overlayWindow.opacity = 0
             overlayWindow.show()
             overlayWindow.raise()
