@@ -13,6 +13,59 @@ use xcap::Monitor;
 
 pub static LAST_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
 pub static SCROLL_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
+pub static ACTIVE_MONITOR_TARGET: LazyLock<Mutex<Option<CaptureMonitorTarget>>> = LazyLock::new(|| Mutex::new(None));
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CaptureMonitorTarget {
+    pub id: u32,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub scale_factor: f32,
+}
+
+impl CaptureMonitorTarget {
+    #[must_use]
+    pub fn from_monitor(monitor: &Monitor) -> Option<Self> {
+        let width = i32::try_from(monitor.width().ok()?).ok()?;
+        let height = i32::try_from(monitor.height().ok()?).ok()?;
+        Some(Self {
+            id: monitor.id().ok()?,
+            x: monitor.x().ok()?,
+            y: monitor.y().ok()?,
+            width,
+            height,
+            scale_factor: monitor.scale_factor().ok().unwrap_or(1.0),
+        })
+    }
+
+    #[must_use]
+    pub fn effective_scale(self) -> f32 {
+        if self.scale_factor <= 0.0 { 1.0 } else { self.scale_factor }
+    }
+
+    #[must_use]
+    pub fn logical_geometry(self) -> (f64, f64, f64, f64) {
+        let scale = f64::from(self.effective_scale());
+        (
+            f64::from(self.x) / scale,
+            f64::from(self.y) / scale,
+            f64::from(self.width) / scale,
+            f64::from(self.height) / scale,
+        )
+    }
+
+    #[must_use]
+    pub fn center(self) -> (i32, i32) {
+        (self.x + self.width / 2, self.y + self.height / 2)
+    }
+
+    #[must_use]
+    pub fn rect(self) -> Rect {
+        Rect::new(self.x, self.y, self.width, self.height)
+    }
+}
 
 fn cache_cell(source: VirtualCaptureSource) -> &'static Mutex<Option<Arc<RgbaImage>>> {
     match source {
@@ -45,10 +98,10 @@ pub fn update_last_capture(image: RgbaImage) {
 }
 
 #[must_use]
-pub fn get_primary_monitor_scale() -> f32 {
-    Monitor::all()
-        .ok()
-        .and_then(|m| m.first().and_then(|m| m.scale_factor().ok()))
+pub fn active_monitor_scale() -> f32 {
+    active_monitor_target()
+        .map(CaptureMonitorTarget::effective_scale)
+        .or_else(|| active_monitor().and_then(|monitor| monitor.scale_factor().ok()))
         .unwrap_or(1.0)
 }
 
@@ -89,9 +142,8 @@ pub fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaIma
 }
 
 #[must_use]
-pub fn capture_primary_monitor() -> Option<RgbaImage> {
-    let monitors = Monitor::all().unwrap_or_default();
-    let Some(monitor) = monitors.first() else {
+pub fn capture_active_monitor() -> Option<RgbaImage> {
+    let Some(monitor) = active_monitor() else {
         error!("No monitors found");
         return None;
     };
@@ -106,11 +158,70 @@ pub fn capture_primary_monitor() -> Option<RgbaImage> {
 }
 
 #[must_use]
-pub fn get_monitors() -> Vec<Monitor> {
-    Monitor::all().unwrap_or_default()
+pub fn active_monitor() -> Option<Monitor> {
+    resolve_active_monitor()
+}
+
+fn set_active_monitor_target(target: Option<CaptureMonitorTarget>) {
+    if let Ok(mut cell) = ACTIVE_MONITOR_TARGET.lock() {
+        *cell = target;
+    }
 }
 
 #[must_use]
-pub fn get_primary_monitor() -> Option<Monitor> {
-    Monitor::all().unwrap_or_default().into_iter().next()
+pub fn active_monitor_target() -> Option<CaptureMonitorTarget> {
+    ACTIVE_MONITOR_TARGET.lock().ok().and_then(|cell| *cell)
+}
+
+fn primary_monitor_target() -> Option<CaptureMonitorTarget> {
+    Monitor::all()
+        .ok()
+        .and_then(|monitors| monitors.into_iter().next())
+        .and_then(|monitor| CaptureMonitorTarget::from_monitor(&monitor))
+}
+
+fn monitor_target_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
+    Monitor::from_point(x, y)
+        .ok()
+        .and_then(|monitor| CaptureMonitorTarget::from_monitor(&monitor))
+}
+
+#[must_use]
+pub fn activate_monitor_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
+    let target = monitor_target_at_point(x, y).or_else(primary_monitor_target);
+    set_active_monitor_target(target);
+    target
+}
+
+fn monitor_matches_target(monitor: &Monitor, target: CaptureMonitorTarget) -> bool {
+    if monitor.id().ok() == Some(target.id) {
+        return true;
+    }
+
+    let width = i32::try_from(monitor.width().ok().unwrap_or_default()).ok().unwrap_or_default();
+    let height = i32::try_from(monitor.height().ok().unwrap_or_default()).ok().unwrap_or_default();
+    let x = monitor.x().ok().unwrap_or_default();
+    let y = monitor.y().ok().unwrap_or_default();
+    x == target.x && y == target.y && width == target.width && height == target.height
+}
+
+fn monitor_for_target(target: CaptureMonitorTarget) -> Option<Monitor> {
+    let (cx, cy) = target.center();
+    if let Ok(monitor) = Monitor::from_point(cx, cy) {
+        return Some(monitor);
+    }
+
+    Monitor::all()
+        .ok()?
+        .into_iter()
+        .find(|monitor| monitor_matches_target(monitor, target))
+}
+
+fn resolve_active_monitor() -> Option<Monitor> {
+    if let Some(target) = active_monitor_target()
+        && let Some(monitor) = monitor_for_target(target)
+    {
+        return Some(monitor);
+    }
+    Monitor::all().ok()?.into_iter().next()
 }

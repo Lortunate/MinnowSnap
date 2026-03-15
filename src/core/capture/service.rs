@@ -1,6 +1,6 @@
 use crate::core::capture::action::CaptureInputMode;
 use crate::core::capture::datasource::{self, VirtualCaptureSource};
-use crate::core::capture::{capture_primary_monitor, get_cached_capture, get_primary_monitor_scale, perform_crop, update_last_capture};
+use crate::core::capture::{active_monitor_scale, capture_active_monitor, get_cached_capture, perform_crop, update_last_capture};
 use crate::core::geometry::Rect;
 use crate::core::io::clipboard::copy_image_to_clipboard;
 use crate::core::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
@@ -52,7 +52,7 @@ impl CaptureService {
     }
 
     fn crop_selection(img: &RgbaImage, rect: Rect) -> Option<RgbaImage> {
-        let scale_factor = get_primary_monitor_scale();
+        let scale_factor = active_monitor_scale();
         let x_phys = (rect.x as f32 * scale_factor) as i32;
         let y_phys = (rect.y as f32 * scale_factor) as i32;
         let w_phys = (rect.width as f32 * scale_factor) as i32;
@@ -91,12 +91,12 @@ impl CaptureService {
 
     pub fn capture_screen() -> bool {
         info!("Starting screen capture...");
-        if let Some(image) = capture_primary_monitor() {
+        if let Some(image) = capture_active_monitor() {
             update_last_capture(image);
             info!("Screen capture successful");
             true
         } else {
-            error!("CaptureService: Failed to capture primary monitor");
+            error!("CaptureService: Failed to capture active monitor");
             false
         }
     }
@@ -108,16 +108,16 @@ impl CaptureService {
 
     pub fn capture_region(rect: Rect) -> Option<RgbaImage> {
         info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
-        let scale_factor = get_primary_monitor_scale();
+        let scale_factor = active_monitor_scale();
 
         if rect.has_area() {
-            if let Some(monitor_img) = capture_primary_monitor() {
+            if let Some(monitor_img) = capture_active_monitor() {
                 perform_crop(&monitor_img, rect, scale_factor)
             } else {
                 None
             }
         } else {
-            capture_primary_monitor()
+            capture_active_monitor()
         }
     }
 

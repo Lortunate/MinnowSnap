@@ -33,6 +33,7 @@ pub mod qobject {
         #[qml_element]
         #[qproperty(bool, is_capturing)]
         #[qproperty(i32, pin_count)]
+        #[qproperty(QRectF, capture_screen_rect)]
         type ScreenCapture = super::ScreenCaptureRust;
 
         #[qinvokable]
@@ -212,6 +213,7 @@ pub struct ScreenCaptureRust {
     hotkey_manager: HotkeyManager,
     is_capturing: bool,
     pin_count: i32,
+    capture_screen_rect: QRectF,
     scroll_capture_active: Arc<AtomicBool>,
     last_scroll_path: Option<String>,
     pending_scroll_action: Option<CaptureAction>,
@@ -223,6 +225,7 @@ impl Default for ScreenCaptureRust {
             hotkey_manager: HotkeyManager::default(),
             is_capturing: false,
             pin_count: 0,
+            capture_screen_rect: QRectF::default(),
             scroll_capture_active: Arc::new(AtomicBool::new(false)),
             last_scroll_path: None,
             pending_scroll_action: None,
@@ -281,6 +284,7 @@ impl qobject::ScreenCapture {
             return;
         }
         info!("Preparing screen capture...");
+        self.as_mut().sync_capture_target_from_cursor();
         self.as_mut().set_is_capturing(true);
 
         crate::spawn_qt_task!(
@@ -312,6 +316,7 @@ impl qobject::ScreenCapture {
             return;
         }
         info!("Starting quick capture region: {},{} {}x{}", rect.x, rect.y, rect.width, rect.height);
+        self.as_mut().sync_capture_target_from_cursor();
         self.as_mut().set_is_capturing(true);
 
         crate::spawn_qt_task!(
@@ -418,9 +423,25 @@ impl qobject::ScreenCapture {
     }
 
     pub fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) {
-        let x = x as f64;
-        let y = y as f64;
-        let (sx, sy) = if cfg!(target_os = "macos") { (x, y) } else { (x * scale, y * scale) };
+        let x = f64::from(x);
+        let y = f64::from(y);
+        let target = crate::core::capture::active_monitor_target();
+        let (global_x, global_y) = if let Some(target) = target {
+            let (offset_x, offset_y, _, _) = target.logical_geometry();
+            (offset_x + x, offset_y + y)
+        } else {
+            (x, y)
+        };
+
+        let effective_scale = target
+            .map(|target| f64::from(target.effective_scale()))
+            .filter(|scale| *scale > 0.0)
+            .unwrap_or_else(|| if scale > 0.0 { scale } else { 1.0 });
+        let (sx, sy) = if cfg!(target_os = "macos") {
+            (global_x, global_y)
+        } else {
+            (global_x * effective_scale, global_y * effective_scale)
+        };
         crate::core::RUNTIME.spawn_blocking(move || {
             if let Err(e) = rdev::simulate(&rdev::EventType::MouseMove { x: sx, y: sy }) {
                 error!("Failed to move cursor: {:?}", e);
@@ -573,6 +594,22 @@ impl qobject::ScreenCapture {
                 qobject.as_mut().action_finished();
             }
         );
+    }
+
+    fn sync_capture_target_from_cursor(mut self: Pin<&mut Self>) {
+        let (cursor_x, cursor_y) = crate::bridge::app::cursor_position();
+        let target = crate::core::capture::activate_monitor_at_point(cursor_x, cursor_y);
+        self.as_mut().apply_capture_target(target);
+    }
+
+    fn apply_capture_target(mut self: Pin<&mut Self>, target: Option<crate::core::capture::CaptureMonitorTarget>) {
+        let rect = if let Some(target) = target {
+            let (x, y, width, height) = target.logical_geometry();
+            QRectF::new(x, y, width, height)
+        } else {
+            QRectF::default()
+        };
+        self.as_mut().set_capture_screen_rect(rect);
     }
 }
 
