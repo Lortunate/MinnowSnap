@@ -22,9 +22,8 @@ Item {
             scale = screenCapture.captureScreenScale > 0 ? screenCapture.captureScreenScale : 1.0
         }
         if (rect.width <= 0 || rect.height <= 0) {
-            let screens = Qt.application.screens
-            if (screens && screens.length > 0) {
-                let s = screens[0]
+            let s = Qt.application.primaryScreen
+            if (s) {
                 rect = Qt.rect(s.virtualX, s.virtualY, s.width, s.height)
                 scale = s.devicePixelRatio > 0 ? s.devicePixelRatio : 1.0
             }
