@@ -11,6 +11,9 @@
 #include <QIcon>
 #include <QWindow>
 #include <QCursor>
+#include <QScreen>
+#include <QRect>
+#include <QPoint>
 #include <string>
 #include "rust/cxx.h"
 
@@ -40,6 +43,47 @@ inline int cursor_x() {
 
 inline int cursor_y() {
     return QCursor::pos().y();
+}
+
+inline QScreen* screen_at(const QPoint& point) {
+    if (QScreen* screen = QGuiApplication::screenAt(point)) {
+        return screen;
+    }
+    if (QScreen* primary = QGuiApplication::primaryScreen()) {
+        return primary;
+    }
+    const QList<QScreen*> screens = QGuiApplication::screens();
+    return screens.isEmpty() ? nullptr : screens.first();
+}
+
+inline QRect screen_geometry_at(const QPoint& point) {
+    if (QScreen* screen = screen_at(point)) {
+        return screen->geometry();
+    }
+    return QRect();
+}
+
+inline int cursor_screen_x_at(int x, int y) {
+    return screen_geometry_at(QPoint(x, y)).x();
+}
+
+inline int cursor_screen_y_at(int x, int y) {
+    return screen_geometry_at(QPoint(x, y)).y();
+}
+
+inline int cursor_screen_width_at(int x, int y) {
+    return screen_geometry_at(QPoint(x, y)).width();
+}
+
+inline int cursor_screen_height_at(int x, int y) {
+    return screen_geometry_at(QPoint(x, y)).height();
+}
+
+inline double cursor_screen_scale_at(int x, int y) {
+    if (QScreen* screen = screen_at(QPoint(x, y))) {
+        return screen->devicePixelRatio();
+    }
+    return 1.0;
 }
 
 inline void install_translator(rust::Str localeName) {

@@ -210,6 +210,86 @@ fn collect_process_memory() {
     }
 }
 
+fn normalize_scale(scale: f64) -> f64 {
+    if scale > 0.0 { scale } else { 1.0 }
+}
+
+#[derive(Clone, Copy)]
+struct CaptureSpace {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    scale: f64,
+}
+
+impl Default for CaptureSpace {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+            scale: 1.0,
+        }
+    }
+}
+
+impl CaptureSpace {
+    fn from_rect(rect: &QRectF, scale: f64) -> Option<Self> {
+        if rect.width() <= 0.0 || rect.height() <= 0.0 {
+            return None;
+        }
+        Some(Self {
+            x: rect.x(),
+            y: rect.y(),
+            width: rect.width(),
+            height: rect.height(),
+            scale: normalize_scale(scale),
+        })
+    }
+
+    fn from_cursor() -> Option<Self> {
+        let screen = crate::bridge::app::cursor_screen()?;
+        Some(Self {
+            x: screen.x,
+            y: screen.y,
+            width: screen.width,
+            height: screen.height,
+            scale: normalize_scale(screen.scale),
+        })
+    }
+
+    fn from_target(target: crate::core::capture::CaptureMonitorTarget) -> Self {
+        let (x, y, width, height) = target.logical_geometry();
+        Self {
+            x,
+            y,
+            width,
+            height,
+            scale: normalize_scale(f64::from(target.effective_scale())),
+        }
+    }
+
+    fn viewport(target: Option<crate::core::capture::CaptureMonitorTarget>) -> Self {
+        target.map(Self::from_target).or_else(Self::from_cursor).unwrap_or_default()
+    }
+
+    fn pointer(rect: &QRectF, current_scale: f64, target: Option<crate::core::capture::CaptureMonitorTarget>, hint_scale: f64) -> Self {
+        Self::from_rect(rect, current_scale)
+            .or_else(|| target.map(Self::from_target))
+            .or_else(Self::from_cursor)
+            .unwrap_or(Self {
+                scale: normalize_scale(hint_scale),
+                ..Self::default()
+            })
+    }
+
+    fn rect(self) -> QRectF {
+        QRectF::new(self.x, self.y, self.width, self.height)
+    }
+}
+
 pub struct ScreenCaptureRust {
     hotkey_manager: HotkeyManager,
     is_capturing: bool,
@@ -426,20 +506,13 @@ impl qobject::ScreenCapture {
     }
 
     pub fn set_cursor_position(self: Pin<&mut Self>, x: i32, y: i32, scale: f64) {
-        let x = f64::from(x);
-        let y = f64::from(y);
+        let local_x = f64::from(x);
+        let local_y = f64::from(y);
         let target = crate::core::capture::active_monitor_target();
-        let (global_x, global_y) = if let Some(target) = target {
-            let (offset_x, offset_y, _, _) = target.logical_geometry();
-            (offset_x + x, offset_y + y)
-        } else {
-            (x, y)
-        };
-
-        let effective_scale = target
-            .map(|target| f64::from(target.effective_scale()))
-            .filter(|scale| *scale > 0.0)
-            .unwrap_or(if scale > 0.0 { scale } else { 1.0 });
+        let space = CaptureSpace::pointer(self.capture_screen_rect(), *self.capture_screen_scale(), target, scale);
+        let global_x = space.x + local_x;
+        let global_y = space.y + local_y;
+        let effective_scale = space.scale;
         let (sx, sy) = if cfg!(target_os = "macos") {
             (global_x, global_y)
         } else {
@@ -606,14 +679,9 @@ impl qobject::ScreenCapture {
     }
 
     fn apply_capture_target(mut self: Pin<&mut Self>, target: Option<crate::core::capture::CaptureMonitorTarget>) {
-        let (rect, scale) = if let Some(target) = target {
-            let (x, y, width, height) = target.logical_geometry();
-            (QRectF::new(x, y, width, height), f64::from(target.effective_scale()))
-        } else {
-            (QRectF::default(), 1.0)
-        };
-        self.as_mut().set_capture_screen_rect(rect);
-        self.as_mut().set_capture_screen_scale(scale);
+        let space = CaptureSpace::viewport(target);
+        self.as_mut().set_capture_screen_rect(space.rect());
+        self.as_mut().set_capture_screen_scale(space.scale);
     }
 }
 
