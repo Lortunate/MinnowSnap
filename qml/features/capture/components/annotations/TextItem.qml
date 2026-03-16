@@ -8,7 +8,7 @@ AnnotationBase {
 
     property int fontSize: 24
     property bool editing: false
-    property string textContent: "Text"
+    property string textContent: qsTr("Text")
 
     readonly property color textColor: !root.hasOutline ? ((root.color.r * 0.299 + root.color.g * 0.587 + root.color.b * 0.114) > 0.6 ? "black" : "white") : root.color
 

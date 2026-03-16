@@ -82,7 +82,7 @@ Window {
             spacing: 2
 
             TrayMenuItem {
-                text: trayMenuController.preferencesText
+                text: qsTr("Preferences")
                 onClicked: {
                     root.preferencesRequested();
                     trayMenuController.hideMenu();
@@ -95,7 +95,7 @@ Window {
             }
 
             TrayMenuItem {
-                text: trayMenuController.screenCaptureText
+                text: qsTr("Capture")
                 onClicked: {
                     root.screenCaptureRequested();
                     trayMenuController.hideMenu();
@@ -103,7 +103,7 @@ Window {
             }
 
             TrayMenuItem {
-                text: trayMenuController.quickCaptureText
+                text: qsTr("Quick Capture")
                 onClicked: {
                     root.quickCaptureRequested();
                     trayMenuController.hideMenu();
@@ -116,7 +116,7 @@ Window {
             }
 
             TrayMenuItem {
-                text: trayMenuController.quitText
+                text: qsTr("Exit")
                 onClicked: {
                     root.quitRequested();
                     trayMenuController.hideMenu();

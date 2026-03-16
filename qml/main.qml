@@ -80,12 +80,12 @@ ApplicationWindow {
     Menu {
         id: nativeMenu
         MenuItem {
-            text: trayMenu.controller.preferencesText
+            text: qsTr("Preferences")
             onTriggered: root.showPreferences()
         }
         MenuSeparator {}
         MenuItem {
-            text: trayMenu.controller.screenCaptureText
+            text: qsTr("Capture")
             onTriggered: {
                 if (!overlay.visible) {
                     screenCapture.prepareCapture();
@@ -93,12 +93,12 @@ ApplicationWindow {
             }
         }
         MenuItem {
-            text: trayMenu.controller.quickCaptureText
+            text: qsTr("Quick Capture")
             onTriggered: screenCapture.quickCapture(Qt.rect(0, 0, 0, 0))
         }
         MenuSeparator {}
         MenuItem {
-            text: trayMenu.controller.quitText
+            text: qsTr("Exit")
             onTriggered: Qt.quit()
         }
     }
@@ -107,7 +107,7 @@ ApplicationWindow {
         id: trayIcon
         icon.mask: Qt.platform.os === "osx"
         icon.source: Qt.platform.os === "osx" ? "qrc:/resources/tray_black.svg" : (AppTheme.systemIsDark ? "qrc:/resources/tray_white.svg" : "qrc:/resources/tray_black.svg")
-        tooltip: trayMenu.controller.tooltipText
+        tooltip: qsTr("MinnowSnap - Screen Capture Tool")
         visible: true
         menu: Qt.platform.os === "osx" ? nativeMenu : null
 

@@ -354,7 +354,7 @@ Item {
                     width: parent.width - 24
 
                     Text {
-                        text: "X: " + root.targetX + "  Y: " + root.targetY
+                        text: qsTr("X: %1  Y: %2").arg(root.targetX).arg(root.targetY)
                         color: AppTheme.subText
                         font.pixelSize: AppTheme.fontSizeSmall
                         font.family: AppTheme.fontFamilyMono
@@ -397,7 +397,7 @@ Item {
                     }
 
                     Text {
-                        text: "C: Copy | Shift: Format | Arrow: Move"
+                        text: qsTr("C: Copy | Shift: Switch Format | Arrow Keys: Move")
                         color: AppTheme.subText
                         font.pixelSize: 9
                         font.family: AppTheme.fontFamily

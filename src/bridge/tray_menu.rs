@@ -16,11 +16,6 @@ pub mod qobject {
         #[qproperty(f64, popup_x)]
         #[qproperty(f64, popup_y)]
         #[qproperty(bool, popup_visible)]
-        #[qproperty(QString, preferences_text)]
-        #[qproperty(QString, screen_capture_text)]
-        #[qproperty(QString, quick_capture_text)]
-        #[qproperty(QString, quit_text)]
-        #[qproperty(QString, tooltip_text)]
         type TrayMenuController = super::TrayMenuControllerRust;
 
         #[qinvokable]
@@ -38,11 +33,6 @@ pub struct TrayMenuControllerRust {
     popup_x: f64,
     popup_y: f64,
     popup_visible: bool,
-    preferences_text: QString,
-    screen_capture_text: QString,
-    quick_capture_text: QString,
-    quit_text: QString,
-    tooltip_text: QString,
     activation_pending: bool,
 }
 
@@ -52,11 +42,6 @@ impl Default for TrayMenuControllerRust {
             popup_x: 0.0,
             popup_y: 0.0,
             popup_visible: false,
-            preferences_text: crate::bridge::app::tr("main", "Preferences"),
-            screen_capture_text: crate::bridge::app::tr("main", "Capture"),
-            quick_capture_text: crate::bridge::app::tr("main", "Quick Capture"),
-            quit_text: crate::bridge::app::tr("main", "Exit"),
-            tooltip_text: crate::bridge::app::tr("main", "MinnowSnap - Screen Capture Tool"),
             activation_pending: false,
         }
     }
