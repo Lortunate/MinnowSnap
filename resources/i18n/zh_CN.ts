@@ -27,6 +27,11 @@
         <source>Report an Issue</source>
         <translation>反馈问题</translation>
     </message>
+    <message>
+        <location filename="../../qml/features/preferences/pages/AboutPage.qml" line="86"/>
+        <source>Open Log Folder</source>
+        <translation>打开日志目录</translation>
+    </message>
 </context>
 <context>
     <name>AnnotationProperties</name>

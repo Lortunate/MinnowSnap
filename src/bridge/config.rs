@@ -113,6 +113,9 @@ pub mod qobject {
         fn get_supported_languages(self: &Self) -> QStringList;
 
         #[qinvokable]
+        fn get_log_directory(self: &Self) -> QString;
+
+        #[qinvokable]
         fn load_settings(self: Pin<&mut Self>);
     }
 }
@@ -320,5 +323,10 @@ impl qobject::Config {
             list.append(QString::from(lang));
         }
         list
+    }
+
+    pub fn get_log_directory(&self) -> QString {
+        let path = crate::core::logging::log_dir(crate::core::app::APP_NAME);
+        QString::from(path.to_string_lossy().as_ref())
     }
 }

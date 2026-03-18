@@ -186,21 +186,50 @@ fn monitor_target_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
         .and_then(|monitor| CaptureMonitorTarget::from_monitor(&monitor))
 }
 
+fn describe_monitor(monitor: &Monitor) -> Option<String> {
+    let target = CaptureMonitorTarget::from_monitor(monitor)?;
+    Some(describe_target(target))
+}
+
+fn describe_target(target: CaptureMonitorTarget) -> String {
+    let (logical_x, logical_y, logical_w, logical_h) = target.logical_geometry();
+    format!(
+        "id={}, scale={}, physical=({},{} {}x{}), logical=({:.2},{:.2} {:.2}x{:.2})",
+        target.id,
+        target.effective_scale(),
+        target.x,
+        target.y,
+        target.width,
+        target.height,
+        logical_x,
+        logical_y,
+        logical_w,
+        logical_h
+    )
+}
+
+fn log_available_monitors() {
+    match Monitor::all() {
+        Ok(monitors) if !monitors.is_empty() => {
+            let summary = monitors.iter().filter_map(describe_monitor).collect::<Vec<_>>().join("; ");
+            info!("Available monitors for capture: [{}]", summary);
+        }
+        Ok(_) => {
+            error!("Available monitors for capture: []");
+        }
+        Err(e) => {
+            error!("Failed to enumerate monitors before capture selection: {e}");
+        }
+    }
+}
+
 #[must_use]
 pub fn activate_monitor_at_point(x: i32, y: i32) -> Option<CaptureMonitorTarget> {
+    log_available_monitors();
+
     let target = monitor_target_at_point(x, y).or_else(primary_monitor_target);
     if let Some(target) = target {
-        info!(
-            "Capture monitor selected: cursor=({},{}), id={}, scale={}, rect=({},{} {}x{})",
-            x,
-            y,
-            target.id,
-            target.effective_scale(),
-            target.x,
-            target.y,
-            target.width,
-            target.height
-        );
+        info!("Capture monitor selected: cursor=({},{}), {}", x, y, describe_target(target));
     } else {
         error!("Capture monitor selection failed: cursor=({},{})", x, y);
     }

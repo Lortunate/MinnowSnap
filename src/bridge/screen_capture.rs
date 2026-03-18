@@ -236,6 +236,16 @@ impl Default for CaptureSpace {
 }
 
 impl CaptureSpace {
+    fn from_screen(screen: crate::bridge::app::CursorScreen) -> Self {
+        Self {
+            x: screen.x,
+            y: screen.y,
+            width: screen.width,
+            height: screen.height,
+            scale: normalize_scale(screen.scale),
+        }
+    }
+
     fn from_rect(rect: &QRectF, scale: f64) -> Option<Self> {
         if rect.width() <= 0.0 || rect.height() <= 0.0 {
             return None;
@@ -250,17 +260,15 @@ impl CaptureSpace {
     }
 
     fn from_cursor() -> Option<Self> {
-        let screen = crate::bridge::app::cursor_screen()?;
-        Some(Self {
-            x: screen.x,
-            y: screen.y,
-            width: screen.width,
-            height: screen.height,
-            scale: normalize_scale(screen.scale),
-        })
+        crate::bridge::app::cursor_screen().map(Self::from_screen)
     }
 
     fn from_target(target: crate::core::capture::CaptureMonitorTarget) -> Self {
+        let (cx, cy) = target.center();
+        if let Some(screen) = crate::bridge::app::screen_at(cx, cy) {
+            return Self::from_screen(screen);
+        }
+
         let (x, y, width, height) = target.logical_geometry();
         Self {
             x,

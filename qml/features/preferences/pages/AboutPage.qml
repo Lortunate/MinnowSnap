@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import com.lortunate.minnow
 import "../../../components"
+import "../../../utils"
 
 Item {
     ScrollView {
@@ -77,6 +78,14 @@ Item {
                 LinkItem {
                     text: qsTr("Report an Issue")
                     url: "https://github.com/Lortunate/MinnowSnap/issues"
+                }
+
+                Divider {}
+
+                LinkItem {
+                    text: qsTr("Open Log Folder")
+                    showChevron: false
+                    onClicked: Qt.openUrlExternally(PathUtils.toUrl(Config.getLogDirectory()))
                 }
             }
         }

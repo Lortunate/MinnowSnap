@@ -57,6 +57,10 @@ fn resolve_log_buffered_lines_limit() -> usize {
         .unwrap_or(LOG_BUFFERED_LINES_LIMIT)
 }
 
+pub fn log_dir(app_name: &str) -> PathBuf {
+    resolve_log_dir(app_name)
+}
+
 fn resolve_log_dir(app_name: &str) -> PathBuf {
     ProjectDirs::from("com", "lortunate", app_name)
         .map(|d| d.data_local_dir().join(LOG_DIR_NAME))

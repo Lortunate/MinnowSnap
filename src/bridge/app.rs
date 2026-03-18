@@ -80,7 +80,11 @@ fn cursor_screen_at(point_x: i32, point_y: i32) -> Option<CursorScreen> {
     })
 }
 
+pub fn screen_at(point_x: i32, point_y: i32) -> Option<CursorScreen> {
+    cursor_screen_at(point_x, point_y)
+}
+
 pub fn cursor_screen() -> Option<CursorScreen> {
     let (x, y) = cursor_position();
-    cursor_screen_at(x, y)
+    screen_at(x, y)
 }
