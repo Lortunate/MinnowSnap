@@ -4,7 +4,7 @@ use std::panic;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 use std::time::{Duration, SystemTime};
-use tracing::error;
+use tracing::{debug, error, info, trace, warn};
 use tracing_appender::non_blocking::{NonBlockingBuilder, WorkerGuard};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -14,8 +14,55 @@ const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_RETENTION_DAYS: u64 = 7;
 const LOG_BUFFERED_LINES_LIMIT: usize = 8_192;
 const LOG_BUFFERED_LINES_ENV: &str = "MINNOW_LOG_BUFFERED_LINES";
+const QT_TARGET: &str = "qt";
 
 static PANIC_HOOK_ONCE: Once = Once::new();
+
+struct QtLogMessage<'a> {
+    level: i32,
+    category: &'a str,
+    message: &'a str,
+    file: Option<&'a str>,
+    line: Option<i32>,
+}
+
+impl<'a> QtLogMessage<'a> {
+    fn new(level: i32, category: &'a str, message: &'a str, file: &'a str, line: i32) -> Self {
+        Self {
+            level,
+            category: if category.is_empty() { QT_TARGET } else { category },
+            message,
+            file: (!file.is_empty()).then_some(file),
+            line: (line > 0).then_some(line),
+        }
+    }
+
+    fn log(self) {
+        match (self.file, self.line) {
+            (Some(file), Some(line)) => match self.level {
+                0 => debug!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
+                1 => warn!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
+                2 => error!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
+                3 => info!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
+                _ => trace!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
+            },
+            (Some(file), None) => match self.level {
+                0 => debug!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
+                1 => warn!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
+                2 => error!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
+                3 => info!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
+                _ => trace!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
+            },
+            (None, _) => match self.level {
+                0 => debug!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
+                1 => warn!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
+                2 => error!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
+                3 => info!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
+                _ => trace!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
+            },
+        }
+    }
+}
 
 pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
     let log_dir = resolve_log_dir(app_name);
@@ -59,6 +106,10 @@ fn resolve_log_buffered_lines_limit() -> usize {
 
 pub fn log_dir(app_name: &str) -> PathBuf {
     resolve_log_dir(app_name)
+}
+
+pub fn log_qt_message(level: i32, category: &str, message: &str, file: &str, line: i32) {
+    QtLogMessage::new(level, category, message, file, line).log();
 }
 
 fn resolve_log_dir(app_name: &str) -> PathBuf {

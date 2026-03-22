@@ -36,6 +36,12 @@ fn main() {
         .files(bridge_files)
         .qt_module("Quick");
 
+    unsafe {
+        builder = builder.cc_builder(|cc| {
+            cc.file("cpp/qt_logging.cpp");
+        });
+    }
+
     if cfg!(target_os = "macos") {
         unsafe {
             builder = builder.cc_builder(|cc| {

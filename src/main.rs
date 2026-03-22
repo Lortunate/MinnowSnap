@@ -69,6 +69,7 @@ fn main() {
     let _dhat_profiler = dhat::Profiler::new_heap();
 
     let _guard = init_logger();
+    bridge::app::init_qt_logging();
     info!("Starting MinnowSnap...");
 
     if !ensure_single_instance(&get_instance_id()) {

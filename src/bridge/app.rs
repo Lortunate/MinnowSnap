@@ -1,5 +1,11 @@
+use std::sync::Once;
+
 #[cxx::bridge]
 mod ffi {
+    extern "Rust" {
+        fn push_qt_log(level: i32, category: &str, message: &str, file: &str, line: i32);
+    }
+
     unsafe extern "C++" {
         include!("cpp/app_utils.hpp");
         include!("cxx-qt-lib/qstring.h");
@@ -8,6 +14,7 @@ mod ffi {
         unsafe fn quit_app();
         unsafe fn set_quit_on_last_window_closed();
         unsafe fn set_window_icon();
+        unsafe fn install_qt_message_handler();
         unsafe fn install_translator(locale: &str);
         unsafe fn retranslate_all();
         unsafe fn cursor_x() -> i32;
@@ -20,6 +27,8 @@ mod ffi {
         fn translate(context: &str, source_text: &str) -> QString;
     }
 }
+
+static QT_LOGGING_INIT: Once = Once::new();
 
 #[derive(Debug, Clone, Copy)]
 pub struct CursorScreen {
@@ -40,6 +49,12 @@ pub fn set_quit_on_last_window_closed() {
 
 pub fn set_window_icon() {
     unsafe { ffi::set_window_icon() }
+}
+
+pub fn init_qt_logging() {
+    QT_LOGGING_INIT.call_once(|| unsafe {
+        ffi::install_qt_message_handler();
+    });
 }
 
 pub fn install_translator(locale: &str) {
@@ -87,4 +102,8 @@ pub fn screen_at(point_x: i32, point_y: i32) -> Option<CursorScreen> {
 pub fn cursor_screen() -> Option<CursorScreen> {
     let (x, y) = cursor_position();
     screen_at(x, y)
+}
+
+pub fn push_qt_log(level: i32, category: &str, message: &str, file: &str, line: i32) {
+    crate::core::logging::log_qt_message(level, category, message, file, line);
 }

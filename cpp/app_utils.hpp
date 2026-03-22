@@ -31,6 +31,8 @@ inline void set_quit_on_last_window_closed() {
     QGuiApplication::setQuitOnLastWindowClosed(false);
 }
 
+void install_qt_message_handler();
+
 inline QString translate(rust::Str context, rust::Str sourceText) {
     return QCoreApplication::translate(
         std::string(context.data(), context.size()).c_str(),
