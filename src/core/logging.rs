@@ -6,10 +6,12 @@ use std::sync::Once;
 use std::time::{Duration, SystemTime};
 use tracing::{debug, error, info, trace, warn};
 use tracing_appender::non_blocking::{NonBlockingBuilder, WorkerGuard};
+use tracing_appender::rolling::{Builder as RollingFileAppenderBuilder, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 const LOG_DIR_NAME: &str = "logs";
-const LOG_FILE_PREFIX: &str = "minnowsnap.log";
+const LOG_FILE_PREFIX: &str = "minnowsnap";
+const LOG_FILE_SUFFIX: &str = "log";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_RETENTION_DAYS: u64 = 7;
 const LOG_BUFFERED_LINES_LIMIT: usize = 8_192;
@@ -65,22 +67,18 @@ impl<'a> QtLogMessage<'a> {
 }
 
 pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
-    let log_dir = resolve_log_dir(app_name);
-    if let Err(e) = std::fs::create_dir_all(&log_dir) {
-        eprintln!("Failed to create log directory {}: {}", log_dir.display(), e);
-        return None;
-    }
-
-    let retention = Duration::from_secs(DEFAULT_RETENTION_DAYS * 24 * 3600);
-    cleanup_expired_logs(&log_dir, retention);
-
-    let file_appender = tracing_appender::rolling::daily(&log_dir, LOG_FILE_PREFIX);
+    let log_dir = prepare_log_dir(app_name)?;
+    let file_appender = build_file_appender(&log_dir)?;
     let (non_blocking, guard) = NonBlockingBuilder::default()
         .buffered_lines_limit(resolve_log_buffered_lines_limit())
         .finish(file_appender);
-    let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
+    let env_filter = || {
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL))
+    };
 
-    let console_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout).with_filter(env_filter());
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_filter(env_filter());
     let file_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
         .with_writer(non_blocking)
@@ -116,6 +114,33 @@ fn resolve_log_dir(app_name: &str) -> PathBuf {
     ProjectDirs::from("com", "lortunate", app_name)
         .map(|d| d.data_local_dir().join(LOG_DIR_NAME))
         .unwrap_or_else(|| env::current_dir().unwrap_or_default().join(LOG_DIR_NAME))
+}
+
+fn prepare_log_dir(app_name: &str) -> Option<PathBuf> {
+    let log_dir = resolve_log_dir(app_name);
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        eprintln!("Failed to create log directory {}: {}", log_dir.display(), e);
+        return None;
+    }
+
+    cleanup_expired_logs(&log_dir, Duration::from_secs(DEFAULT_RETENTION_DAYS * 24 * 3600));
+    Some(log_dir)
+}
+
+fn build_file_appender(log_dir: &Path) -> Option<tracing_appender::rolling::RollingFileAppender> {
+    RollingFileAppenderBuilder::new()
+        .rotation(Rotation::DAILY)
+        .filename_prefix(LOG_FILE_PREFIX)
+        .filename_suffix(LOG_FILE_SUFFIX)
+        .build(log_dir)
+        .map_err(|e| {
+            eprintln!(
+                "Failed to initialize rolling log file appender in {}: {}",
+                log_dir.display(),
+                e
+            );
+        })
+        .ok()
 }
 
 fn cleanup_expired_logs(log_dir: &Path, retention: Duration) {
