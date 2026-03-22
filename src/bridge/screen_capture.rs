@@ -415,13 +415,11 @@ impl qobject::ScreenCapture {
             async move {
                 tokio::task::spawn_blocking(move || CaptureService::run_quick_capture_workflow(rect))
                     .await
-                    .unwrap_or(None)
+                    .unwrap_or(false)
             },
             |mut qobject: Pin<&mut qobject::ScreenCapture>, result| {
-                if let Some(saved) = result {
-                    let title = crate::bridge::app::tr("ScreenCapture", "Quick Capture");
-                    let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved);
-                    crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
+                if result {
+                    crate::notify_tr!("ScreenCapture", "Success", "Image copied to clipboard", Copy);
                 }
                 qobject.as_mut().set_is_capturing(false);
             }
