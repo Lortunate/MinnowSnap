@@ -123,7 +123,6 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
     {
         let toast = if let Some(icon_path) = ensure_windows_toast_icon_file() {
             Toast::new(APP_ID)
-                .icon(icon_path.as_path(), IconCrop::Circular, APP_NAME)
                 .title(title)
                 .text1(message)
         } else {
