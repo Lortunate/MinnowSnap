@@ -1,11 +1,12 @@
 use directories::ProjectDirs;
 use std::env;
+use std::io::LineWriter;
 use std::panic;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 use std::time::{Duration, SystemTime};
 use tracing::{debug, error, info, trace, warn};
-use tracing_appender::non_blocking::{NonBlockingBuilder, WorkerGuard};
+use tracing_appender::non_blocking::{NonBlocking, NonBlockingBuilder, WorkerGuard};
 use tracing_appender::rolling::{Builder as RollingFileAppenderBuilder, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -14,8 +15,9 @@ const LOG_FILE_PREFIX: &str = "minnowsnap";
 const LOG_FILE_SUFFIX: &str = "log";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_RETENTION_DAYS: u64 = 7;
-const LOG_BUFFERED_LINES_LIMIT: usize = 8_192;
-const LOG_BUFFERED_LINES_ENV: &str = "MINNOW_LOG_BUFFERED_LINES";
+const LOG_QUEUE_LINES_LIMIT: usize = 1024;
+const LOG_QUEUE_LINES_ENV: &str = "MINNOW_LOG_QUEUE_LINES";
+const LOG_WRITER_THREAD_NAME: &str = "minnowsnap-log-writer";
 const QT_TARGET: &str = "qt";
 
 static PANIC_HOOK_ONCE: Once = Once::new();
@@ -67,11 +69,12 @@ impl<'a> QtLogMessage<'a> {
 }
 
 pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
-    let log_dir = prepare_log_dir(app_name)?;
-    let file_appender = build_file_appender(&log_dir)?;
-    let (non_blocking, guard) = NonBlockingBuilder::default()
-        .buffered_lines_limit(resolve_log_buffered_lines_limit())
-        .finish(file_appender);
+    let Some(log_dir) = prepare_log_dir(app_name) else {
+        return None;
+    };
+    let Some((non_blocking, guard)) = build_file_writer(&log_dir) else {
+        return None;
+    };
     let env_filter = || {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL))
     };
@@ -92,14 +95,6 @@ pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
     let _ = tracing_log::LogTracer::init();
     install_panic_hook();
     Some(guard)
-}
-
-fn resolve_log_buffered_lines_limit() -> usize {
-    env::var(LOG_BUFFERED_LINES_ENV)
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or(LOG_BUFFERED_LINES_LIMIT)
 }
 
 pub fn log_dir(app_name: &str) -> PathBuf {
@@ -127,8 +122,8 @@ fn prepare_log_dir(app_name: &str) -> Option<PathBuf> {
     Some(log_dir)
 }
 
-fn build_file_appender(log_dir: &Path) -> Option<tracing_appender::rolling::RollingFileAppender> {
-    RollingFileAppenderBuilder::new()
+fn build_file_writer(log_dir: &Path) -> Option<(NonBlocking, WorkerGuard)> {
+    let file_appender = RollingFileAppenderBuilder::new()
         .rotation(Rotation::DAILY)
         .filename_prefix(LOG_FILE_PREFIX)
         .filename_suffix(LOG_FILE_SUFFIX)
@@ -140,7 +135,24 @@ fn build_file_appender(log_dir: &Path) -> Option<tracing_appender::rolling::Roll
                 e
             );
         })
+        .ok()?;
+
+    let line_writer = LineWriter::new(file_appender);
+    Some(
+        NonBlockingBuilder::default()
+            .buffered_lines_limit(resolve_log_queue_lines_limit())
+            .lossy(false)
+            .thread_name(LOG_WRITER_THREAD_NAME)
+            .finish(line_writer),
+    )
+}
+
+fn resolve_log_queue_lines_limit() -> usize {
+    env::var(LOG_QUEUE_LINES_ENV)
         .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(LOG_QUEUE_LINES_LIMIT)
 }
 
 fn cleanup_expired_logs(log_dir: &Path, retention: Duration) {
