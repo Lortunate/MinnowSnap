@@ -1,0 +1,82 @@
+app:
+  name: "MinnowSnap"
+  capture_name: "ScreenCapture"
+
+common:
+  actions:
+    close: "Close"
+    cancel: "Cancel"
+    copy: "Copy"
+    save: "Save"
+    pin: "Pin"
+    scan_qr: "Scan QR"
+  states:
+    enabled: "Enabled"
+    disabled: "Disabled"
+
+overlay:
+  status:
+    preparing_surface: "Preparing capture surface..."
+    ready_to_select: "Drag to select an area"
+    selecting_area: "Selecting area"
+    selection_size: "Selecting area: %{width} x %{height}"
+    selection_locked: "Selection locked: %{width} x %{height}"
+    moving_selection: "Moving selection"
+    resizing_selection: "Resizing selection"
+    missing_surface: "Capture surface is unavailable"
+    missing_selection: "No selection available"
+    copied_selection: "Selection copied"
+    saved_selection: "Selection saved"
+    pin_ready: "Pin content ready: %{path} (auto_ocr=%{auto_ocr})"
+    qr_ready: "QR content ready: %{content}"
+    action_unavailable: "Action unavailable"
+    qr_copy_failed: "Failed to copy QR content"
+  picker:
+    value_and_format: "%{value} · %{format}"
+    coordinates: "X:%{x}  Y:%{y}"
+    shortcuts: "%{copy_key}: Copy  %{cycle_key}: Cycle format"
+  notify:
+    qr_not_found: "No QR code detected"
+
+notify:
+  capture:
+    copied_image: "Image copied to clipboard"
+    saved_image: "Image saved to: %{path}"
+    copied_qr: "QR content copied to clipboard"
+    quick_capture_copied: "Quick capture copied to clipboard"
+    quick_capture_failed: "Quick capture failed"
+    pin_reissued: "Pin request sent again (auto_ocr=%{auto_ocr})"
+
+capture:
+  errors:
+    copy_failed: "Failed to prepare the image for copying"
+    pin_failed: "Failed to prepare the image for pinning"
+
+preferences:
+  window:
+    title: "Preferences"
+    subtitle: "Native GPUI settings surface"
+  fields:
+    auto_start: "Launch at login"
+    ocr: "OCR"
+    notifications: "Notifications"
+    save_path: "Save path"
+    default_path: "System default"
+  description:
+    intro: "This is the first native GPUI replacement for the legacy preferences window."
+
+pin:
+  badge:
+    auto_ocr: "Auto OCR"
+    pinned_image: "Pinned image"
+  hint:
+    shortcuts: "Ctrl+C to copy, Ctrl+S to save, Esc to close"
+  menu:
+    close_all: "Close All"
+
+tray:
+  actions:
+    capture_overlay: "Capture Overlay"
+    quick_capture: "Quick Capture"
+    preferences: "Preferences"
+    exit: "Exit"

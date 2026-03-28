@@ -1,0 +1,82 @@
+app:
+  name: "MinnowSnap"
+  capture_name: "屏幕截图"
+
+common:
+  actions:
+    close: "关闭"
+    cancel: "取消"
+    copy: "复制"
+    save: "保存"
+    pin: "贴图"
+    scan_qr: "识别二维码"
+  states:
+    enabled: "已开启"
+    disabled: "已关闭"
+
+overlay:
+  status:
+    preparing_surface: "正在准备截图画布..."
+    ready_to_select: "拖动以选择区域"
+    selecting_area: "正在选择区域"
+    selection_size: "正在选择区域：%{width} x %{height}"
+    selection_locked: "选区已锁定：%{width} x %{height}"
+    moving_selection: "正在移动选区"
+    resizing_selection: "正在调整选区大小"
+    missing_surface: "截图画布不可用"
+    missing_selection: "当前没有可用选区"
+    copied_selection: "选区已复制"
+    saved_selection: "选区已保存"
+    pin_ready: "贴图内容已准备：%{path}（auto_ocr=%{auto_ocr}）"
+    qr_ready: "二维码内容已就绪：%{content}"
+    action_unavailable: "当前操作不可用"
+    qr_copy_failed: "复制二维码内容失败"
+  picker:
+    value_and_format: "%{value} · %{format}"
+    coordinates: "X：%{x}  Y：%{y}"
+    shortcuts: "%{copy_key}：复制  %{cycle_key}：切换格式"
+  notify:
+    qr_not_found: "未检测到二维码"
+
+notify:
+  capture:
+    copied_image: "图片已复制到剪贴板"
+    saved_image: "图片已保存到：%{path}"
+    copied_qr: "二维码内容已复制到剪贴板"
+    quick_capture_copied: "快速截图已复制到剪贴板"
+    quick_capture_failed: "快速截图失败"
+    pin_reissued: "已重新发起贴图请求（auto_ocr=%{auto_ocr}）"
+
+capture:
+  errors:
+    copy_failed: "准备复制图片失败"
+    pin_failed: "准备贴图图片失败"
+
+preferences:
+  window:
+    title: "设置"
+    subtitle: "原生 GPUI 设置界面"
+  fields:
+    auto_start: "开机自启动"
+    ocr: "OCR"
+    notifications: "通知"
+    save_path: "保存路径"
+    default_path: "系统默认"
+  description:
+    intro: "这是旧版设置窗口的第一版原生 GPUI 替代界面。"
+
+pin:
+  badge:
+    auto_ocr: "自动 OCR"
+    pinned_image: "贴图图片"
+  hint:
+    shortcuts: "Ctrl+C 复制，Ctrl+S 保存，Esc 关闭"
+  menu:
+    close_all: "关闭全部"
+
+tray:
+  actions:
+    capture_overlay: "截图遮罩"
+    quick_capture: "快速截图"
+    preferences: "设置"
+    exit: "退出"

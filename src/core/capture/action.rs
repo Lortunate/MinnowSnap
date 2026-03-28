@@ -1,5 +1,6 @@
 use crate::core::capture::service::CaptureService;
 use crate::core::geometry::Rect;
+use crate::core::i18n;
 use std::str::FromStr;
 use tracing::info;
 
@@ -11,6 +12,7 @@ pub enum CaptureAction {
     Ocr,
     Scroll,
     QrCode,
+    PickColor,
     Unknown,
 }
 
@@ -25,6 +27,7 @@ impl FromStr for CaptureAction {
             "ocr" => Ok(CaptureAction::Ocr),
             "scroll" => Ok(CaptureAction::Scroll),
             "qrcode" => Ok(CaptureAction::QrCode),
+            "pick-color" => Ok(CaptureAction::PickColor),
             _ => Ok(CaptureAction::Unknown),
         }
     }
@@ -33,8 +36,9 @@ impl FromStr for CaptureAction {
 #[derive(Debug)]
 pub enum ActionResult {
     Copied,
+    ColorPicked(String),
     Saved(String),
-    PinRequested(String, bool),
+    PinRequested(String, Rect, bool),
     OcrResult(String),
     NoOp,
     Error(String),
@@ -80,6 +84,7 @@ impl CaptureAction {
             CaptureAction::Pin => Self::handle_pin_ocr(ctx, false),
             CaptureAction::Ocr => Self::handle_pin_ocr(ctx, true),
             CaptureAction::QrCode => Self::handle_qrcode(ctx),
+            CaptureAction::PickColor => Self::handle_pick_color(ctx),
             CaptureAction::Scroll | CaptureAction::Unknown => ActionResult::NoOp,
         }
     }
@@ -88,7 +93,7 @@ impl CaptureAction {
         if CaptureService::copy_image(&ctx.path, ctx.rect, ctx.input_mode) {
             ActionResult::Copied
         } else {
-            ActionResult::Error("Failed to process image for Copy".to_string())
+            ActionResult::Error(i18n::capture::copy_failed())
         }
     }
 
@@ -103,16 +108,34 @@ impl CaptureAction {
         if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode)
             && let Some(temp_path) = CaptureService::save_temp(&cropped)
         {
-            return ActionResult::PinRequested(temp_path, auto_ocr);
+            let source_rect = if ctx.rect.has_area() {
+                ctx.rect
+            } else {
+                Rect::new(0, 0, cropped.width() as i32, cropped.height() as i32)
+            };
+            return ActionResult::PinRequested(temp_path, source_rect, auto_ocr);
         }
-        ActionResult::Error("Failed to process image for Pin/OCR".to_string())
+        ActionResult::Error(i18n::capture::pin_failed())
     }
 
     fn handle_qrcode(ctx: ActionContext) -> ActionResult {
         if let Some(content) = CaptureService::detect_qrcode(&ctx.path, ctx.rect, ctx.input_mode) {
             ActionResult::OcrResult(content)
         } else {
-            ActionResult::Error("No QR Code detected".to_string())
+            ActionResult::Error(i18n::overlay::qr_not_found())
         }
+    }
+
+    fn handle_pick_color(ctx: ActionContext) -> ActionResult {
+        let Some(img) = CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode) else {
+            return ActionResult::Error(i18n::capture::copy_failed());
+        };
+        if img.width() == 0 || img.height() == 0 {
+            return ActionResult::NoOp;
+        }
+        let center_x = img.width() / 2;
+        let center_y = img.height() / 2;
+        let pixel = img.get_pixel(center_x, center_y);
+        ActionResult::ColorPicked(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]))
     }
 }

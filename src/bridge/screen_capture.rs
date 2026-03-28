@@ -656,10 +656,10 @@ impl qobject::ScreenCapture {
                         let msg = format!("{}: {}", crate::bridge::app::tr("ScreenCapture", "Image saved to"), saved_path);
                         crate::core::notify::show(&title.to_string(), &msg, crate::core::notify::NotificationType::Save);
                     }
-                    ActionResult::PinRequested(temp_path, auto_ocr) => {
+                    ActionResult::PinRequested(temp_path, source_rect, auto_ocr) => {
                         qobject
                             .as_mut()
-                            .pin_window_requested(QString::from(&temp_path), rect_to_qrect(rect), auto_ocr);
+                            .pin_window_requested(QString::from(&temp_path), rect_to_qrect(source_rect), auto_ocr);
                     }
                     ActionResult::OcrResult(content) => {
                         crate::spawn_clipboard_copy!(qobject, QString::from(&content), "QR Code content copied to clipboard", QrCode);

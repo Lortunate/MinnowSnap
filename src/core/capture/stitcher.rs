@@ -410,7 +410,7 @@ impl ScrollStitcher {
         let src_offset = (src_y as usize) * width_bytes;
         let dest_offset = (dest_y as usize) * width_bytes;
         let src_raw = src.as_raw();
-        let dest_raw = dest.as_mut();
+        let dest_raw: &mut [u8] = dest.as_mut();
 
         if src_offset + copy_bytes <= src_raw.len() && dest_offset + copy_bytes <= dest_raw.len() {
             dest_raw[dest_offset..dest_offset + copy_bytes].copy_from_slice(&src_raw[src_offset..src_offset + copy_bytes]);

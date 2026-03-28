@@ -7,7 +7,6 @@ use tracing_appender::non_blocking::WorkerGuard;
 pub const APP_ID: &str = "com.lortunate.minnow";
 pub const APP_NAME: &str = "MinnowSnap";
 pub const APP_LOCK_ID: &str = "com.lortunate.minnow.lock";
-pub const QML_MAIN: &str = "qrc:/qt/qml/com/lortunate/minnow/qml/main.qml";
 
 pub fn init_logger() -> Option<WorkerGuard> {
     crate::core::logging::init_logger(APP_NAME)

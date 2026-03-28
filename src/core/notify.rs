@@ -7,7 +7,7 @@ use crate::core::app::APP_ID;
 #[cfg(not(target_os = "windows"))]
 use notify_rust::Notification;
 #[cfg(target_os = "windows")]
-use tauri_winrt_notification::{IconCrop, Toast};
+use tauri_winrt_notification::Toast;
 
 #[cfg(target_os = "windows")]
 use std::{fs, path::PathBuf};
@@ -121,13 +121,8 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
 
     #[cfg(target_os = "windows")]
     {
-        let toast = if let Some(icon_path) = ensure_windows_toast_icon_file() {
-            Toast::new(APP_ID)
-                .title(title)
-                .text1(message)
-        } else {
-            Toast::new(APP_ID).title(title).text1(message)
-        };
+        let _ = ensure_windows_toast_icon_file();
+        let toast = Toast::new(APP_ID).title(title).text1(message);
 
         if let Err(e) = toast.show() {
             error!("Failed to send notification: {}", e);

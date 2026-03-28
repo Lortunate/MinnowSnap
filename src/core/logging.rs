@@ -75,13 +75,9 @@ pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
     let Some((non_blocking, guard)) = build_file_writer(&log_dir) else {
         return None;
     };
-    let env_filter = || {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL))
-    };
+    let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
 
-    let console_layer = tracing_subscriber::fmt::layer()
-        .with_writer(std::io::stdout)
-        .with_filter(env_filter());
+    let console_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout).with_filter(env_filter());
     let file_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
         .with_writer(non_blocking)
@@ -129,11 +125,7 @@ fn build_file_writer(log_dir: &Path) -> Option<(NonBlocking, WorkerGuard)> {
         .filename_suffix(LOG_FILE_SUFFIX)
         .build(log_dir)
         .map_err(|e| {
-            eprintln!(
-                "Failed to initialize rolling log file appender in {}: {}",
-                log_dir.display(),
-                e
-            );
+            eprintln!("Failed to initialize rolling log file appender in {}: {}", log_dir.display(), e);
         })
         .ok()?;
 
