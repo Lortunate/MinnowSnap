@@ -36,9 +36,11 @@ pub fn run() {
             .unwrap_or_else(|_| crate::core::i18n::SYSTEM_LOCALE.to_string());
         crate::core::i18n::init(&locale);
         gpui_component::init(cx);
+        crate::core::appearance::apply_saved_preferences(None, cx);
         crate::ui::overlay::bind_keys(cx);
         crate::ui::pin::bind_keys(cx);
         set_auto_start(crate::core::settings::SETTINGS.lock().unwrap().get().general.auto_start);
+        crate::core::hotkey::install_hotkey_service(cx);
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);
 

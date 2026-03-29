@@ -1,8 +1,84 @@
-use crate::core::settings::ShortcutSettings;
+use crate::core::{
+    capture::service::CaptureService,
+    geometry::Rect,
+    i18n,
+    notify::{self, NotificationType},
+    settings::{SETTINGS, ShortcutSettings},
+};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
+use gpui::{App, AsyncApp, Global};
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    mpsc::{Receiver, Sender, channel},
+};
+use std::time::Duration;
 use tracing::{error, info};
+
+pub const DEFAULT_CAPTURE_SHORTCUT: &str = "F1";
+pub const DEFAULT_QUICK_CAPTURE_SHORTCUT: &str = "F2";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HotkeyAction {
+    Capture,
+    QuickCapture,
+}
+
+impl HotkeyAction {
+    fn default_shortcut(self) -> &'static str {
+        match self {
+            Self::Capture => DEFAULT_CAPTURE_SHORTCUT,
+            Self::QuickCapture => DEFAULT_QUICK_CAPTURE_SHORTCUT,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ShortcutBindings {
+    pub capture: String,
+    pub quick_capture: String,
+}
+
+impl Default for ShortcutBindings {
+    fn default() -> Self {
+        Self {
+            capture: DEFAULT_CAPTURE_SHORTCUT.to_string(),
+            quick_capture: DEFAULT_QUICK_CAPTURE_SHORTCUT.to_string(),
+        }
+    }
+}
+
+impl ShortcutBindings {
+    pub fn from_settings(settings: &ShortcutSettings) -> Self {
+        Self {
+            capture: resolve_shortcut(&settings.capture, HotkeyAction::Capture),
+            quick_capture: resolve_shortcut(&settings.quick_capture, HotkeyAction::QuickCapture),
+        }
+    }
+
+    pub fn with_capture(&self, shortcut: &str) -> Self {
+        Self {
+            capture: resolve_shortcut(shortcut, HotkeyAction::Capture),
+            quick_capture: self.quick_capture.clone(),
+        }
+    }
+
+    pub fn with_quick_capture(&self, shortcut: &str) -> Self {
+        Self {
+            capture: self.capture.clone(),
+            quick_capture: resolve_shortcut(shortcut, HotkeyAction::QuickCapture),
+        }
+    }
+
+    pub fn has_conflict(&self) -> bool {
+        shortcuts_conflict(&self.capture, &self.quick_capture)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HotkeyUpdateError {
+    Conflict,
+}
 
 #[derive(Default)]
 pub struct HotkeyIds {
@@ -28,6 +104,24 @@ impl Default for HotkeyManager {
     }
 }
 
+pub struct HotkeyService {
+    manager: HotkeyManager,
+    action_tx: Sender<HotkeyAction>,
+}
+
+impl Global for HotkeyService {}
+
+pub fn install_hotkey_service(cx: &mut App) {
+    let (action_tx, action_rx) = channel();
+    let mut service = HotkeyService::new(action_tx);
+    service.register_from_settings();
+    cx.spawn(async move |cx| {
+        hotkey_action_loop(action_rx, cx).await;
+    })
+    .detach();
+    cx.set_global(service);
+}
+
 pub fn parse_hotkey(shortcut: &str) -> Option<HotKey> {
     if shortcut.is_empty() {
         return None;
@@ -39,6 +133,49 @@ pub fn parse_hotkey(shortcut: &str) -> Option<HotKey> {
             None
         }
     }
+}
+
+pub fn resolve_shortcut(shortcut: &str, action: HotkeyAction) -> String {
+    let trimmed = shortcut.trim();
+    if trimmed.is_empty() {
+        action.default_shortcut().to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+pub fn shortcuts_conflict(capture: &str, quick_capture: &str) -> bool {
+    normalize_shortcut_for_compare(capture, HotkeyAction::Capture) == normalize_shortcut_for_compare(quick_capture, HotkeyAction::QuickCapture)
+}
+
+pub fn format_keystroke(keystroke: &gpui::Keystroke) -> Option<String> {
+    if is_modifier_only_key(&keystroke.key) {
+        return None;
+    }
+
+    let mut tokens = Vec::new();
+    if keystroke.modifiers.control {
+        tokens.push("Ctrl".to_string());
+    }
+    if keystroke.modifiers.alt {
+        tokens.push("Alt".to_string());
+    }
+    if keystroke.modifiers.shift {
+        tokens.push("Shift".to_string());
+    }
+    if keystroke.modifiers.platform {
+        #[cfg(target_os = "macos")]
+        tokens.push("Cmd".to_string());
+
+        #[cfg(not(target_os = "macos"))]
+        tokens.push("Win".to_string());
+    }
+    if keystroke.modifiers.function {
+        tokens.push("Fn".to_string());
+    }
+
+    tokens.push(display_key_token(&keystroke.key));
+    Some(tokens.join("+"))
 }
 
 impl HotkeyManager {
@@ -151,5 +288,191 @@ impl HotkeyManager {
         } else {
             ids.quick_capture = next_hotkey.map(|hk| hk.id());
         }
+    }
+}
+
+impl HotkeyService {
+    pub fn new(action_tx: Sender<HotkeyAction>) -> Self {
+        Self {
+            manager: HotkeyManager::default(),
+            action_tx,
+        }
+    }
+
+    pub fn current_bindings(&self) -> ShortcutBindings {
+        let settings = SETTINGS.lock().unwrap().get();
+        ShortcutBindings::from_settings(&settings.shortcuts)
+    }
+
+    pub fn register_from_settings(&mut self) {
+        if self.manager.manager.is_some() {
+            return;
+        }
+
+        let bindings = self.current_bindings();
+        let screen_capture = self.action_tx.clone();
+        let quick_capture = self.action_tx.clone();
+        self.manager.register_global_hotkeys(
+            &bindings.capture,
+            &bindings.quick_capture,
+            move || enqueue_action(&screen_capture, HotkeyAction::Capture),
+            move || enqueue_action(&quick_capture, HotkeyAction::QuickCapture),
+        );
+    }
+
+    pub fn update_bindings(&mut self, bindings: ShortcutBindings) -> Result<(), HotkeyUpdateError> {
+        if bindings.has_conflict() {
+            return Err(HotkeyUpdateError::Conflict);
+        }
+
+        {
+            let mut settings = SETTINGS.lock().unwrap();
+            settings.set_capture_shortcut(bindings.capture.clone());
+            settings.set_quick_capture_shortcut(bindings.quick_capture.clone());
+        }
+
+        if self.manager.manager.is_none() {
+            self.register_from_settings();
+        } else {
+            self.manager.update_shortcut(&bindings.capture, true);
+            self.manager.update_shortcut(&bindings.quick_capture, false);
+        }
+
+        Ok(())
+    }
+}
+
+fn normalize_shortcut_for_compare(shortcut: &str, action: HotkeyAction) -> String {
+    resolve_shortcut(shortcut, action)
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn is_modifier_only_key(key: &str) -> bool {
+    matches!(
+        key.trim().to_ascii_lowercase().as_str(),
+        "shift" | "control" | "ctrl" | "alt" | "command" | "cmd" | "super" | "platform" | "function" | "fn"
+    )
+}
+
+fn display_key_token(key: &str) -> String {
+    let trimmed = key.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.len() == 1 {
+        return lower.to_ascii_uppercase();
+    }
+
+    if lower.starts_with('f') && lower.chars().skip(1).all(|ch| ch.is_ascii_digit()) {
+        return lower.to_ascii_uppercase();
+    }
+
+    match lower.as_str() {
+        "escape" => "Escape".to_string(),
+        "space" => "Space".to_string(),
+        "tab" => "Tab".to_string(),
+        "enter" => "Enter".to_string(),
+        "backspace" => "Backspace".to_string(),
+        "delete" => "Delete".to_string(),
+        "up" => "Up".to_string(),
+        "down" => "Down".to_string(),
+        "left" => "Left".to_string(),
+        "right" => "Right".to_string(),
+        other => other.to_ascii_uppercase(),
+    }
+}
+
+fn enqueue_action(action_tx: &Sender<HotkeyAction>, action: HotkeyAction) {
+    if let Err(err) = action_tx.send(action) {
+        error!("Failed to enqueue hotkey action: {err}");
+    }
+}
+
+async fn hotkey_action_loop(action_rx: Receiver<HotkeyAction>, cx: &mut AsyncApp) {
+    loop {
+        let mut processed = false;
+
+        while let Ok(action) = action_rx.try_recv() {
+            processed = true;
+            handle_hotkey_action(action, cx);
+        }
+
+        if !processed {
+            cx.background_executor().timer(Duration::from_millis(50)).await;
+        }
+    }
+}
+
+fn handle_hotkey_action(action: HotkeyAction, async_app: &mut AsyncApp) {
+    match action {
+        HotkeyAction::Capture => {
+            let _ = async_app.update(|cx| {
+                crate::app::prepare_overlay_session(cx);
+                crate::ui::overlay::open_window(cx);
+            });
+        }
+        HotkeyAction::QuickCapture => trigger_quick_capture(),
+    }
+}
+
+fn trigger_quick_capture() {
+    let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
+    if ok {
+        notify::show(
+            i18n::app::capture_name().as_str(),
+            i18n::notify::quick_capture_copied().as_str(),
+            NotificationType::Copy,
+        );
+    } else {
+        notify::show(
+            i18n::app::name().as_str(),
+            i18n::notify::quick_capture_failed().as_str(),
+            NotificationType::Info,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DEFAULT_CAPTURE_SHORTCUT, DEFAULT_QUICK_CAPTURE_SHORTCUT, HotkeyAction, ShortcutBindings, format_keystroke, resolve_shortcut,
+        shortcuts_conflict,
+    };
+
+    #[test]
+    fn empty_shortcuts_fall_back_to_defaults() {
+        assert_eq!(resolve_shortcut("", HotkeyAction::Capture), DEFAULT_CAPTURE_SHORTCUT);
+        assert_eq!(resolve_shortcut("   ", HotkeyAction::QuickCapture), DEFAULT_QUICK_CAPTURE_SHORTCUT);
+    }
+
+    #[test]
+    fn bindings_update_independently() {
+        let bindings = ShortcutBindings::default().with_capture("Ctrl+Shift+A").with_quick_capture("Ctrl+Alt+B");
+
+        assert_eq!(bindings.capture, "Ctrl+Shift+A");
+        assert_eq!(bindings.quick_capture, "Ctrl+Alt+B");
+    }
+
+    #[test]
+    fn repeated_shortcuts_are_rejected() {
+        assert!(shortcuts_conflict("ctrl+shift+a", "Ctrl+Shift+A"));
+        assert!(ShortcutBindings::default().with_quick_capture("F1").has_conflict());
+    }
+
+    #[test]
+    fn blank_shortcuts_still_use_default_values_for_conflict_checks() {
+        assert!(shortcuts_conflict("", DEFAULT_CAPTURE_SHORTCUT));
+        assert!(!shortcuts_conflict("", DEFAULT_QUICK_CAPTURE_SHORTCUT));
+    }
+
+    #[test]
+    fn keystrokes_are_formatted_for_global_hotkeys() {
+        let keystroke = gpui::Keystroke::parse("ctrl-shift-f2").expect("valid keystroke");
+        assert_eq!(format_keystroke(&keystroke), Some("Ctrl+Shift+F2".to_string()));
     }
 }

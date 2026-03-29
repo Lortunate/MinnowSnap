@@ -3,7 +3,7 @@ use gpui::{
     App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions, div,
     point, px, rgba, size,
 };
-use gpui_component::{Root, Theme};
+use gpui_component::Root;
 
 /// Windows tray apps that close all visible GPUI windows can still receive late
 /// window updates during teardown. Keeping a single hidden native host window
@@ -44,7 +44,7 @@ pub fn install(cx: &mut App) -> gpui::Result<()> {
             ..WindowOptions::default()
         },
         |window, cx| {
-            Theme::sync_system_appearance(Some(window), cx);
+            crate::core::appearance::apply_saved_preferences(Some(window), cx);
             let view = cx.new(|_| BackgroundHostWindow);
             cx.new(move |cx| Root::new(view, window, cx))
         },

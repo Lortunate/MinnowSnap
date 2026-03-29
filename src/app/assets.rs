@@ -6,6 +6,7 @@ use rust_embed::RustEmbed;
 #[derive(RustEmbed)]
 #[folder = "."]
 #[include = "resources/icons/**/*.svg"]
+#[include = "resources/logo.png"]
 struct ProjectAssets;
 
 pub struct AppAssets;

@@ -6,7 +6,7 @@ mod view;
 
 use crate::core::app::APP_ID;
 use gpui::{App, AppContext, Bounds, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions};
-use gpui_component::{Root, Theme};
+use gpui_component::Root;
 
 pub use actions::bind_keys;
 pub use session::OverlayHandle;
@@ -17,7 +17,7 @@ pub fn open_window(cx: &mut App) {
     let overlay_handle = cx.global::<OverlayHandle>().clone();
 
     if let Err(err) = cx.open_window(options, move |window, cx| {
-        Theme::sync_system_appearance(Some(window), cx);
+        crate::core::appearance::apply_saved_preferences(Some(window), cx);
         let focus_handle = cx.focus_handle();
         focus_handle.focus(window);
         let overlay_handle = overlay_handle.clone();

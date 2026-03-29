@@ -55,15 +55,98 @@ capture:
 preferences:
   window:
     title: "设置"
-    subtitle: "原生 GPUI 设置界面"
+    subtitle: "配置截图、OCR、快捷键和通知"
+  pages:
+    general:
+      title: "通用"
+      description: "外观、语言、启动行为与保存偏好。"
+    shortcuts:
+      title: "快捷键"
+      description: "全局截图快捷键与冲突处理。"
+    notifications:
+      title: "通知"
+      description: "系统通知与截图反馈。"
+    ocr:
+      title: "OCR"
+      description: "本地 OCR 状态与模型配置。"
+    about:
+      title: "关于"
+      description: "版本信息、项目链接与诊断入口。"
   fields:
     auto_start: "开机自启动"
+    auto_start_description: "登录系统后自动启动应用。"
+    language: "语言"
+    language_description: "选择应用显示语言。"
+    theme: "主题"
+    theme_description: "选择应用外观。"
+    font_family: "应用字体"
+    font_family_description: "选择原生窗口使用的字体。"
     ocr: "OCR"
+    ocr_enabled_description: "在截图流程中启用 OCR 识别。"
+    ocr_model: "OCR 模型"
+    ocr_model_type: "模型类型"
+    ocr_model_type_mobile: "Mobile"
     notifications: "通知"
+    notifications_enabled: "启用通知"
+    notifications_enabled_description: "为截图相关操作显示系统通知。"
+    save_notification: "保存通知"
+    save_notification_description: "图片保存后显示通知。"
+    copy_notification: "复制通知"
+    copy_notification_description: "内容复制后显示通知。"
+    qr_code_notification: "二维码通知"
+    qr_code_notification_description: "识别到二维码后显示通知。"
+    shutter_sound: "快门音"
+    shutter_sound_description: "截图时播放音效。"
     save_path: "保存路径"
+    save_directory: "保存目录"
+    image_compression: "图像压缩"
+    image_compression_description: "使用 Oxipng 优化已保存图片。关闭后保存更快，但文件体积更大。"
+    capture_shortcut: "截图快捷键"
+    quick_capture_shortcut: "快速截图快捷键"
+    capture_shortcut_description: "用于选择区域或窗口进行截图。"
+    quick_capture_shortcut_description: "立即截取当前可见的整个屏幕区域。"
     default_path: "系统默认"
+    default_path_with_value: "系统默认（%{path}）"
   description:
-    intro: "这是旧版设置窗口的第一版原生 GPUI 替代界面。"
+    intro: "管理原生应用行为与截图默认设置。"
+  actions:
+    select_save_directory: "选择保存目录"
+    browse: "浏览"
+    open: "打开"
+    shortcuts_recording: "请按下组合键"
+    shortcuts_recording_hint: "点击某个快捷键后，按下下一组组合键。"
+    shortcuts_restore_defaults: "恢复默认"
+    shortcuts_restore_defaults_description: "将截图快捷键重置为 F1 和 F2。"
+    ocr_download: "下载模型"
+    ocr_redownload: "重新下载模型"
+    ocr_download_in_progress: "下载中..."
+  options:
+    follow_system: "跟随系统"
+    light: "浅色"
+    dark: "深色"
+    zh_cn: "简体中文"
+    en_us: "English (US)"
+  about:
+    summary: "一款使用 Rust 构建的简洁而强大的截图工具。"
+    version: "版本"
+    github_repository: "GitHub 仓库"
+    github_repository_description: "在默认浏览器中打开项目主页。"
+    report_issue: "反馈问题"
+    report_issue_description: "打开 Issue 页面反馈缺陷或提出功能建议。"
+    open_log_folder: "打开日志目录"
+  shortcuts:
+    title: "全局快捷键"
+    conflict: "截图与快速截图快捷键不能相同。"
+  ocr:
+    status_missing: "模型尚未下载"
+    status_downloading: "下载中 %{progress}%"
+    status_ready: "模型可用"
+    status_failed: "下载失败：%{message}"
+    note: "OCR 完全在本机运行。当前默认使用 Mobile 模型以兼顾性能与体积。"
+    download_completed: "OCR 模型下载完成。"
+    download_failed: "OCR 模型下载失败"
+  errors:
+    folder_picker_failed: "打开文件夹选择器失败"
 
 pin:
   badge:

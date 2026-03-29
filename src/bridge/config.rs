@@ -1,5 +1,7 @@
+use crate::core::hotkey::{self, HotkeyAction};
 use crate::core::io::fonts::get_system_fonts;
 use crate::core::io::storage::get_default_save_path;
+use crate::core::i18n;
 use crate::core::settings::SETTINGS;
 use crate::interop::qt_url_adapter;
 use cxx_qt_lib::{QString, QStringList, QUrl};
@@ -163,10 +165,17 @@ impl ConfigRust {
             theme: QString::from(&settings.general.theme),
             language: QString::from(&settings.general.language),
             version: QString::from(env!("CARGO_PKG_VERSION")),
-            capture_shortcut: QString::from(&settings.shortcuts.capture),
-            quick_capture_shortcut: QString::from(&settings.shortcuts.quick_capture),
-            has_shortcut_conflicts: false,
-            shortcut_conflict_msg: QString::default(),
+            capture_shortcut: QString::from(hotkey::resolve_shortcut(&settings.shortcuts.capture, HotkeyAction::Capture)),
+            quick_capture_shortcut: QString::from(hotkey::resolve_shortcut(
+                &settings.shortcuts.quick_capture,
+                HotkeyAction::QuickCapture,
+            )),
+            has_shortcut_conflicts: hotkey::shortcuts_conflict(&settings.shortcuts.capture, &settings.shortcuts.quick_capture),
+            shortcut_conflict_msg: if hotkey::shortcuts_conflict(&settings.shortcuts.capture, &settings.shortcuts.quick_capture) {
+                QString::from(&i18n::preferences::shortcuts_conflict())
+            } else {
+                QString::default()
+            },
         }
     }
 }
@@ -185,8 +194,24 @@ impl qobject::Config {
         self.as_mut().set_theme(QString::from(&settings.general.theme));
         self.as_mut().set_language(QString::from(&settings.general.language));
         self.as_mut().set_version(QString::from(env!("CARGO_PKG_VERSION")));
-        self.as_mut().set_capture_shortcut(QString::from(&settings.shortcuts.capture));
-        self.as_mut().set_quick_capture_shortcut(QString::from(&settings.shortcuts.quick_capture));
+        self.as_mut()
+            .set_capture_shortcut(QString::from(hotkey::resolve_shortcut(&settings.shortcuts.capture, HotkeyAction::Capture)));
+        self.as_mut().set_quick_capture_shortcut(QString::from(hotkey::resolve_shortcut(
+            &settings.shortcuts.quick_capture,
+            HotkeyAction::QuickCapture,
+        )));
+        self.as_mut().set_has_shortcut_conflicts(hotkey::shortcuts_conflict(
+            &settings.shortcuts.capture,
+            &settings.shortcuts.quick_capture,
+        ));
+        self.as_mut().set_shortcut_conflict_msg(if hotkey::shortcuts_conflict(
+            &settings.shortcuts.capture,
+            &settings.shortcuts.quick_capture,
+        ) {
+            QString::from(&i18n::preferences::shortcuts_conflict())
+        } else {
+            QString::default()
+        });
 
         if let Some(path) = settings.output.save_path {
             self.as_mut().set_save_path(QString::from(&path));
@@ -278,13 +303,12 @@ impl qobject::Config {
     }
 
     pub fn check_shortcut_conflicts(mut self: Pin<&mut Self>, capture: QString, quick: QString) {
-        let capture_str = if capture.is_empty() { "F1" } else { &capture.to_string() };
-        let quick_str = if quick.is_empty() { "F2" } else { &quick.to_string() };
+        let capture_str = hotkey::resolve_shortcut(&capture.to_string(), HotkeyAction::Capture);
+        let quick_str = hotkey::resolve_shortcut(&quick.to_string(), HotkeyAction::QuickCapture);
 
-        if capture_str == quick_str {
+        if hotkey::shortcuts_conflict(&capture_str, &quick_str) {
             self.as_mut().set_has_shortcut_conflicts(true);
-            self.as_mut()
-                .set_shortcut_conflict_msg(crate::bridge::app::tr("Preferences", "Shortcuts cannot be identical."));
+            self.as_mut().set_shortcut_conflict_msg(QString::from(&i18n::preferences::shortcuts_conflict()));
         } else {
             self.as_mut().set_has_shortcut_conflicts(false);
             self.as_mut().set_shortcut_conflict_msg(QString::default());
@@ -292,17 +316,21 @@ impl qobject::Config {
     }
 
     pub fn update_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        update_prop!(self, shortcut, capture_shortcut, set_capture_shortcut, set_capture_shortcut);
+        let resolved = hotkey::resolve_shortcut(&shortcut.to_string(), HotkeyAction::Capture);
+        if self.capture_shortcut().to_string() == resolved {
+            return;
+        }
+        self.as_mut().set_capture_shortcut(QString::from(&resolved));
+        SETTINGS.lock().unwrap().set_capture_shortcut(resolved);
     }
 
     pub fn update_quick_capture_shortcut(mut self: Pin<&mut Self>, shortcut: QString) {
-        update_prop!(
-            self,
-            shortcut,
-            quick_capture_shortcut,
-            set_quick_capture_shortcut,
-            set_quick_capture_shortcut
-        );
+        let resolved = hotkey::resolve_shortcut(&shortcut.to_string(), HotkeyAction::QuickCapture);
+        if self.quick_capture_shortcut().to_string() == resolved {
+            return;
+        }
+        self.as_mut().set_quick_capture_shortcut(QString::from(&resolved));
+        SETTINGS.lock().unwrap().set_quick_capture_shortcut(resolved);
     }
 
     pub fn get_system_fonts(&self) -> QStringList {

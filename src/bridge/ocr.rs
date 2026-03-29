@@ -1,7 +1,6 @@
-use crate::core::settings::SETTINGS;
+use crate::core::{i18n, ocr_service};
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
-use ocr::OcrModelType;
 use std::pin::Pin;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -51,29 +50,29 @@ pub struct OcrManagerRust {
 
 impl qobject::OcrManager {
     pub fn init(mut self: Pin<&mut Self>) {
-        let settings = SETTINGS.lock().unwrap().get();
-        self.as_mut().set_enabled(settings.ocr.enabled);
-        info!("OCR Manager initialized. Enabled: {}", settings.ocr.enabled);
+        let enabled = ocr_service::is_enabled();
+        self.as_mut().set_enabled(enabled);
+        info!("OCR Manager initialized. Enabled: {}", enabled);
         self.check_status();
     }
 
     pub fn set_ocr_enabled_persist(mut self: Pin<&mut Self>, enabled: bool) {
         info!("Setting OCR enabled to: {}", enabled);
         self.as_mut().set_enabled(enabled);
-        SETTINGS.lock().unwrap().set_ocr_enabled(enabled);
+        ocr_service::set_enabled(enabled);
         if enabled {
             self.check_status();
         }
     }
 
     pub fn check_status(mut self: Pin<&mut Self>) {
-        let ready = ocr::check_models_ready(OcrModelType::Mobile);
-        self.as_mut().set_is_model_ready(ready);
-        if ready {
-            self.as_mut().set_status_message(QString::from("Ready"));
-        } else if !self.is_downloading() {
-            self.as_mut().set_status_message(QString::from("Models not found"));
-        }
+        let status = ocr_service::current_status(
+            *self.is_downloading(),
+            (*self.download_progress() * 100.0).round().clamp(0.0, 100.0) as u8,
+            None,
+        );
+        self.as_mut().set_is_model_ready(matches!(status, ocr_service::OcrModelStatus::Ready));
+        self.as_mut().set_status_message(ocr_status_message(&status));
     }
 
     pub fn download_models(mut self: Pin<&mut Self>) {
@@ -83,7 +82,8 @@ impl qobject::OcrManager {
 
         self.as_mut().set_is_downloading(true);
         self.as_mut().set_download_progress(0.0);
-        self.as_mut().set_status_message(QString::from("Starting download..."));
+        let starting = ocr_service::OcrModelStatus::Downloading { progress_percent: 0 };
+        self.as_mut().set_status_message(ocr_status_message(&starting));
         info!("Starting OCR model download...");
 
         let qt_thread_progress = self.qt_thread();
@@ -92,16 +92,16 @@ impl qobject::OcrManager {
             let qt_thread = qt_thread_progress.clone();
             let _ = qt_thread.queue(move |mut qobject: Pin<&mut qobject::OcrManager>| {
                 qobject.as_mut().set_download_progress(p);
-                let percent = (p * 100.0) as i32;
-                qobject
-                    .as_mut()
-                    .set_status_message(QString::from(&format!("Downloading... {}%", percent)));
+                let status = ocr_service::OcrModelStatus::Downloading {
+                    progress_percent: (p * 100.0).round().clamp(0.0, 100.0) as u8,
+                };
+                qobject.as_mut().set_status_message(ocr_status_message(&status));
             });
         });
 
         crate::spawn_qt_task!(
             self,
-            async move { ocr::download_models(OcrModelType::Mobile, true, Some(progress_cb)).await },
+            async move { ocr_service::download_mobile_models(true, Some(progress_cb)).await },
             |mut qobject: Pin<&mut qobject::OcrManager>, result| {
                 qobject.as_mut().set_is_downloading(false);
                 match result {
@@ -109,14 +109,31 @@ impl qobject::OcrManager {
                         info!("OCR model download completed successfully");
                         qobject.as_mut().set_is_model_ready(true);
                         qobject.as_mut().set_download_progress(1.0);
-                        qobject.as_mut().set_status_message(QString::from("Download complete"));
+                        qobject
+                            .as_mut()
+                            .set_status_message(ocr_status_message(&ocr_service::OcrModelStatus::Ready));
                     }
                     Err(e) => {
                         error!("Download failed: {}", e);
-                        qobject.as_mut().set_status_message(QString::from("Download failed"));
+                        qobject.as_mut().set_is_model_ready(false);
+                        qobject.as_mut().set_status_message(ocr_status_message(&ocr_service::OcrModelStatus::Failed {
+                            message: e,
+                        }));
                     }
                 }
             }
         );
     }
+}
+
+fn ocr_status_message(status: &ocr_service::OcrModelStatus) -> QString {
+    let text = match status {
+        ocr_service::OcrModelStatus::Missing => i18n::preferences::ocr_status_missing(),
+        ocr_service::OcrModelStatus::Downloading { progress_percent } => {
+            i18n::preferences::ocr_status_downloading(*progress_percent)
+        }
+        ocr_service::OcrModelStatus::Ready => i18n::preferences::ocr_status_ready(),
+        ocr_service::OcrModelStatus::Failed { message } => i18n::preferences::ocr_status_failed(message.clone()),
+    };
+    QString::from(&text)
 }

@@ -7,7 +7,7 @@ pub use request::PinRequest;
 
 use crate::core::app::APP_ID;
 use gpui::{App, AppContext, Bounds, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions, point, px, size};
-use gpui_component::{Root, Theme};
+use gpui_component::Root;
 use tracing::info;
 use view::PinView;
 
@@ -17,7 +17,7 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
     if let Err(err) = cx.open_window(
         options,
         gpui_window_ext::with_level(gpui_window_ext::Level::AlwaysOnTop, move |window, cx| {
-            Theme::sync_system_appearance(Some(window), cx);
+            crate::core::appearance::apply_saved_preferences(Some(window), cx);
             let focus_handle = cx.focus_handle();
             focus_handle.focus(window);
             let view = cx.new(move |_| PinView::new(request, focus_handle));

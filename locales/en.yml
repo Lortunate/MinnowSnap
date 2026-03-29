@@ -55,15 +55,98 @@ capture:
 preferences:
   window:
     title: "Preferences"
-    subtitle: "Native GPUI settings surface"
+    subtitle: "Configure capture, OCR, shortcuts, and notifications"
+  pages:
+    general:
+      title: "General"
+      description: "Appearance, language, startup behavior, and save preferences."
+    shortcuts:
+      title: "Shortcuts"
+      description: "Global capture shortcuts and conflict handling."
+    notifications:
+      title: "Notifications"
+      description: "System notifications and capture feedback."
+    ocr:
+      title: "OCR"
+      description: "On-device OCR status and model configuration."
+    about:
+      title: "About"
+      description: "Version details, project links, and diagnostics."
   fields:
     auto_start: "Launch at login"
+    auto_start_description: "Automatically start the application when you sign in."
+    language: "Language"
+    language_description: "Choose the display language of the application."
+    theme: "Theme"
+    theme_description: "Choose the appearance of the application."
+    font_family: "App Font"
+    font_family_description: "Choose the font family used across native windows."
     ocr: "OCR"
+    ocr_enabled_description: "Enable OCR recognition in capture workflows."
+    ocr_model: "OCR Model"
+    ocr_model_type: "Model Type"
+    ocr_model_type_mobile: "Mobile"
     notifications: "Notifications"
+    notifications_enabled: "Enable Notifications"
+    notifications_enabled_description: "Show system notifications for capture actions."
+    save_notification: "Save Notification"
+    save_notification_description: "Show a notification when an image is saved."
+    copy_notification: "Copy Notification"
+    copy_notification_description: "Show a notification when content is copied."
+    qr_code_notification: "QR Code Notification"
+    qr_code_notification_description: "Show a notification when a QR code is recognized."
+    shutter_sound: "Shutter Sound"
+    shutter_sound_description: "Play a sound effect when capturing."
     save_path: "Save path"
+    save_directory: "Save Directory"
+    image_compression: "Image Compression"
+    image_compression_description: "Optimize saved images with Oxipng. Turning this off improves save speed but increases file size."
+    capture_shortcut: "Capture Shortcut"
+    quick_capture_shortcut: "Quick Capture Shortcut"
+    capture_shortcut_description: "Select a region or window to capture."
+    quick_capture_shortcut_description: "Capture the entire visible screen area immediately."
     default_path: "System default"
+    default_path_with_value: "System default (%{path})"
   description:
-    intro: "This is the first native GPUI replacement for the legacy preferences window."
+    intro: "Manage native application behavior and capture defaults."
+  actions:
+    select_save_directory: "Select Save Directory"
+    browse: "Browse"
+    open: "Open"
+    shortcuts_recording: "Press keys"
+    shortcuts_recording_hint: "Click one shortcut, then press the next key combination."
+    shortcuts_restore_defaults: "Restore Defaults"
+    shortcuts_restore_defaults_description: "Reset capture shortcuts to F1 and F2."
+    ocr_download: "Download Model"
+    ocr_redownload: "Redownload Model"
+    ocr_download_in_progress: "Downloading..."
+  options:
+    follow_system: "Follow System"
+    light: "Light"
+    dark: "Dark"
+    zh_cn: "Simplified Chinese"
+    en_us: "English (US)"
+  about:
+    summary: "A simple and powerful screen capture tool built with Rust."
+    version: "Version"
+    github_repository: "GitHub Repository"
+    github_repository_description: "Open the project homepage in your default browser."
+    report_issue: "Report an Issue"
+    report_issue_description: "Open the issue tracker to report a bug or request a feature."
+    open_log_folder: "Open Log Folder"
+  shortcuts:
+    title: "Global Shortcuts"
+    conflict: "Capture and Quick Capture shortcuts cannot be identical."
+  ocr:
+    status_missing: "Model not downloaded"
+    status_downloading: "Downloading %{progress}%"
+    status_ready: "Model ready"
+    status_failed: "Download failed: %{message}"
+    note: "OCR runs locally on your device. The Mobile models are used by default for performance."
+    download_completed: "OCR model download completed."
+    download_failed: "OCR model download failed"
+  errors:
+    folder_picker_failed: "Failed to open the folder picker"
 
 pin:
   badge:

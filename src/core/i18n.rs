@@ -226,28 +226,312 @@ pub mod preferences {
         t!("preferences.window.subtitle").into_owned()
     }
 
+    pub fn page_general() -> String {
+        t!("preferences.pages.general.title").into_owned()
+    }
+
+    pub fn page_general_description() -> String {
+        t!("preferences.pages.general.description").into_owned()
+    }
+
+    pub fn page_shortcuts() -> String {
+        t!("preferences.pages.shortcuts.title").into_owned()
+    }
+
+    pub fn page_shortcuts_description() -> String {
+        t!("preferences.pages.shortcuts.description").into_owned()
+    }
+
+    pub fn page_notifications() -> String {
+        t!("preferences.pages.notifications.title").into_owned()
+    }
+
+    pub fn page_notifications_description() -> String {
+        t!("preferences.pages.notifications.description").into_owned()
+    }
+
+    pub fn page_ocr() -> String {
+        t!("preferences.pages.ocr.title").into_owned()
+    }
+
+    pub fn page_ocr_description() -> String {
+        t!("preferences.pages.ocr.description").into_owned()
+    }
+
+    pub fn page_about() -> String {
+        t!("preferences.pages.about.title").into_owned()
+    }
+
+    pub fn page_about_description() -> String {
+        t!("preferences.pages.about.description").into_owned()
+    }
+
     pub fn auto_start() -> String {
         t!("preferences.fields.auto_start").into_owned()
+    }
+
+    pub fn auto_start_description() -> String {
+        t!("preferences.fields.auto_start_description").into_owned()
+    }
+
+    pub fn language() -> String {
+        t!("preferences.fields.language").into_owned()
+    }
+
+    pub fn language_description() -> String {
+        t!("preferences.fields.language_description").into_owned()
+    }
+
+    pub fn theme() -> String {
+        t!("preferences.fields.theme").into_owned()
+    }
+
+    pub fn theme_description() -> String {
+        t!("preferences.fields.theme_description").into_owned()
+    }
+
+    pub fn font_family() -> String {
+        t!("preferences.fields.font_family").into_owned()
+    }
+
+    pub fn font_family_description() -> String {
+        t!("preferences.fields.font_family_description").into_owned()
     }
 
     pub fn ocr() -> String {
         t!("preferences.fields.ocr").into_owned()
     }
 
+    pub fn ocr_model() -> String {
+        t!("preferences.fields.ocr_model").into_owned()
+    }
+
     pub fn notifications() -> String {
         t!("preferences.fields.notifications").into_owned()
+    }
+
+    pub fn notifications_enabled() -> String {
+        t!("preferences.fields.notifications_enabled").into_owned()
+    }
+
+    pub fn notifications_enabled_description() -> String {
+        t!("preferences.fields.notifications_enabled_description").into_owned()
+    }
+
+    pub fn save_notification() -> String {
+        t!("preferences.fields.save_notification").into_owned()
+    }
+
+    pub fn save_notification_description() -> String {
+        t!("preferences.fields.save_notification_description").into_owned()
+    }
+
+    pub fn copy_notification() -> String {
+        t!("preferences.fields.copy_notification").into_owned()
+    }
+
+    pub fn copy_notification_description() -> String {
+        t!("preferences.fields.copy_notification_description").into_owned()
+    }
+
+    pub fn qr_code_notification() -> String {
+        t!("preferences.fields.qr_code_notification").into_owned()
+    }
+
+    pub fn qr_code_notification_description() -> String {
+        t!("preferences.fields.qr_code_notification_description").into_owned()
+    }
+
+    pub fn shutter_sound() -> String {
+        t!("preferences.fields.shutter_sound").into_owned()
+    }
+
+    pub fn shutter_sound_description() -> String {
+        t!("preferences.fields.shutter_sound_description").into_owned()
     }
 
     pub fn save_path() -> String {
         t!("preferences.fields.save_path").into_owned()
     }
 
+    pub fn save_directory() -> String {
+        t!("preferences.fields.save_directory").into_owned()
+    }
+
+    pub fn image_compression() -> String {
+        t!("preferences.fields.image_compression").into_owned()
+    }
+
+    pub fn image_compression_description() -> String {
+        t!("preferences.fields.image_compression_description").into_owned()
+    }
+
+    pub fn capture_shortcut() -> String {
+        t!("preferences.fields.capture_shortcut").into_owned()
+    }
+
+    pub fn quick_capture_shortcut() -> String {
+        t!("preferences.fields.quick_capture_shortcut").into_owned()
+    }
+
+    pub fn capture_shortcut_description() -> String {
+        t!("preferences.fields.capture_shortcut_description").into_owned()
+    }
+
+    pub fn quick_capture_shortcut_description() -> String {
+        t!("preferences.fields.quick_capture_shortcut_description").into_owned()
+    }
+
+    pub fn ocr_enabled_description() -> String {
+        t!("preferences.fields.ocr_enabled_description").into_owned()
+    }
+
+    pub fn ocr_model_type() -> String {
+        t!("preferences.fields.ocr_model_type").into_owned()
+    }
+
+    pub fn ocr_model_type_mobile() -> String {
+        t!("preferences.fields.ocr_model_type_mobile").into_owned()
+    }
+
     pub fn default_path() -> String {
         t!("preferences.fields.default_path").into_owned()
     }
 
+    pub fn default_path_with_value(path: impl ToString) -> String {
+        t!("preferences.fields.default_path_with_value", path = path.to_string()).into_owned()
+    }
+
     pub fn intro() -> String {
         t!("preferences.description.intro").into_owned()
+    }
+
+    pub fn select_save_directory() -> String {
+        t!("preferences.actions.select_save_directory").into_owned()
+    }
+
+    pub fn browse() -> String {
+        t!("preferences.actions.browse").into_owned()
+    }
+
+    pub fn open() -> String {
+        t!("preferences.actions.open").into_owned()
+    }
+
+    pub fn shortcuts_recording() -> String {
+        t!("preferences.actions.shortcuts_recording").into_owned()
+    }
+
+    pub fn shortcuts_recording_hint() -> String {
+        t!("preferences.actions.shortcuts_recording_hint").into_owned()
+    }
+
+    pub fn shortcuts_restore_defaults() -> String {
+        t!("preferences.actions.shortcuts_restore_defaults").into_owned()
+    }
+
+    pub fn shortcuts_restore_defaults_description() -> String {
+        t!("preferences.actions.shortcuts_restore_defaults_description").into_owned()
+    }
+
+    pub fn ocr_download_action() -> String {
+        t!("preferences.actions.ocr_download").into_owned()
+    }
+
+    pub fn ocr_redownload_action() -> String {
+        t!("preferences.actions.ocr_redownload").into_owned()
+    }
+
+    pub fn ocr_download_in_progress() -> String {
+        t!("preferences.actions.ocr_download_in_progress").into_owned()
+    }
+
+    pub fn follow_system() -> String {
+        t!("preferences.options.follow_system").into_owned()
+    }
+
+    pub fn theme_light() -> String {
+        t!("preferences.options.light").into_owned()
+    }
+
+    pub fn theme_dark() -> String {
+        t!("preferences.options.dark").into_owned()
+    }
+
+    pub fn language_zh_cn() -> String {
+        t!("preferences.options.zh_cn").into_owned()
+    }
+
+    pub fn language_en_us() -> String {
+        t!("preferences.options.en_us").into_owned()
+    }
+
+    pub fn about_summary() -> String {
+        t!("preferences.about.summary").into_owned()
+    }
+
+    pub fn version_label() -> String {
+        t!("preferences.about.version").into_owned()
+    }
+
+    pub fn github_repository() -> String {
+        t!("preferences.about.github_repository").into_owned()
+    }
+
+    pub fn github_repository_description() -> String {
+        t!("preferences.about.github_repository_description").into_owned()
+    }
+
+    pub fn report_issue() -> String {
+        t!("preferences.about.report_issue").into_owned()
+    }
+
+    pub fn report_issue_description() -> String {
+        t!("preferences.about.report_issue_description").into_owned()
+    }
+
+    pub fn open_log_folder() -> String {
+        t!("preferences.about.open_log_folder").into_owned()
+    }
+
+    pub fn shortcuts_title() -> String {
+        t!("preferences.shortcuts.title").into_owned()
+    }
+
+    pub fn shortcuts_conflict() -> String {
+        t!("preferences.shortcuts.conflict").into_owned()
+    }
+
+    pub fn ocr_status_missing() -> String {
+        t!("preferences.ocr.status_missing").into_owned()
+    }
+
+    pub fn ocr_status_downloading(progress: u8) -> String {
+        t!("preferences.ocr.status_downloading", progress = progress).into_owned()
+    }
+
+    pub fn ocr_status_ready() -> String {
+        t!("preferences.ocr.status_ready").into_owned()
+    }
+
+    pub fn ocr_status_failed(message: impl ToString) -> String {
+        t!("preferences.ocr.status_failed", message = message.to_string()).into_owned()
+    }
+
+    pub fn ocr_download_completed() -> String {
+        t!("preferences.ocr.download_completed").into_owned()
+    }
+
+    pub fn ocr_download_failed() -> String {
+        t!("preferences.ocr.download_failed").into_owned()
+    }
+
+    pub fn ocr_note() -> String {
+        t!("preferences.ocr.note").into_owned()
+    }
+
+    pub fn folder_picker_failed() -> String {
+        t!("preferences.errors.folder_picker_failed").into_owned()
     }
 }
 

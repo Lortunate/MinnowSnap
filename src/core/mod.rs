@@ -21,6 +21,7 @@ fn build_runtime() -> Runtime {
 pub static RUNTIME: Lazy<Runtime> = Lazy::new(build_runtime);
 
 pub mod app;
+pub mod appearance;
 pub mod capture;
 pub mod geometry;
 pub mod hotkey;
@@ -29,6 +30,8 @@ pub mod io;
 pub mod logging;
 pub mod notify;
 pub mod ocr;
+pub mod ocr_service;
 pub mod settings;
+pub mod system;
 pub mod tray;
 pub mod window;
