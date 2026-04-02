@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 use tracing::{debug, error, info, trace, warn};
 use tracing_appender::non_blocking::{NonBlocking, NonBlockingBuilder, WorkerGuard};
 use tracing_appender::rolling::{Builder as RollingFileAppenderBuilder, Rotation};
-use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, Layer, filter::filter_fn, layer::SubscriberExt, util::SubscriberInitExt};
 
 const LOG_DIR_NAME: &str = "logs";
 const LOG_FILE_PREFIX: &str = "minnowsnap";
@@ -68,6 +68,32 @@ impl<'a> QtLogMessage<'a> {
     }
 }
 
+fn should_suppress_gpui_window_not_found(metadata: &tracing::Metadata<'_>) -> bool {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = metadata;
+        false
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if *metadata.level() != tracing::Level::ERROR || !metadata.target().is_empty() {
+            return false;
+        }
+
+        let Some(file) = metadata.file() else {
+            return false;
+        };
+
+        let normalized_file = file.replace('\\', "/");
+        if !normalized_file.contains("/gpui-") || !normalized_file.ends_with("/src/window.rs") {
+            return false;
+        }
+
+        matches!(metadata.line(), Some(line) if (1108..=1112).contains(&line) || (1162..=1166).contains(&line))
+    }
+}
+
 pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
     let Some(log_dir) = prepare_log_dir(app_name) else {
         return None;
@@ -77,11 +103,15 @@ pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
     };
     let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
 
-    let console_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stdout).with_filter(env_filter());
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_filter(env_filter())
+        .with_filter(filter_fn(|metadata| !should_suppress_gpui_window_not_found(metadata)));
     let file_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
         .with_writer(non_blocking)
-        .with_filter(env_filter());
+        .with_filter(env_filter())
+        .with_filter(filter_fn(|metadata| !should_suppress_gpui_window_not_found(metadata)));
 
     if let Err(e) = tracing_subscriber::registry().with(console_layer).with(file_layer).try_init() {
         eprintln!("Failed to initialize tracing subscriber: {}", e);

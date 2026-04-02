@@ -1,4 +1,5 @@
 use crate::core::geometry::Rect;
+use std::path::Path;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
@@ -17,6 +18,14 @@ impl PinRequest {
             image_size,
             source_bounds,
         }
+    }
+
+    pub(crate) fn image_path(&self) -> &Path {
+        &self.image_path
+    }
+
+    pub(crate) fn origin(&self) -> Option<(f32, f32)> {
+        self.source_bounds().map(|bounds| (bounds.x as f32, bounds.y as f32))
     }
 
     pub(crate) fn source_bounds(&self) -> Option<Rect> {

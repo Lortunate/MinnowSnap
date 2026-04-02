@@ -3,7 +3,7 @@ pub mod background_host;
 
 use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, set_auto_start};
 use crate::core::notify::init_windows_notification_app_id;
-use crate::ui::{overlay, preferences};
+use crate::ui::{overlay, pin, preferences};
 use gpui::Application;
 use tracing::info;
 
@@ -39,6 +39,7 @@ pub fn run() {
         crate::core::appearance::apply_saved_preferences(None, cx);
         crate::ui::overlay::bind_keys(cx);
         crate::ui::pin::bind_keys(cx);
+        pin::install(cx);
         set_auto_start(crate::core::settings::SETTINGS.lock().unwrap().get().general.auto_start);
         crate::core::hotkey::install_hotkey_service(cx);
         let overlay_handle = overlay::OverlayHandle::new(cx);

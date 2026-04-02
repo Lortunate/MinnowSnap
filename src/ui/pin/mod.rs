@@ -1,5 +1,7 @@
 mod actions;
+mod render;
 mod request;
+mod session;
 mod view;
 
 pub use actions::bind_keys;
@@ -8,11 +10,18 @@ pub use request::PinRequest;
 use crate::core::app::APP_ID;
 use gpui::{App, AppContext, Bounds, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions, point, px, size};
 use gpui_component::Root;
+use session::{PinManager, PinSession};
 use tracing::info;
 use view::PinView;
 
+pub(crate) fn install(cx: &mut App) {
+    let manager = PinManager::new(cx);
+    cx.set_global(manager);
+}
+
 pub fn open_window(cx: &mut App, request: PinRequest) {
     let options = window_options(cx, &request);
+    let manager = cx.global::<PinManager>().clone();
 
     if let Err(err) = cx.open_window(
         options,
@@ -20,7 +29,10 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
             crate::core::appearance::apply_saved_preferences(Some(window), cx);
             let focus_handle = cx.focus_handle();
             focus_handle.focus(window);
-            let view = cx.new(move |_| PinView::new(request, focus_handle));
+            manager.register(window.window_handle(), cx);
+            let session = PinSession::new(cx, request);
+            let manager = manager.clone();
+            let view = cx.new(move |cx| PinView::new(session, manager, focus_handle, cx));
             cx.new(move |cx| Root::new(view, window, cx))
         }),
     ) {
@@ -29,11 +41,10 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
 }
 
 pub fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
-    let base_size = request.base_size();
-    let zoom = PinView::initial_zoom(base_size);
-    let window_size = size(px(base_size.0 * zoom), px(base_size.1 * zoom));
-    let bounds = if let Some(source_bounds) = request.source_bounds() {
-        Bounds::new(point(px(source_bounds.x as f32), px(source_bounds.y as f32)), window_size)
+    let geometry = PinSession::initial_geometry(request);
+    let window_size = geometry.window_size();
+    let bounds = if let Some((x, y)) = geometry.origin() {
+        Bounds::new(point(px(x), px(y)), window_size)
     } else if let Some(display) = cx.displays().first().cloned() {
         Bounds::centered(Some(display.id()), window_size, cx)
     } else {
@@ -59,7 +70,7 @@ pub fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
         app_id: Some(APP_ID.to_string()),
         window_decorations: None,
         tabbing_identifier: None,
-        window_min_size: Some(size(px(PinView::min_size()), px(PinView::min_size()))),
+        window_min_size: Some(size(px(geometry.min_size()), px(geometry.min_size()))),
         ..WindowOptions::default()
     }
 }
