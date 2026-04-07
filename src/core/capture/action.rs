@@ -54,6 +54,7 @@ pub struct ActionContext {
     pub path: String,
     pub rect: Rect,
     pub input_mode: CaptureInputMode,
+    pub save_path_override: Option<String>,
 }
 
 impl ActionContext {
@@ -62,6 +63,7 @@ impl ActionContext {
             path,
             rect,
             input_mode: CaptureInputMode::CropSelection,
+            save_path_override: None,
         }
     }
 
@@ -70,7 +72,13 @@ impl ActionContext {
             path,
             rect: Rect::empty(),
             input_mode: CaptureInputMode::FullImage,
+            save_path_override: None,
         }
+    }
+
+    pub fn with_save_path_override(mut self, save_path_override: String) -> Self {
+        self.save_path_override = Some(save_path_override);
+        self
     }
 }
 
@@ -98,7 +106,7 @@ impl CaptureAction {
     }
 
     fn handle_save(ctx: ActionContext) -> ActionResult {
-        match CaptureService::save_region_to_user_dir(&ctx.path, ctx.rect, ctx.input_mode) {
+        match CaptureService::save_region_to_user_dir(&ctx.path, ctx.rect, ctx.input_mode, ctx.save_path_override) {
             Ok(path) => ActionResult::Saved(path),
             Err(e) => ActionResult::Error(e),
         }

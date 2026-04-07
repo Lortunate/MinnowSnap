@@ -149,6 +149,7 @@ impl Global for OverlayHandle {}
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum CaptureCommand {
     Execute(CaptureAction),
+    SaveWithPath(String),
     CopyPickerColor,
 }
 
@@ -538,6 +539,26 @@ mod tests {
             panic!("expected capture effect");
         };
         assert_eq!(context.path, PREVIEW_SOURCE);
+    }
+
+    #[test]
+    fn save_with_path_command_sets_capture_context_override() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(200.0, 120.0);
+        session.prepare_surface(OverlaySurface {
+            background_pixels: Some(Arc::new(image::RgbaImage::from_pixel(2, 2, image::Rgba([1, 2, 3, 255])))),
+            ..OverlaySurface::default()
+        });
+        session.viewport.selection = Some(RectF::new(10.0, 10.0, 80.0, 40.0));
+
+        let save_path = "D:/captures/overlay".to_string();
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::SaveWithPath(save_path.clone())));
+        assert_eq!(outcome.effects.len(), 1);
+        let OverlayEffect::Capture { action, context } = &outcome.effects[0] else {
+            panic!("expected capture effect");
+        };
+        assert_eq!(*action, CaptureAction::Save);
+        assert_eq!(context.save_path_override, Some(save_path));
     }
 
     #[test]

@@ -39,6 +39,7 @@ impl OverlayView {
 
     fn render_selection_layer(
         &self,
+        window: &mut Window,
         cx: &mut Context<Self>,
         frame: &OverlayFrame,
         viewport_w: f64,
@@ -105,6 +106,7 @@ impl OverlayView {
         if let Some(layout) = toolbar_layout {
             let on_action = self.overlay_action_handler();
             layer = layer.child(overlay_toolbar(
+                window,
                 cx,
                 layout,
                 OverlayToolbarState {
@@ -215,7 +217,7 @@ impl gpui::Render for OverlayView {
         root = root.child(overlay_mask(cx, active_rect, viewport_w, viewport_h));
 
         if frame.selection.selection.is_some() {
-            root = root.child(self.render_selection_layer(cx, &frame, viewport_w, viewport_h, &picker_state, &self.recent_custom_colors));
+            root = root.child(self.render_selection_layer(window, cx, &frame, viewport_w, viewport_h, &picker_state, &self.recent_custom_colors));
         } else if let Some(target) = frame.selection.target {
             root = root.child(Self::render_hover_layer(
                 cx,

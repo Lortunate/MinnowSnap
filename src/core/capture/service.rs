@@ -148,12 +148,18 @@ impl CaptureService {
         false
     }
 
-    pub fn save_region_to_user_dir(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Result<String, String> {
+    pub fn save_region_to_user_dir(
+        path: &str,
+        rect: Rect,
+        input_mode: CaptureInputMode,
+        save_path_override: Option<String>,
+    ) -> Result<String, String> {
         let img = Self::resolve_image(path, rect, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
         let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
+        let save_path = save_path_override.or(settings.output.save_path);
 
-        let result = save_image_to_user_dir(&img, settings.output.oxipng_enabled, settings.output.save_path);
+        let result = save_image_to_user_dir(&img, settings.output.oxipng_enabled, save_path);
         if result.is_some() {
             crate::core::notify::play_shutter();
         }

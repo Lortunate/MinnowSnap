@@ -29,6 +29,18 @@ impl OverlaySession {
                     .map(SessionTransition::Effect)
                     .unwrap_or(SessionTransition::NoOp)
             }
+            CaptureCommand::SaveWithPath(path) => {
+                let Some(effect) = self.capture_effect(CaptureAction::Save) else {
+                    return SessionTransition::NoOp;
+                };
+                let OverlayEffect::Capture { action, context } = effect else {
+                    return SessionTransition::NoOp;
+                };
+                SessionTransition::Effect(OverlayEffect::Capture {
+                    action,
+                    context: context.with_save_path_override(path),
+                })
+            }
             CaptureCommand::CopyPickerColor => self
                 .picker_text()
                 .map(|text| {
