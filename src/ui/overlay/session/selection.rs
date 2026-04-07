@@ -1,6 +1,6 @@
 use gpui::{Pixels, Point};
 
-use crate::core::geometry::{RectF, clamp_rect_move};
+use crate::core::geometry::RectF;
 use crate::core::window::find_window_at;
 
 use super::{DragMode, OverlaySession, ResizeCorner};
@@ -81,51 +81,6 @@ impl OverlaySession {
         self.clear();
     }
 
-    pub(crate) fn start_move(&mut self, point: Point<Pixels>) {
-        let Some(selection) = self.viewport.selection else {
-            return;
-        };
-
-        self.viewport.mode = DragMode::Moving;
-        self.viewport.drag_start = Some(point);
-        self.viewport.drag_start_rect = Some(selection);
-        self.viewport.confirm_target_on_release = false;
-    }
-
-    pub(crate) fn update_move(&mut self, point: Point<Pixels>) {
-        if self.viewport.mode != DragMode::Moving {
-            return;
-        }
-
-        let Some(start) = self.viewport.drag_start else {
-            return;
-        };
-        let Some(start_rect) = self.viewport.drag_start_rect else {
-            return;
-        };
-
-        let (current_x, current_y) = self.clamp_point_to_viewport(point);
-        let dx = current_x - start.x.to_f64();
-        let dy = current_y - start.y.to_f64();
-        let (x, y) = clamp_rect_move(
-            start_rect.x + dx,
-            start_rect.y + dy,
-            start_rect.width,
-            start_rect.height,
-            self.viewport.viewport_w,
-            self.viewport.viewport_h,
-        );
-        self.viewport.selection = Some(RectF::new(x, y, start_rect.width, start_rect.height));
-    }
-
-    pub(crate) fn finish_move(&mut self) {
-        if self.viewport.mode == DragMode::Moving {
-            self.viewport.mode = DragMode::Idle;
-            self.viewport.drag_start = None;
-            self.viewport.drag_start_rect = None;
-        }
-    }
-
     pub(crate) fn start_resize(&mut self, corner: ResizeCorner, point: Point<Pixels>) {
         let Some(selection) = self.viewport.selection else {
             return;
@@ -177,6 +132,7 @@ impl OverlaySession {
 
     pub(crate) fn clear(&mut self) {
         self.reset_interaction_state();
+        self.clear_annotation_state();
         self.refresh_picker_sample();
     }
 }
@@ -201,18 +157,6 @@ mod tests {
 
         assert_eq!(session.mode(), DragMode::Idle);
         assert_eq!(session.selection(), Some(RectF::new(10.0, 20.0, 70.0, 40.0)));
-    }
-
-    #[test]
-    fn move_clamps_to_viewport() {
-        let mut session = session();
-        session.viewport.selection = Some(RectF::new(50.0, 20.0, 80.0, 40.0));
-        session.start_move(Point::new(gpui::px(60.0), gpui::px(30.0)));
-        session.update_move(Point::new(gpui::px(500.0), gpui::px(500.0)));
-        session.finish_move();
-
-        assert_eq!(session.selection(), Some(RectF::new(120.0, 60.0, 80.0, 40.0)));
-        assert_eq!(session.mode(), DragMode::Idle);
     }
 
     #[test]

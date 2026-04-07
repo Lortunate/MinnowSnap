@@ -1,4 +1,6 @@
-use gpui::{App, ClickEvent, InteractiveElement, ObjectFit, ParentElement, SharedString, Styled, StyledImage, Window, WindowControlArea, div, img};
+use gpui::{
+    App, ClickEvent, Div, InteractiveElement, ObjectFit, ParentElement, SharedString, Styled, StyledImage, Window, WindowControlArea, div, img,
+};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::PopupMenuItem;
 use std::path::PathBuf;
@@ -7,7 +9,7 @@ pub(super) fn menu_item(label: SharedString, on_click: impl Fn(&ClickEvent, &mut
     PopupMenuItem::new(label).on_click(on_click)
 }
 
-pub(super) fn panel(image_path: PathBuf, opacity: f32, cx: &App) -> impl gpui::IntoElement {
+pub(super) fn panel(image_path: PathBuf, opacity: f32, cx: &App) -> Div {
     let theme = cx.theme();
     let mut panel = div()
         .flex()

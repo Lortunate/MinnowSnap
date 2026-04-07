@@ -1,42 +1,62 @@
 use gpui::{MouseButton, Pixels, Point};
 
 use crate::core::geometry::RectF;
-use crate::ui::overlay::session::{DragMode, OverlayCommand, OverlaySession, ResizeCorner};
+use crate::ui::overlay::session::{AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner};
 
-pub(crate) fn resolve_mouse_down_command(session: &OverlaySession, button: MouseButton, point: Point<Pixels>) -> Option<OverlayCommand> {
+pub(crate) fn resolve_mouse_down_command(
+    session: &OverlaySession,
+    button: MouseButton,
+    point: Point<Pixels>,
+    click_count: usize,
+) -> Option<OverlayCommand> {
     match button {
         MouseButton::Right => Some(resolve_right_click_command(session)),
-        MouseButton::Left => Some(resolve_left_click_command(session, point)),
+        MouseButton::Left => resolve_left_click_command(session, point, click_count),
         _ => None,
     }
 }
 
 fn resolve_right_click_command(session: &OverlaySession) -> OverlayCommand {
     if session.has_selection() {
-        OverlayCommand::ClearSelection
+        OverlayCommand::Lifecycle(LifecycleCommand::ClearSelection)
     } else {
-        OverlayCommand::Close
+        OverlayCommand::Lifecycle(LifecycleCommand::CloseIntent)
     }
 }
 
-fn resolve_left_click_command(session: &OverlaySession, point: Point<Pixels>) -> OverlayCommand {
+fn resolve_left_click_command(session: &OverlaySession, point: Point<Pixels>, click_count: usize) -> Option<OverlayCommand> {
     if let Some(selection) = session.selection() {
         if let Some(corner) = hit_resize_corner(selection, point) {
-            return OverlayCommand::StartResize { corner, point };
+            return Some(OverlayCommand::Lifecycle(LifecycleCommand::StartResize { corner, point }));
         }
 
-        if point_in_rect(point, selection) && matches!(session.mode(), DragMode::Idle) {
-            return OverlayCommand::StartMove(point);
+        if click_count >= 2 {
+            return Some(OverlayCommand::Annotation(AnnotationCommand::StartTextEditAtPoint(point)));
+        }
+
+        if matches!(session.mode(), DragMode::Idle) {
+            if let Some(id) = session.annotation_hit_test(point) {
+                return Some(OverlayCommand::Annotation(AnnotationCommand::StartMove { id, point }));
+            }
+
+            if point_in_rect(point, selection) {
+                if session.has_active_annotation_tool() {
+                    return Some(OverlayCommand::Annotation(AnnotationCommand::StartDraw(point)));
+                }
+                return None;
+            }
+
+            return Some(OverlayCommand::Annotation(AnnotationCommand::Select(None)));
         }
     }
 
-    OverlayCommand::StartSelection(point)
+    Some(OverlayCommand::Lifecycle(LifecycleCommand::StartSelection(point)))
 }
 
 fn point_in_rect(point: Point<Pixels>, rect: RectF) -> bool {
     let x = point.x.to_f64();
     let y = point.y.to_f64();
-    x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+    rect.contains_point(x, y)
 }
 
 fn hit_resize_corner(selection: RectF, point: Point<Pixels>) -> Option<ResizeCorner> {

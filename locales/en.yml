@@ -9,7 +9,9 @@ common:
     copy: "Copy"
     save: "Save"
     pin: "Pin"
+    ocr: "OCR"
     scan_qr: "Scan QR"
+    scroll: "Scroll Capture"
   states:
     enabled: "Enabled"
     disabled: "Disabled"
@@ -35,14 +37,41 @@ overlay:
     value_and_format: "%{value} · %{format}"
     coordinates: "X:%{x}  Y:%{y}"
     shortcuts: "%{copy_key}: Copy  %{cycle_key}: Cycle format"
+  annotation:
+    tool:
+      arrow: "Arrow"
+      rectangle: "Rectangle"
+      circle: "Circle"
+      counter: "Counter"
+      text: "Text"
+      mosaic: "Mosaic"
+    actions:
+      undo: "Undo"
+      redo: "Redo"
+      cycle_color: "Cycle color"
+      set_color: "Set color"
+      custom_color: "Custom color"
+      toggle_fill: "Toggle fill"
+      stroke_up: "Increase size"
+      stroke_down: "Decrease size"
+      edit_text: "Edit text"
+      mosaic_mode_pixelate: "Pixelate"
+      mosaic_mode_blur: "Blur"
+      mosaic_intensity_up: "Increase intensity"
+      mosaic_intensity_down: "Decrease intensity"
   notify:
     qr_not_found: "No QR code detected"
+  long_capture:
+    processing: "Processing long capture..."
+    scroll_hint: "Scroll to capture"
+    empty: "No long capture result yet"
 
 notify:
   capture:
     copied_image: "Image copied to clipboard"
     saved_image: "Image saved to: %{path}"
     copied_qr: "QR content copied to clipboard"
+    copied_text: "Text copied to clipboard"
     quick_capture_copied: "Quick capture copied to clipboard"
     quick_capture_failed: "Quick capture failed"
     pin_reissued: "Pin request sent again (auto_ocr=%{auto_ocr})"

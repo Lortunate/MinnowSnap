@@ -1,3 +1,4 @@
+use crate::app::asset_bytes;
 use crate::core::app::APP_NAME;
 use crate::core::settings::SETTINGS;
 use tracing::error;
@@ -16,8 +17,6 @@ use winreg::{RegKey, enums::HKEY_CURRENT_USER};
 
 #[cfg(target_os = "windows")]
 const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
-#[cfg(target_os = "windows")]
-const WINDOWS_TOAST_ICON_BYTES: &[u8] = include_bytes!("../../resources/logo.png");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationType {
@@ -38,8 +37,7 @@ pub fn play_shutter() {
     }
 
     crate::core::RUNTIME.spawn_blocking(|| {
-        let sound_data = include_bytes!("../../resources/raw/capture.mp3");
-        let cursor = std::io::Cursor::new(&sound_data[..]);
+        let cursor = std::io::Cursor::new(asset_bytes::CAPTURE_SOUND_BYTES);
         match rodio::DeviceSinkBuilder::open_default_sink() {
             Ok(handle) => {
                 let player = rodio::Player::connect_new(handle.mixer());
@@ -61,10 +59,10 @@ fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
     let path = std::env::temp_dir().join(WINDOWS_TOAST_ICON_FILE);
 
     let needs_update = fs::metadata(&path)
-        .map(|m| m.len() != WINDOWS_TOAST_ICON_BYTES.len() as u64)
+        .map(|m| m.len() != asset_bytes::LOGO_BYTES.len() as u64)
         .unwrap_or(true);
 
-    if needs_update && let Err(e) = fs::write(&path, WINDOWS_TOAST_ICON_BYTES) {
+    if needs_update && let Err(e) = fs::write(&path, asset_bytes::LOGO_BYTES) {
         error!("Failed to write toast icon file: {}", e);
         return None;
     }

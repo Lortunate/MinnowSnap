@@ -1,4 +1,5 @@
 use crate::core::settings::SETTINGS;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,6 +67,24 @@ pub async fn download_mobile_models(force: bool, on_progress: Option<Arc<dyn Fn(
     ocr::download_models(ocr::OcrModelType::Mobile, force, on_progress)
         .await
         .map_err(|err| err.to_string())
+}
+
+pub async fn recognize_image_blocks(path: impl AsRef<Path>) -> Result<Vec<crate::core::ocr::OcrBlock>, String> {
+    let image_path: PathBuf = path.as_ref().to_path_buf();
+    let image = tokio::task::spawn_blocking(move || image::open(&image_path).map_err(|err| err.to_string()))
+        .await
+        .map_err(|err| err.to_string())??;
+
+    let (img_w, img_h) = (image.width() as f64, image.height() as f64);
+    let mut context = ocr::OcrContext::new(None::<PathBuf>, Some(ocr::OcrModelType::Mobile), None, None, None, None)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let ocr_results = tokio::task::spawn_blocking(move || context.recognize(&image).map_err(|err| err.to_string()))
+        .await
+        .map_err(|err| err.to_string())??;
+
+    Ok(crate::core::ocr::build_ocr_blocks(ocr_results, img_w, img_h))
 }
 
 #[cfg(test)]

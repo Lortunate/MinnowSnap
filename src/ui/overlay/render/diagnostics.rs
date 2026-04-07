@@ -7,7 +7,7 @@ pub(crate) fn overlay_diagnostics_hud(app_ctx: &App, snapshot: &OverlayDiagnosti
     let theme = app_ctx.theme();
     let width = 300.0_f64.min((viewport_w - 24.0).max(220.0));
     let left = (viewport_w - width - 12.0).max(12.0);
-    let top = (viewport_h - 86.0).max(12.0);
+    let top = (viewport_h - 110.0).max(12.0);
 
     let mut panel = div()
         .absolute()
@@ -33,5 +33,13 @@ pub(crate) fn overlay_diagnostics_hud(app_ctx: &App, snapshot: &OverlayDiagnosti
             "Applied {:.0}% · Coalesced {:.0}%",
             snapshot.apply_ratio * 100.0,
             snapshot.coalesced_ratio * 100.0
+        )))
+        .child(div().mt_1().text_xs().text_color(theme.muted_foreground).child(format!(
+            "Raster C{} / P{} / B{} · Fast D{} / M{}",
+            snapshot.annotation_committed_rebuilds,
+            snapshot.annotation_composed_rebuilds,
+            snapshot.annotation_interaction_base_rebuilds,
+            snapshot.annotation_drawing_fast_path_hits,
+            snapshot.annotation_moving_fast_path_hits
         )))
 }

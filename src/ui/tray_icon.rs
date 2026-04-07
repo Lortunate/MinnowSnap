@@ -1,8 +1,6 @@
+use crate::app::asset_bytes;
 use crate::core::app::APP_NAME;
-use crate::core::capture::service::CaptureService;
-use crate::core::geometry::Rect;
 use crate::core::i18n;
-use crate::core::notify::{NotificationType, show};
 use gpui::{App, Global};
 use std::time::Duration;
 use tracing::info;
@@ -111,27 +109,13 @@ impl SystemTray {
     fn handle_menu_event(menu_ids: &TrayMenuIds, event: MenuEvent, cx: &mut gpui::AsyncApp) -> bool {
         if event.id == menu_ids.capture_overlay {
             let _ = cx.update(|app| {
-                crate::app::prepare_overlay_session(app);
-                crate::ui::overlay::open_window(app);
+                crate::app::open_capture_overlay(app);
             });
             return false;
         }
 
         if event.id == menu_ids.quick_capture {
-            let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
-            if ok {
-                show(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::quick_capture_copied().as_str(),
-                    NotificationType::Copy,
-                );
-            } else {
-                show(
-                    i18n::app::name().as_str(),
-                    i18n::notify::quick_capture_failed().as_str(),
-                    NotificationType::Info,
-                );
-            }
+            crate::app::run_quick_capture_with_notification();
             return false;
         }
 
@@ -153,14 +137,10 @@ impl SystemTray {
     }
 
     fn handle_tray_event(event: TrayIconEvent, cx: &mut gpui::AsyncApp) -> bool {
-        match event {
-            TrayIconEvent::DoubleClick { .. } => {
-                let _ = cx.update(|app| {
-                    crate::app::prepare_overlay_session(app);
-                    crate::ui::overlay::open_window(app);
-                });
-            }
-            _ => {}
+        if let TrayIconEvent::DoubleClick { .. } = event {
+            let _ = cx.update(|app| {
+                crate::app::open_capture_overlay(app);
+            });
         }
 
         false
@@ -174,8 +154,7 @@ impl Drop for SystemTray {
 }
 
 fn load_icon() -> Result<Icon, String> {
-    let image =
-        image::load_from_memory(include_bytes!("../../resources/logo.png")).map_err(|err| format!("failed to decode tray icon image: {err}"))?;
+    let image = image::load_from_memory(asset_bytes::LOGO_BYTES).map_err(|err| format!("failed to decode tray icon image: {err}"))?;
     let rgba = image.to_rgba8();
     let (width, height) = rgba.dimensions();
     Icon::from_rgba(rgba.into_raw(), width, height).map_err(|err| format!("failed to build tray icon: {err}"))

@@ -1,10 +1,4 @@
-use crate::core::{
-    capture::service::CaptureService,
-    geometry::Rect,
-    i18n,
-    notify::{self, NotificationType},
-    settings::{SETTINGS, ShortcutSettings},
-};
+use crate::core::settings::{SETTINGS, ShortcutSettings};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
 use std::str::FromStr;
@@ -412,28 +406,10 @@ fn handle_hotkey_action(action: HotkeyAction, async_app: &mut AsyncApp) {
     match action {
         HotkeyAction::Capture => {
             let _ = async_app.update(|cx| {
-                crate::app::prepare_overlay_session(cx);
-                crate::ui::overlay::open_window(cx);
+                crate::app::open_capture_overlay(cx);
             });
         }
-        HotkeyAction::QuickCapture => trigger_quick_capture(),
-    }
-}
-
-fn trigger_quick_capture() {
-    let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
-    if ok {
-        notify::show(
-            i18n::app::capture_name().as_str(),
-            i18n::notify::quick_capture_copied().as_str(),
-            NotificationType::Copy,
-        );
-    } else {
-        notify::show(
-            i18n::app::name().as_str(),
-            i18n::notify::quick_capture_failed().as_str(),
-            NotificationType::Info,
-        );
+        HotkeyAction::QuickCapture => crate::app::run_quick_capture_with_notification(),
     }
 }
 

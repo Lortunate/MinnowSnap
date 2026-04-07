@@ -22,6 +22,11 @@ impl RectF {
     pub const fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self { x, y, width, height }
     }
+
+    #[must_use]
+    pub fn contains_point(self, x: f64, y: f64) -> bool {
+        x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
+    }
 }
 
 impl Rect {

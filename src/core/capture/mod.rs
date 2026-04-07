@@ -1,6 +1,6 @@
 pub mod action;
 pub mod datasource;
-pub mod scroll_worker;
+pub mod long_capture;
 pub mod service;
 pub mod stitcher;
 

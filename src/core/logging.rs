@@ -5,7 +5,7 @@ use std::panic;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 use std::time::{Duration, SystemTime};
-use tracing::{debug, error, info, trace, warn};
+use tracing::error;
 use tracing_appender::non_blocking::{NonBlocking, NonBlockingBuilder, WorkerGuard};
 use tracing_appender::rolling::{Builder as RollingFileAppenderBuilder, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, filter::filter_fn, layer::SubscriberExt, util::SubscriberInitExt};
@@ -18,55 +18,8 @@ const DEFAULT_RETENTION_DAYS: u64 = 7;
 const LOG_QUEUE_LINES_LIMIT: usize = 1024;
 const LOG_QUEUE_LINES_ENV: &str = "MINNOW_LOG_QUEUE_LINES";
 const LOG_WRITER_THREAD_NAME: &str = "minnowsnap-log-writer";
-const QT_TARGET: &str = "qt";
 
 static PANIC_HOOK_ONCE: Once = Once::new();
-
-struct QtLogMessage<'a> {
-    level: i32,
-    category: &'a str,
-    message: &'a str,
-    file: Option<&'a str>,
-    line: Option<i32>,
-}
-
-impl<'a> QtLogMessage<'a> {
-    fn new(level: i32, category: &'a str, message: &'a str, file: &'a str, line: i32) -> Self {
-        Self {
-            level,
-            category: if category.is_empty() { QT_TARGET } else { category },
-            message,
-            file: (!file.is_empty()).then_some(file),
-            line: (line > 0).then_some(line),
-        }
-    }
-
-    fn log(self) {
-        match (self.file, self.line) {
-            (Some(file), Some(line)) => match self.level {
-                0 => debug!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
-                1 => warn!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
-                2 => error!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
-                3 => info!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
-                _ => trace!(target: QT_TARGET, qt_category = self.category, qt_file = file, qt_line = line, "{}", self.message),
-            },
-            (Some(file), None) => match self.level {
-                0 => debug!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
-                1 => warn!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
-                2 => error!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
-                3 => info!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
-                _ => trace!(target: QT_TARGET, qt_category = self.category, qt_file = file, "{}", self.message),
-            },
-            (None, _) => match self.level {
-                0 => debug!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
-                1 => warn!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
-                2 => error!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
-                3 => info!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
-                _ => trace!(target: QT_TARGET, qt_category = self.category, "{}", self.message),
-            },
-        }
-    }
-}
 
 fn should_suppress_gpui_window_not_found(metadata: &tracing::Metadata<'_>) -> bool {
     #[cfg(not(target_os = "windows"))]
@@ -95,12 +48,8 @@ fn should_suppress_gpui_window_not_found(metadata: &tracing::Metadata<'_>) -> bo
 }
 
 pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
-    let Some(log_dir) = prepare_log_dir(app_name) else {
-        return None;
-    };
-    let Some((non_blocking, guard)) = build_file_writer(&log_dir) else {
-        return None;
-    };
+    let log_dir = prepare_log_dir(app_name)?;
+    let (non_blocking, guard) = build_file_writer(&log_dir)?;
     let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
 
     let console_layer = tracing_subscriber::fmt::layer()
@@ -125,10 +74,6 @@ pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
 
 pub fn log_dir(app_name: &str) -> PathBuf {
     resolve_log_dir(app_name)
-}
-
-pub fn log_qt_message(level: i32, category: &str, message: &str, file: &str, line: i32) {
-    QtLogMessage::new(level, category, message, file, line).log();
 }
 
 fn resolve_log_dir(app_name: &str) -> PathBuf {

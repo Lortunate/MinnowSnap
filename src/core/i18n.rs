@@ -77,8 +77,16 @@ pub mod common {
         t!("common.actions.pin").into_owned()
     }
 
+    pub fn ocr() -> String {
+        t!("common.actions.ocr").into_owned()
+    }
+
     pub fn scan_qr() -> String {
         t!("common.actions.scan_qr").into_owned()
+    }
+
+    pub fn scroll() -> String {
+        t!("common.actions.scroll").into_owned()
     }
 
     pub fn enabled() -> String {
@@ -153,8 +161,96 @@ pub mod overlay {
         t!("overlay.status.qr_copy_failed").into_owned()
     }
 
+    pub fn annotation_tool_arrow() -> String {
+        t!("overlay.annotation.tool.arrow").into_owned()
+    }
+
+    pub fn annotation_tool_rectangle() -> String {
+        t!("overlay.annotation.tool.rectangle").into_owned()
+    }
+
+    pub fn annotation_tool_circle() -> String {
+        t!("overlay.annotation.tool.circle").into_owned()
+    }
+
+    pub fn annotation_tool_counter() -> String {
+        t!("overlay.annotation.tool.counter").into_owned()
+    }
+
+    pub fn annotation_tool_text() -> String {
+        t!("overlay.annotation.tool.text").into_owned()
+    }
+
+    pub fn annotation_tool_mosaic() -> String {
+        t!("overlay.annotation.tool.mosaic").into_owned()
+    }
+
+    pub fn annotation_undo() -> String {
+        t!("overlay.annotation.actions.undo").into_owned()
+    }
+
+    pub fn annotation_redo() -> String {
+        t!("overlay.annotation.actions.redo").into_owned()
+    }
+
+    pub fn annotation_cycle_color() -> String {
+        t!("overlay.annotation.actions.cycle_color").into_owned()
+    }
+
+    pub fn annotation_set_color() -> String {
+        t!("overlay.annotation.actions.set_color").into_owned()
+    }
+
+    pub fn annotation_custom_color() -> String {
+        t!("overlay.annotation.actions.custom_color").into_owned()
+    }
+
+    pub fn annotation_toggle_fill() -> String {
+        t!("overlay.annotation.actions.toggle_fill").into_owned()
+    }
+
+    pub fn annotation_stroke_up() -> String {
+        t!("overlay.annotation.actions.stroke_up").into_owned()
+    }
+
+    pub fn annotation_stroke_down() -> String {
+        t!("overlay.annotation.actions.stroke_down").into_owned()
+    }
+
+    pub fn annotation_edit_text() -> String {
+        t!("overlay.annotation.actions.edit_text").into_owned()
+    }
+
+    pub fn annotation_mosaic_mode_pixelate() -> String {
+        t!("overlay.annotation.actions.mosaic_mode_pixelate").into_owned()
+    }
+
+    pub fn annotation_mosaic_mode_blur() -> String {
+        t!("overlay.annotation.actions.mosaic_mode_blur").into_owned()
+    }
+
+    pub fn annotation_mosaic_intensity_up() -> String {
+        t!("overlay.annotation.actions.mosaic_intensity_up").into_owned()
+    }
+
+    pub fn annotation_mosaic_intensity_down() -> String {
+        t!("overlay.annotation.actions.mosaic_intensity_down").into_owned()
+    }
+
     pub fn qr_not_found() -> String {
         t!("overlay.notify.qr_not_found").into_owned()
+    }
+
+    pub fn long_capture_processing() -> String {
+        t!("overlay.long_capture.processing").into_owned()
+    }
+
+    pub fn long_capture_scroll_hint() -> String {
+        t!("overlay.long_capture.scroll_hint").into_owned()
+    }
+
+    pub fn long_capture_empty() -> String {
+        t!("overlay.long_capture.empty").into_owned()
     }
 
     pub fn picker_value_and_format(value: impl ToString, format: impl ToString) -> String {
@@ -188,6 +284,10 @@ pub mod notify {
 
     pub fn copied_qr() -> String {
         t!("notify.capture.copied_qr").into_owned()
+    }
+
+    pub fn copied_text() -> String {
+        t!("notify.capture.copied_text").into_owned()
     }
 
     pub fn quick_capture_copied() -> String {

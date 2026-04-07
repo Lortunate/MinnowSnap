@@ -1,8 +1,6 @@
 use crate::core::app::APP_ID;
-use gpui::{
-    App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions, div,
-    point, px, rgba, size,
-};
+use crate::ui::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use gpui::{App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBounds, WindowKind, div, point, px, rgba, size};
 use gpui_component::Root;
 
 /// Windows tray apps that close all visible GPUI windows can still receive late
@@ -23,28 +21,25 @@ impl Render for BackgroundHostWindow {
 #[cfg(target_os = "windows")]
 pub fn install(cx: &mut App) -> gpui::Result<()> {
     cx.open_window(
-        WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(Bounds::new(
-                point(px(-10_000.0), px(-10_000.0)),
-                size(px(1.0), px(1.0)),
-            ))),
-            kind: WindowKind::PopUp,
-            titlebar: None,
-            focus: false,
-            show: false,
-            is_movable: false,
-            is_resizable: false,
-            is_minimizable: false,
-            display_id: None,
-            window_background: WindowBackgroundAppearance::Transparent,
-            app_id: Some(APP_ID.to_string()),
-            window_decorations: None,
-            tabbing_identifier: None,
-            window_min_size: Some(size(px(1.0), px(1.0))),
-            ..WindowOptions::default()
-        },
+        popup_window_options(
+            PopupWindowSpec {
+                window_bounds: Some(WindowBounds::Windowed(Bounds::new(
+                    point(px(-10_000.0), px(-10_000.0)),
+                    size(px(1.0), px(1.0)),
+                ))),
+                kind: WindowKind::PopUp,
+                focus: false,
+                show: false,
+                is_movable: false,
+                is_resizable: false,
+                is_minimizable: false,
+                display_id: None,
+                window_min_size: Some(size(px(1.0), px(1.0))),
+            },
+            APP_ID,
+        ),
         |window, cx| {
-            crate::core::appearance::apply_saved_preferences(Some(window), cx);
+            configure_window(window, cx, false);
             let view = cx.new(|_| BackgroundHostWindow);
             cx.new(move |cx| Root::new(view, window, cx))
         },

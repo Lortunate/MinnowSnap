@@ -1,4 +1,8 @@
+mod annotation;
+mod command;
 mod diagnostics;
+mod effects;
+mod frame;
 mod picker;
 mod selection;
 mod surface;
@@ -7,14 +11,16 @@ use gpui::{App, AppContext, Entity, Global, Pixels, Point, RenderImage, Window};
 use image::RgbaImage;
 use std::sync::Arc;
 
-use crate::core::capture::action::{ActionContext, ActionResult, CaptureAction};
+use crate::core::capture::action::{ActionContext, CaptureAction};
 use crate::core::geometry::{RectF, clamp_point, normalize_rect};
-use crate::core::i18n;
-use crate::core::io::clipboard::copy_text_to_clipboard;
 use crate::core::notify::NotificationType;
 use crate::core::window::{WindowInfo, find_window_at};
-use crate::ui::pin::{self, PinRequest};
+use crate::ui::overlay::annotation::AnnotationEngine;
 
+pub(crate) use crate::ui::overlay::annotation::{
+    AnnotationKind, AnnotationKindTag, AnnotationLayerState, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, AnnotationUiState,
+    MosaicMode,
+};
 #[cfg(feature = "overlay-diagnostics")]
 use diagnostics::OverlayDiagnostics;
 #[cfg(feature = "overlay-diagnostics")]
@@ -54,7 +60,6 @@ pub(crate) enum DragMode {
     #[default]
     Idle,
     Selecting,
-    Moving,
     Resizing(ResizeCorner),
 }
 
@@ -100,13 +105,14 @@ pub(crate) struct OverlaySession {
     pub(super) picker_sample: Option<PickerSample>,
     pub(super) picker_neighborhood: Option<PickerNeighborhood>,
     pub(super) picker_format: PickerFormat,
+    pub(super) annotation: AnnotationEngine,
     #[cfg(feature = "overlay-diagnostics")]
     diagnostics: OverlayDiagnostics,
     windows: Vec<WindowInfo>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct OverlayPickerFrame {
+pub(crate) struct PickerVm {
     pub cursor: Option<(f64, f64)>,
     pub sample: Option<PickerSample>,
     pub neighborhood: Option<PickerNeighborhood>,
@@ -114,13 +120,24 @@ pub(crate) struct OverlayPickerFrame {
 }
 
 #[derive(Clone)]
-pub(crate) struct OverlayFrame {
-    pub background_image: Option<Arc<RenderImage>>,
+pub(crate) struct SelectionVm {
     pub selection: Option<RectF>,
     pub target: Option<RectF>,
-    pub hovered_window: Option<WindowInfo>,
     pub drag_mode: DragMode,
-    pub picker: Option<OverlayPickerFrame>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct HudVm {
+    pub hovered_window: Option<WindowInfo>,
+}
+
+#[derive(Clone)]
+pub(crate) struct OverlayFrame {
+    pub background_image: Option<Arc<RenderImage>>,
+    pub selection: SelectionVm,
+    pub picker: Option<PickerVm>,
+    pub annotation: AnnotationUiState,
+    pub hud: HudVm,
     #[cfg(feature = "overlay-diagnostics")]
     pub diagnostics: OverlayDiagnosticsSnapshot,
 }
@@ -131,23 +148,65 @@ pub struct OverlayHandle(Entity<OverlaySession>);
 impl Global for OverlayHandle {}
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum OverlayCommand {
-    Capture(CaptureAction),
+pub(crate) enum CaptureCommand {
+    Execute(CaptureAction),
     CopyPickerColor,
-    CyclePickerFormat,
-    MovePickerByPixel { delta_x: i32, delta_y: i32 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PickerCommand {
+    CycleFormat,
+    MoveByPixel { delta_x: i32, delta_y: i32 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum AnnotationCommand {
+    SetTool(AnnotationTool),
+    StartDraw(Point<Pixels>),
+    StartMove { id: u64, point: Point<Pixels> },
+    Select(Option<u64>),
+    DeleteIntent,
+    Undo,
+    Redo,
+    CycleColor,
+    SetColor { color: u32 },
+    ToggleFill,
+    AdjustStroke { delta: f64 },
+    SetMosaicMode(MosaicMode),
+    AdjustMosaicIntensity { delta: f64 },
+    AdjustByWheel { point: Point<Pixels>, delta: f64 },
+    StartTextEdit,
+    StartTextEditAtPoint(Point<Pixels>),
+    AppendText { text: String },
+    InsertTextNewline,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum LifecycleCommand {
     StartSelection(Point<Pixels>),
-    StartMove(Point<Pixels>),
     StartResize { corner: ResizeCorner, point: Point<Pixels> },
     PointerMoved(Point<Pixels>),
     PointerReleased,
     ClearSelection,
-    Close,
+    CloseIntent,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum OverlayCommand {
+    Capture(CaptureCommand),
+    Picker(PickerCommand),
+    Annotation(AnnotationCommand),
+    Lifecycle(LifecycleCommand),
 }
 
 pub(crate) enum OverlayEffect {
     Refresh,
     Close,
+    StartLongCapture {
+        selection_rect: crate::core::geometry::Rect,
+        viewport_rect: RectF,
+        viewport_scale: f64,
+    },
     Capture {
         action: CaptureAction,
         context: ActionContext,
@@ -164,6 +223,26 @@ pub(crate) enum OverlayEffect {
 #[derive(Default)]
 pub(crate) struct OverlayOutcome {
     effects: Vec<OverlayEffect>,
+}
+
+enum SessionTransition {
+    NoOp,
+    Refresh,
+    Effect(OverlayEffect),
+}
+
+impl SessionTransition {
+    fn from_changed(changed: bool) -> Self {
+        if changed { Self::Refresh } else { Self::NoOp }
+    }
+
+    fn into_outcome(self) -> OverlayOutcome {
+        match self {
+            Self::NoOp => OverlayOutcome::default(),
+            Self::Refresh => OverlayOutcome::refresh(),
+            Self::Effect(effect) => OverlayOutcome::with_effect(effect),
+        }
+    }
 }
 
 impl OverlayOutcome {
@@ -200,127 +279,11 @@ impl OverlayHandle {
         self.0.clone()
     }
 
-    pub(crate) fn dispatch(&self, command: OverlayCommand, window: &mut Window, cx: &mut App) {
-        self.sync_viewport(window, cx);
-        let outcome = self.0.update(cx, |session, _| session.apply(command));
-        self.run_outcome(outcome, window, cx);
-    }
-
-    pub(crate) fn prepare_frame(&self, window: &Window, cx: &mut App) -> OverlayFrame {
-        self.sync_viewport(window, cx);
-        self.0.update(cx, |session, _| {
-            let _ = session.apply_pending_pointer();
-            session.diag_on_render();
-            session.frame()
-        })
-    }
-
     fn sync_viewport(&self, window: &Window, cx: &mut App) {
         let viewport = window.viewport_size();
         let viewport_w = viewport.width.to_f64();
         let viewport_h = viewport.height.to_f64();
         self.0.update(cx, |session, _| session.set_viewport_size(viewport_w, viewport_h));
-    }
-
-    fn run_outcome(&self, outcome: OverlayOutcome, window: &mut Window, cx: &mut App) {
-        for effect in outcome.effects {
-            self.run_effect(effect, window, cx);
-        }
-    }
-
-    fn run_effect(&self, effect: OverlayEffect, window: &mut Window, cx: &mut App) {
-        match effect {
-            OverlayEffect::Refresh => {
-                self.0.update(cx, |session, _| session.diag_on_refresh());
-                window.refresh();
-            }
-            OverlayEffect::Close => {
-                self.0.update(cx, |session, _| session.clear());
-                window.defer(cx, |window, _| {
-                    window.remove_window();
-                });
-            }
-            OverlayEffect::CopyText {
-                text,
-                title,
-                message,
-                notification_type,
-                close_on_success,
-            } => {
-                if copy_text_to_clipboard(text) {
-                    crate::core::notify::show(&title, &message, notification_type);
-                    if close_on_success {
-                        self.run_effect(OverlayEffect::Close, window, cx);
-                    }
-                } else {
-                    self.run_effect(OverlayEffect::Refresh, window, cx);
-                }
-            }
-            OverlayEffect::Capture { action, context } => match action.execute(context) {
-                ActionResult::Copied => {
-                    crate::core::notify::show(
-                        i18n::app::capture_name().as_str(),
-                        i18n::notify::copied_image().as_str(),
-                        NotificationType::Copy,
-                    );
-                    self.run_effect(OverlayEffect::Close, window, cx);
-                }
-                ActionResult::ColorPicked(color) => {
-                    self.run_effect(
-                        OverlayEffect::CopyText {
-                            text: color.clone(),
-                            title: i18n::app::capture_name(),
-                            message: format!("Color copied: {color}"),
-                            notification_type: NotificationType::Copy,
-                            close_on_success: true,
-                        },
-                        window,
-                        cx,
-                    );
-                }
-                ActionResult::Saved(path) => {
-                    crate::core::notify::show(
-                        i18n::app::capture_name().as_str(),
-                        i18n::notify::saved_image(path).as_str(),
-                        NotificationType::Save,
-                    );
-                    self.run_effect(OverlayEffect::Close, window, cx);
-                }
-                ActionResult::PinRequested(path, source_bounds, _auto_ocr) => {
-                    let request = PinRequest::new(path, Some(source_bounds));
-                    cx.defer(move |cx| {
-                        pin::open_window(cx, request);
-                    });
-                    self.run_effect(OverlayEffect::Close, window, cx);
-                }
-                ActionResult::OcrResult(content) => {
-                    self.run_effect(
-                        OverlayEffect::CopyText {
-                            text: content,
-                            title: i18n::app::capture_name(),
-                            message: i18n::notify::copied_qr(),
-                            notification_type: NotificationType::Copy,
-                            close_on_success: true,
-                        },
-                        window,
-                        cx,
-                    );
-                }
-                ActionResult::NoOp => {
-                    if matches!(action, CaptureAction::QrCode) {
-                        crate::core::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
-                    }
-                    self.run_effect(OverlayEffect::Refresh, window, cx);
-                }
-                ActionResult::Error(err) => {
-                    tracing::error!("Action error: {err}");
-                    if matches!(action, CaptureAction::QrCode) {
-                        crate::core::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
-                    }
-                    self.run_effect(OverlayEffect::Refresh, window, cx);
-                }
-            },
-        }
     }
 }
 
@@ -339,24 +302,6 @@ impl OverlaySession {
         self.viewport.selection.is_some()
     }
 
-    fn frame(&mut self) -> OverlayFrame {
-        OverlayFrame {
-            background_image: self.background_image.clone(),
-            selection: self.viewport.selection,
-            target: self.viewport.target,
-            hovered_window: self.hovered_window.clone(),
-            drag_mode: self.viewport.mode,
-            picker: self.picker_visible().then(|| OverlayPickerFrame {
-                cursor: self.picker_cursor,
-                sample: self.picker_sample.clone(),
-                neighborhood: self.picker_neighborhood.clone(),
-                format: self.picker_format,
-            }),
-            #[cfg(feature = "overlay-diagnostics")]
-            diagnostics: self.diagnostics_snapshot(),
-        }
-    }
-
     pub(crate) fn prepare_surface(&mut self, surface: OverlaySurface) {
         self.reset_interaction_state();
         self.background_image = surface.background_image;
@@ -367,82 +312,8 @@ impl OverlaySession {
         self.picker_sample = None;
         self.picker_neighborhood = None;
         self.picker_format = PickerFormat::Hex;
+        self.clear_annotation_state();
         self.refresh_picker_sample();
-    }
-
-    fn apply(&mut self, command: OverlayCommand) -> OverlayOutcome {
-        match command {
-            OverlayCommand::Capture(action) => self.capture_effect(action).map(OverlayOutcome::with_effect).unwrap_or_default(),
-            OverlayCommand::CopyPickerColor => self
-                .picker_text()
-                .map(|text| {
-                    OverlayOutcome::with_effect(OverlayEffect::CopyText {
-                        message: i18n::notify::copied_qr(),
-                        text,
-                        title: i18n::app::capture_name(),
-                        notification_type: NotificationType::Copy,
-                        close_on_success: true,
-                    })
-                })
-                .unwrap_or_default(),
-            OverlayCommand::CyclePickerFormat => {
-                if self.cycle_picker_format() {
-                    OverlayOutcome::refresh()
-                } else {
-                    OverlayOutcome::default()
-                }
-            }
-            OverlayCommand::MovePickerByPixel { delta_x, delta_y } => {
-                if self.move_picker_by_pixel(delta_x, delta_y) {
-                    OverlayOutcome::refresh()
-                } else {
-                    OverlayOutcome::default()
-                }
-            }
-            OverlayCommand::StartSelection(point) => {
-                self.start_selection(point);
-                OverlayOutcome::refresh()
-            }
-            OverlayCommand::StartMove(point) => {
-                self.start_move(point);
-                OverlayOutcome::refresh()
-            }
-            OverlayCommand::StartResize { corner, point } => {
-                self.start_resize(corner, point);
-                OverlayOutcome::refresh()
-            }
-            OverlayCommand::PointerMoved(point) => {
-                let queued_first = self.queue_pointer(point);
-                let refresh = match self.mode() {
-                    DragMode::Idle => queued_first,
-                    DragMode::Selecting | DragMode::Moving | DragMode::Resizing(_) => self.apply_pending_pointer(),
-                };
-                if refresh { OverlayOutcome::refresh() } else { OverlayOutcome::default() }
-            }
-            OverlayCommand::PointerReleased => {
-                match self.mode() {
-                    DragMode::Selecting => self.finish_selection(),
-                    DragMode::Moving => self.finish_move(),
-                    DragMode::Resizing(_) => self.finish_resize(),
-                    DragMode::Idle => {}
-                }
-                OverlayOutcome::refresh()
-            }
-            OverlayCommand::ClearSelection => {
-                self.clear();
-                OverlayOutcome::refresh()
-            }
-            OverlayCommand::Close => OverlayOutcome::with_effect(OverlayEffect::Close),
-        }
-    }
-
-    fn capture_effect(&self, action: CaptureAction) -> Option<OverlayEffect> {
-        let background_path = self.background_path.as_deref()?;
-        let selection = self.selection_rect()?;
-        Some(OverlayEffect::Capture {
-            action,
-            context: ActionContext::crop_selection(background_path.to_string(), selection),
-        })
     }
 
     pub(crate) fn set_viewport_size(&mut self, viewport_w: f64, viewport_h: f64) {
@@ -467,6 +338,7 @@ impl OverlaySession {
         self.viewport.drag_start_rect = None;
         self.viewport.pending_pointer = None;
         self.viewport.confirm_target_on_release = false;
+        self.cancel_annotation_interaction_state();
         self.picker_last_pointer = None;
         self.picker_pointer_lock = None;
     }
@@ -491,17 +363,17 @@ impl OverlaySession {
                 self.update_selection(point);
                 refresh = true;
             }
-            DragMode::Moving => {
-                self.update_move(point);
-                refresh = true;
-            }
             DragMode::Resizing(_) => {
                 self.update_resize(point);
                 refresh = true;
             }
             DragMode::Idle => {
-                refresh = self.update_pointer(point) || refresh;
-                refresh = self.update_hover(point) || refresh;
+                if self.has_active_annotation_interaction() {
+                    refresh = self.update_annotation_interaction(point) || refresh;
+                } else {
+                    refresh = self.update_pointer(point) || refresh;
+                    refresh = self.update_hover(point) || refresh;
+                }
             }
         }
         refresh
@@ -600,13 +472,14 @@ impl OverlaySession {
 
     #[cfg(feature = "overlay-diagnostics")]
     fn diagnostics_snapshot(&mut self) -> OverlayDiagnosticsSnapshot {
-        self.diagnostics.snapshot()
+        self.diagnostics.snapshot(self.annotation.raster_diagnostics())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::overlay::interaction::resolve_mouse_down_command;
 
     fn window(title: &str, app_name: &str, x: i32, y: i32, width: u32, height: u32) -> WindowInfo {
         WindowInfo {
@@ -639,14 +512,14 @@ mod tests {
         let mut session = OverlaySession::default();
         session.set_viewport_size(100.0, 100.0);
 
-        let outcome = session.apply(OverlayCommand::Capture(CaptureAction::Copy));
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Copy)));
         assert!(outcome.effects.is_empty());
 
         session.prepare_surface(OverlaySurface {
             background_path: Some("fake.png".into()),
             ..OverlaySurface::default()
         });
-        let outcome = session.apply(OverlayCommand::Capture(CaptureAction::Copy));
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Copy)));
         assert!(outcome.effects.is_empty());
     }
 
@@ -654,12 +527,183 @@ mod tests {
     fn clear_resets_selection_and_drag_state() {
         let mut session = OverlaySession::default();
         session.set_viewport_size(100.0, 100.0);
-        session.viewport.mode = DragMode::Moving;
+        session.viewport.mode = DragMode::Selecting;
         session.viewport.selection = Some(RectF::new(10.0, 10.0, 30.0, 20.0));
         session.clear();
 
         assert_eq!(session.mode(), DragMode::Idle);
         assert_eq!(session.selection(), None);
         assert_eq!(session.viewport.target, None);
+    }
+
+    #[test]
+    fn delete_intent_backspaces_during_text_editing() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+        session.set_annotation_tool(AnnotationTool::Text);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(40.0), gpui::px(60.0))));
+        let selected = session.selected_annotation_item().unwrap();
+        let AnnotationKind::Text { text, .. } = selected.kind else {
+            panic!("expected text item");
+        };
+        assert_eq!(text, "Text");
+
+        let outcome = session.apply(OverlayCommand::Annotation(AnnotationCommand::DeleteIntent));
+        assert_eq!(outcome.effects.len(), 1);
+        assert!(session.commit_text_edit());
+        let selected = session.selected_annotation_item().unwrap();
+        let AnnotationKind::Text { text, .. } = selected.kind else {
+            panic!("expected text item");
+        };
+        assert_eq!(text, "Tex");
+    }
+
+    #[test]
+    fn close_intent_cancels_text_edit_before_closing_overlay() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+        session.set_annotation_tool(AnnotationTool::Text);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(40.0), gpui::px(60.0))));
+        assert!(session.text_editing_id().is_some());
+
+        let cancel_outcome = session.apply(OverlayCommand::Lifecycle(LifecycleCommand::CloseIntent));
+        assert_eq!(cancel_outcome.effects.len(), 1);
+        assert!(matches!(cancel_outcome.effects[0], OverlayEffect::Refresh));
+        assert!(session.text_editing_id().is_none());
+
+        let close_outcome = session.apply(OverlayCommand::Lifecycle(LifecycleCommand::CloseIntent));
+        assert_eq!(close_outcome.effects.len(), 1);
+        assert!(matches!(close_outcome.effects[0], OverlayEffect::Close));
+    }
+
+    #[test]
+    fn set_color_command_routes_to_annotation_engine() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(40.0), gpui::px(60.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(120.0), gpui::px(100.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let first = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetColor { color: 0x11aa55ff }));
+        assert_eq!(first.effects.len(), 1);
+        let second = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetColor { color: 0x11aa55ff }));
+        assert!(second.effects.is_empty());
+    }
+
+    #[test]
+    fn set_tool_command_toggles_when_reselected() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+
+        let first = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetTool(AnnotationTool::Rectangle)));
+        assert_eq!(first.effects.len(), 1);
+        assert_eq!(session.annotation_ui_state().tool, Some(AnnotationTool::Rectangle));
+
+        let second = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetTool(AnnotationTool::Rectangle)));
+        assert_eq!(second.effects.len(), 1);
+        assert_eq!(session.annotation_ui_state().tool, None);
+
+        let third = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetTool(AnnotationTool::Circle)));
+        assert_eq!(third.effects.len(), 1);
+        assert_eq!(session.annotation_ui_state().tool, Some(AnnotationTool::Circle));
+    }
+
+    #[test]
+    fn no_tool_disables_draw_but_still_allows_moving_existing_annotation() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+
+        assert!(!session.start_annotation_draw(Point::new(gpui::px(40.0), gpui::px(60.0))));
+
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(40.0), gpui::px(60.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(120.0), gpui::px(100.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let selected = session.selected_annotation_item().unwrap();
+        let id = selected.id;
+        let before_bounds = selected.bounds();
+
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert_eq!(session.annotation_ui_state().tool, None);
+
+        assert!(session.start_annotation_move(id, Point::new(gpui::px(60.0), gpui::px(70.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(100.0), gpui::px(95.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let after_bounds = session.selected_annotation_item().unwrap().bounds();
+        assert_ne!(before_bounds, after_bounds);
+    }
+
+    #[test]
+    fn left_click_inside_selection_without_tool_dispatches_no_command() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+
+        let command = resolve_mouse_down_command(&session, gpui::MouseButton::Left, Point::new(gpui::px(80.0), gpui::px(70.0)), 1);
+        assert!(command.is_none());
+
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        let command = resolve_mouse_down_command(&session, gpui::MouseButton::Left, Point::new(gpui::px(80.0), gpui::px(70.0)), 1);
+        assert!(matches!(command, Some(OverlayCommand::Annotation(AnnotationCommand::StartDraw(_)))));
+    }
+
+    #[test]
+    fn no_op_annotation_command_does_not_refresh() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+
+        let outcome = session.apply(OverlayCommand::Annotation(AnnotationCommand::SetMosaicMode(MosaicMode::Pixelate)));
+        assert!(outcome.effects.is_empty());
+    }
+
+    #[test]
+    fn scroll_capture_dispatches_long_capture_effect() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(600.0, 400.0);
+        session.viewport.selection = Some(RectF::new(40.0, 40.0, 320.0, 220.0));
+
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Scroll)));
+        assert_eq!(outcome.effects.len(), 1);
+        assert!(matches!(outcome.effects[0], OverlayEffect::StartLongCapture { .. }));
+    }
+
+    #[test]
+    fn scroll_capture_effect_ignores_overlay_background_image() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(600.0, 400.0);
+        session.viewport.selection = Some(RectF::new(40.0, 40.0, 320.0, 220.0));
+
+        let bg = Arc::new(RenderImage::new([image::Frame::new(image::RgbaImage::from_pixel(
+            2,
+            2,
+            image::Rgba([1, 2, 3, 255]),
+        ))]));
+        session.background_image = Some(bg.clone());
+
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Scroll)));
+        assert_eq!(outcome.effects.len(), 1);
+
+        let OverlayEffect::StartLongCapture {
+            selection_rect,
+            viewport_rect,
+            viewport_scale,
+        } = &outcome.effects[0]
+        else {
+            panic!("expected StartLongCapture effect");
+        };
+        assert!(selection_rect.has_area());
+        assert!(viewport_rect.width > 0.0);
+        assert!(viewport_rect.height > 0.0);
+        assert!(*viewport_scale >= 1.0);
+        assert!(session.background_image.is_some());
     }
 }

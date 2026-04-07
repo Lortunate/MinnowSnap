@@ -58,6 +58,7 @@ gpui-window-ext = { path = "rust/gpui-window-ext" }
 ocr = { path = "rust/ocr" }
 
 arboard = { workspace = true }
+ab_glyph = { workspace = true }
 auto-launch = { workspace = true }
 config = { workspace = true }
 dhat = { version = "0.3", optional = true }
@@ -69,6 +70,7 @@ gpui = { version = "*" }
 gpui-component = "0.5.1"
 gpui-component-assets = "0.5.1"
 image = { workspace = true, features = ["rayon", "png", "jpeg"] }
+imageproc = { workspace = true }
 mimalloc = { workspace = true }
 notify-rust = { workspace = true }
 once_cell = { workspace = true }
@@ -98,7 +100,7 @@ objc2-app-kit = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-winrt-notification = "0.7.2"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56"
 
 [build-dependencies]

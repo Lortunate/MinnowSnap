@@ -1,8 +1,13 @@
+pub(crate) mod asset_bytes;
+pub(crate) mod asset_paths;
 pub mod assets;
 pub mod background_host;
 
 use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, set_auto_start};
+use crate::core::capture::service::CaptureService;
+use crate::core::geometry::Rect;
 use crate::core::notify::init_windows_notification_app_id;
+use crate::core::{i18n, notify};
 use crate::ui::{overlay, pin, preferences};
 use gpui::Application;
 use tracing::info;
@@ -61,6 +66,28 @@ pub fn run() {
 pub fn prepare_overlay_session(cx: &mut gpui::App) {
     let overlay_handle = cx.global::<overlay::OverlayHandle>().clone();
     overlay_handle.prepare(cx);
+}
+
+pub fn open_capture_overlay(cx: &mut gpui::App) {
+    prepare_overlay_session(cx);
+    overlay::open_window(cx);
+}
+
+pub fn run_quick_capture_with_notification() {
+    let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
+    if ok {
+        notify::show(
+            i18n::app::capture_name().as_str(),
+            i18n::notify::quick_capture_copied().as_str(),
+            notify::NotificationType::Copy,
+        );
+    } else {
+        notify::show(
+            i18n::app::name().as_str(),
+            i18n::notify::quick_capture_failed().as_str(),
+            notify::NotificationType::Info,
+        );
+    }
 }
 
 pub fn open_preferences_window(cx: &mut gpui::App) {

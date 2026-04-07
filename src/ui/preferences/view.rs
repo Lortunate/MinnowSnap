@@ -279,10 +279,8 @@ impl PreferencesView {
         .detach();
     }
 
-    fn render_window(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let frame = self.build_frame(cx);
-        let actions = PreferencesRenderActions::default();
-        let sidebar_items: Vec<AnyElement> = frame
+    fn render_sidebar_items(&self, frame: &PreferencesFrame, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        frame
             .sidebar_items
             .iter()
             .map(|item| {
@@ -293,10 +291,15 @@ impl PreferencesView {
                     }))
                     .into_any_element()
             })
-            .collect();
+            .collect()
+    }
+
+    fn render_panel(&self, frame: &PreferencesFrame, actions: &PreferencesRenderActions, cx: &mut Context<Self>) -> gpui::Stateful<gpui::Div> {
         let page_notice = frame.notice.as_ref().map(|notice| render::components::notice_banner(notice, cx));
-        let page_body = render::render_active_page(&frame, &actions, cx);
+        let page_body = render::render_active_page(frame, actions, cx);
+        let sidebar_items = self.render_sidebar_items(frame, cx);
         let theme = cx.theme();
+
         let mut panel = div()
             .id("preferences-view")
             .track_focus(&self.focus_handle)
@@ -327,6 +330,12 @@ impl PreferencesView {
         }
 
         panel
+    }
+
+    fn render_window(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let frame = self.build_frame(cx);
+        let actions = PreferencesRenderActions::default();
+        self.render_panel(&frame, &actions, cx)
     }
 
     fn build_frame(&self, cx: &App) -> PreferencesFrame {

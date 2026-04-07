@@ -1,4 +1,5 @@
 use super::{SelectAction, ToggleAction};
+use crate::app::asset_paths;
 use crate::core::i18n;
 use crate::ui::preferences::{
     session::{
@@ -27,7 +28,7 @@ pub(crate) enum PreferencesChromeIcon {
 impl IconNamed for PreferencesChromeIcon {
     fn path(self) -> SharedString {
         match self {
-            Self::Close => "resources/icons/close.svg".into(),
+            Self::Close => asset_paths::icons::CLOSE.into(),
         }
     }
 }
@@ -75,7 +76,7 @@ pub(super) fn window_brand() -> AnyElement {
         .items_center()
         .gap_3()
         .min_w(px(0.))
-        .child(img("resources/logo.png").w(px(20.)).h(px(20.)))
+        .child(img(asset_paths::LOGO_PATH).w(px(20.)).h(px(20.)))
         .child(
             div()
                 .flex_1()

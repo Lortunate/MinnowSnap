@@ -8,7 +8,8 @@ pub use actions::bind_keys;
 pub use request::PinRequest;
 
 use crate::core::app::APP_ID;
-use gpui::{App, AppContext, Bounds, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions, point, px, size};
+use crate::ui::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions, point, px, size};
 use gpui_component::Root;
 use session::{PinManager, PinSession};
 use tracing::info;
@@ -26,9 +27,8 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
     if let Err(err) = cx.open_window(
         options,
         gpui_window_ext::with_level(gpui_window_ext::Level::AlwaysOnTop, move |window, cx| {
-            crate::core::appearance::apply_saved_preferences(Some(window), cx);
+            configure_window(window, cx, true);
             let focus_handle = cx.focus_handle();
-            focus_handle.focus(window);
             manager.register(window.window_handle(), cx);
             let session = PinSession::new(cx, request);
             let manager = manager.clone();
@@ -40,7 +40,7 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
     }
 }
 
-pub fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
+fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
     let geometry = PinSession::initial_geometry(request);
     let window_size = geometry.window_size();
     let bounds = if let Some((x, y)) = geometry.origin() {
@@ -56,21 +56,18 @@ pub fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
         "pin window options prepared"
     );
 
-    WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        titlebar: None,
-        window_background: WindowBackgroundAppearance::Transparent,
-        focus: true,
-        show: true,
-        kind: WindowKind::PopUp,
-        is_movable: true,
-        is_resizable: true,
-        is_minimizable: false,
-        display_id: cx.displays().first().map(|display| display.id()),
-        app_id: Some(APP_ID.to_string()),
-        window_decorations: None,
-        tabbing_identifier: None,
-        window_min_size: Some(size(px(geometry.min_size()), px(geometry.min_size()))),
-        ..WindowOptions::default()
-    }
+    popup_window_options(
+        PopupWindowSpec {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            focus: true,
+            show: true,
+            kind: WindowKind::PopUp,
+            is_movable: true,
+            is_resizable: true,
+            is_minimizable: false,
+            display_id: cx.displays().first().map(|display| display.id()),
+            window_min_size: Some(size(px(geometry.min_size()), px(geometry.min_size()))),
+        },
+        APP_ID,
+    )
 }

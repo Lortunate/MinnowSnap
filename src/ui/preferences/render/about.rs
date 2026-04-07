@@ -1,5 +1,6 @@
 use super::{AboutPageActions, components};
 use crate::{
+    app::asset_paths,
     core::system,
     ui::preferences::{session::frame::AboutPageProps, view::PreferencesView},
 };
@@ -18,7 +19,7 @@ pub(super) fn render(props: &AboutPageProps, actions: AboutPageActions, cx: &mut
                         .items_center()
                         .gap_4()
                         .min_w(px(0.))
-                        .child(img("resources/logo.png").w(px(56.)).h(px(56.)))
+                        .child(img(asset_paths::LOGO_PATH).w(px(56.)).h(px(56.)))
                         .child(
                             v_flex()
                                 .flex_1()
