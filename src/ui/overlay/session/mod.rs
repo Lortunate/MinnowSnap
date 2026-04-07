@@ -97,7 +97,6 @@ pub(crate) struct OverlaySession {
     viewport: OverlayViewportModel,
     background_image: Option<Arc<RenderImage>>,
     pub(super) background_pixels: Option<Arc<RgbaImage>>,
-    background_path: Option<String>,
     hovered_window: Option<WindowInfo>,
     pub(super) picker_cursor: Option<(f64, f64)>,
     pub(super) picker_last_pointer: Option<(f64, f64)>,
@@ -306,7 +305,6 @@ impl OverlaySession {
         self.reset_interaction_state();
         self.background_image = surface.background_image;
         self.background_pixels = surface.background_pixels;
-        self.background_path = surface.background_path;
         self.windows = surface.windows;
         self.picker_cursor = None;
         self.picker_sample = None;
@@ -479,6 +477,7 @@ impl OverlaySession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::capture::datasource::PREVIEW_SOURCE;
     use crate::ui::overlay::interaction::resolve_mouse_down_command;
 
     fn window(title: &str, app_name: &str, x: i32, y: i32, width: u32, height: u32) -> WindowInfo {
@@ -516,11 +515,29 @@ mod tests {
         assert!(outcome.effects.is_empty());
 
         session.prepare_surface(OverlaySurface {
-            background_path: Some("fake.png".into()),
+            background_pixels: Some(Arc::new(image::RgbaImage::from_pixel(2, 2, image::Rgba([1, 2, 3, 255])))),
             ..OverlaySurface::default()
         });
         let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Copy)));
         assert!(outcome.effects.is_empty());
+    }
+
+    #[test]
+    fn capture_uses_preview_source_without_annotations() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(200.0, 120.0);
+        session.prepare_surface(OverlaySurface {
+            background_pixels: Some(Arc::new(image::RgbaImage::from_pixel(2, 2, image::Rgba([1, 2, 3, 255])))),
+            ..OverlaySurface::default()
+        });
+        session.viewport.selection = Some(RectF::new(10.0, 10.0, 80.0, 40.0));
+
+        let outcome = session.apply(OverlayCommand::Capture(CaptureCommand::Execute(CaptureAction::Copy)));
+        assert_eq!(outcome.effects.len(), 1);
+        let OverlayEffect::Capture { context, .. } = &outcome.effects[0] else {
+            panic!("expected capture effect");
+        };
+        assert_eq!(context.path, PREVIEW_SOURCE);
     }
 
     #[test]

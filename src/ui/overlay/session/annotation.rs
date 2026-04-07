@@ -143,9 +143,8 @@ impl OverlaySession {
         self.annotation.cancel_interaction_state();
     }
 
-    pub(crate) fn composed_background_path(&self) -> Option<String> {
+    pub(crate) fn composed_background_source(&self) -> Option<String> {
         let scale = f64::from(active_monitor_scale()).max(1.0);
-        self.annotation
-            .composed_background_path(self.background_path.as_ref(), self.background_pixels.as_ref(), scale)
+        self.annotation.composed_background_source(self.background_pixels.as_ref(), scale)
     }
 }

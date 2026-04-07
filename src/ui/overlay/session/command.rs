@@ -152,11 +152,11 @@ impl OverlaySession {
             });
         }
 
-        let background_path = self.composed_background_path()?;
         let selection = self.selection_rect()?;
+        let background_source = self.composed_background_source()?;
         Some(OverlayEffect::Capture {
             action,
-            context: ActionContext::crop_selection(background_path, selection),
+            context: ActionContext::crop_selection(background_source, selection),
         })
     }
 }

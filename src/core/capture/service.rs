@@ -20,7 +20,7 @@ enum SourceImage {
 }
 
 impl CaptureService {
-    fn render_image_from_rgba(mut image: RgbaImage) -> Arc<RenderImage> {
+    pub(crate) fn render_image_from_rgba(mut image: RgbaImage) -> Arc<RenderImage> {
         for pixel in image.chunks_exact_mut(4) {
             pixel.swap(0, 2);
         }
@@ -33,9 +33,6 @@ impl CaptureService {
     }
 
     fn parse_cached_source(path_str: &str) -> Option<VirtualCaptureSource> {
-        if path_str.is_empty() {
-            return Some(VirtualCaptureSource::Preview);
-        }
         datasource::parse_virtual_source(path_str)
     }
 
@@ -191,10 +188,6 @@ impl CaptureService {
 
     pub fn save_temp(image: &RgbaImage) -> Option<String> {
         save_image_to_unique_temp(image, false).map(|path| path.replace('\\', "/"))
-    }
-
-    pub fn render_image_from_path(path: &str) -> Option<Arc<RenderImage>> {
-        Self::resolve_image_from_path(path).map(Self::render_image_from_rgba)
     }
 
     pub fn detect_qrcode(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<String> {

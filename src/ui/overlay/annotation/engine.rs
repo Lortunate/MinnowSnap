@@ -3,6 +3,7 @@ use image::{GenericImage, RgbaImage};
 use std::cell::RefCell;
 use std::sync::Arc;
 
+use crate::core::capture::datasource::PREVIEW_SOURCE;
 use crate::core::capture::service::CaptureService;
 use crate::core::geometry::RectF;
 
@@ -575,14 +576,9 @@ impl AnnotationEngine {
         }
     }
 
-    pub(crate) fn composed_background_path(
-        &self,
-        background_path: Option<&String>,
-        background: Option<&Arc<RgbaImage>>,
-        scale: f64,
-    ) -> Option<String> {
+    pub(crate) fn composed_background_source(&self, background: Option<&Arc<RgbaImage>>, scale: f64) -> Option<String> {
         if self.store.visible_len() == 0 {
-            return background_path.cloned();
+            return background.map(|_| PREVIEW_SOURCE.to_string());
         }
         let background = background?;
         let composed = compose_background_with_annotations(background.as_ref(), self.store.visible_items(), scale);
