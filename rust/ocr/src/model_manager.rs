@@ -1,10 +1,13 @@
 use crate::config::{APP_DATA_DIR, MODEL_DIR};
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
 use tracing::info;
+
+pub type ProgressCallback = Box<dyn Fn(f32) + Send + Sync>;
 
 pub struct ModelManager {
     save_dir: PathBuf,
@@ -28,7 +31,7 @@ impl ModelManager {
         filenames.iter().all(|name| self.save_dir.join(name).exists())
     }
 
-    pub async fn ensure_model(&self, url: &str, filename: &str, force: bool, on_progress: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
+    pub async fn ensure_model(&self, url: &str, filename: &str, force: bool, on_progress: Option<ProgressCallback>) -> Result<PathBuf> {
         let file_path = self.save_dir.join(filename);
 
         if !force && file_path.exists() {
@@ -39,13 +42,13 @@ impl ModelManager {
             return Ok(file_path);
         }
 
-        if !self.save_dir.exists() {
-            fs::create_dir_all(&self.save_dir).await?;
-        }
+        fs::create_dir_all(&self.save_dir).await?;
 
         info!("Downloading model from {} to {:?}", url, file_path);
         if let Err(e) = self.download_file(url, &file_path, on_progress).await {
-            if let Err(remove_err) = fs::remove_file(&file_path).await {
+            if let Err(remove_err) = fs::remove_file(&file_path).await
+                && remove_err.kind() != ErrorKind::NotFound
+            {
                 tracing::error!("Failed to remove partially downloaded file {:?}: {}", file_path, remove_err);
             }
             return Err(e);
@@ -54,7 +57,7 @@ impl ModelManager {
         Ok(file_path)
     }
 
-    async fn download_file(&self, url: &str, path: &PathBuf, on_progress: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<()> {
+    async fn download_file(&self, url: &str, path: &Path, on_progress: Option<ProgressCallback>) -> Result<()> {
         let client = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()?;

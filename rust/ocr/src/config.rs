@@ -21,17 +21,17 @@ pub const KEYS_URL: &str = "https://raw.githubusercontent.com/PaddlePaddle/Paddl
 pub const KEYS_NAME: &str = "ppocrv5_dict.txt";
 
 pub const SERVER_MODELS: ModelSource = ModelSource {
-    det_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/det/ch_PP-OCRv5_server_det.onnx",
-    det_name: "ch_PP-OCRv5_server_det.onnx",
-    rec_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_server_infer.onnx",
-    rec_name: "ch_PP-OCRv5_rec_server_infer.onnx",
+    det_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_server.onnx",
+    det_name: "ch_PP-OCRv5_det_server.onnx",
+    rec_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_server.onnx",
+    rec_name: "ch_PP-OCRv5_rec_server.onnx",
 };
 
 pub const MOBILE_MODELS: ModelSource = ModelSource {
-    det_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/det/ch_PP-OCRv5_mobile_det.onnx",
-    det_name: "ch_PP-OCRv5_mobile_det.onnx",
-    rec_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer.onnx",
-    rec_name: "ch_PP-OCRv5_rec_mobile_infer.onnx",
+    det_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+    det_name: "ch_PP-OCRv5_det_mobile.onnx",
+    rec_url: "https://modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+    rec_name: "ch_PP-OCRv5_rec_mobile.onnx",
 };
 
 #[derive(Clone, Debug)]

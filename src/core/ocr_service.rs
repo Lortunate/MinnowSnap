@@ -1,6 +1,8 @@
 use crate::core::settings::SETTINGS;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::task::JoinError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OcrModelStatus {
@@ -63,33 +65,69 @@ pub fn current_status(is_downloading: bool, progress_percent: u8, last_error: Op
     model_status_from(mobile_models_ready(), is_downloading, progress_percent, last_error)
 }
 
+fn join_error_message(task_name: &str, err: JoinError) -> String {
+    if err.is_cancelled() {
+        return format!("OCR task '{task_name}' was cancelled");
+    }
+
+    if err.is_panic() {
+        let panic_payload = err.into_panic();
+        let panic_message = if let Some(message) = panic_payload.downcast_ref::<&str>() {
+            (*message).to_string()
+        } else if let Some(message) = panic_payload.downcast_ref::<String>() {
+            message.clone()
+        } else {
+            "unknown panic payload".to_string()
+        };
+
+        return format!("OCR task '{task_name}' panicked: {panic_message}");
+    }
+
+    format!("OCR task '{task_name}' failed to join")
+}
+
+async fn run_on_core_runtime<T, F>(task_name: &'static str, task: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: Future<Output = Result<T, String>> + Send + 'static,
+{
+    crate::core::RUNTIME.spawn(task).await.map_err(|err| join_error_message(task_name, err))?
+}
+
 pub async fn download_mobile_models(force: bool, on_progress: Option<Arc<dyn Fn(f32) + Send + Sync>>) -> Result<(), String> {
-    ocr::download_models(ocr::OcrModelType::Mobile, force, on_progress)
-        .await
-        .map_err(|err| err.to_string())
+    run_on_core_runtime("download mobile OCR models", async move {
+        ocr::download_models(ocr::OcrModelType::Mobile, force, on_progress)
+            .await
+            .map_err(|err| err.to_string())
+    })
+    .await
 }
 
 pub async fn recognize_image_blocks(path: impl AsRef<Path>) -> Result<Vec<crate::core::ocr::OcrBlock>, String> {
     let image_path: PathBuf = path.as_ref().to_path_buf();
-    let image = tokio::task::spawn_blocking(move || image::open(&image_path).map_err(|err| err.to_string()))
-        .await
-        .map_err(|err| err.to_string())??;
 
-    let (img_w, img_h) = (image.width() as f64, image.height() as f64);
-    let mut context = ocr::OcrContext::new(None::<PathBuf>, Some(ocr::OcrModelType::Mobile), None, None, None, None)
-        .await
-        .map_err(|err| err.to_string())?;
+    run_on_core_runtime("recognize image OCR blocks", async move {
+        let image = tokio::task::spawn_blocking(move || image::open(&image_path).map_err(|err| err.to_string()))
+            .await
+            .map_err(|err| join_error_message("open OCR image", err))??;
 
-    let ocr_results = tokio::task::spawn_blocking(move || context.recognize(&image).map_err(|err| err.to_string()))
-        .await
-        .map_err(|err| err.to_string())??;
+        let (img_w, img_h) = (image.width() as f64, image.height() as f64);
+        let mut context = ocr::OcrContext::new(None::<PathBuf>, ocr::OcrModelType::Mobile, None)
+            .await
+            .map_err(|err| err.to_string())?;
 
-    Ok(crate::core::ocr::build_ocr_blocks(ocr_results, img_w, img_h))
+        let ocr_results = tokio::task::spawn_blocking(move || context.recognize(&image).map_err(|err| err.to_string()))
+            .await
+            .map_err(|err| join_error_message("run OCR inference", err))??;
+
+        Ok(crate::core::ocr::build_ocr_blocks(ocr_results, img_w, img_h))
+    })
+    .await
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{OcrModelStatus, model_status_from};
+    use super::{OcrModelStatus, model_status_from, run_on_core_runtime};
 
     #[test]
     fn status_maps_missing_downloading_ready_and_failed() {
@@ -123,5 +161,33 @@ mod tests {
         assert!(!failed.is_downloading());
         assert_eq!(failed.progress_percent(), 0);
         assert_eq!(failed.error_message(), Some("network"));
+    }
+
+    #[test]
+    fn runtime_bridge_returns_async_value() {
+        let value = crate::core::RUNTIME
+            .block_on(run_on_core_runtime("test value", async move { Ok::<u8, String>(7) }))
+            .expect("runtime bridge should return async result");
+        assert_eq!(value, 7);
+    }
+
+    #[test]
+    fn runtime_bridge_returns_inner_error() {
+        let err = crate::core::RUNTIME
+            .block_on(run_on_core_runtime::<(), _>("test error", async move { Err("boom".to_string()) }))
+            .expect_err("runtime bridge should forward inner errors");
+        assert_eq!(err, "boom");
+    }
+
+    #[test]
+    fn runtime_bridge_converts_panic_to_error() {
+        let err = crate::core::RUNTIME
+            .block_on(run_on_core_runtime::<(), _>("panic task", async move {
+                panic!("panic-marker");
+            }))
+            .expect_err("runtime bridge should convert panic to error");
+
+        assert!(err.contains("panic task"));
+        assert!(err.contains("panic-marker"));
     }
 }
