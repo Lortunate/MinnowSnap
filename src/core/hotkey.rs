@@ -1,12 +1,11 @@
+use crate::core::async_ui::{app_ready, update_app};
 use crate::core::settings::{SETTINGS, ShortcutSettings};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
 use std::str::FromStr;
-use std::sync::{
-    Arc, Mutex,
-    mpsc::{Receiver, Sender, channel},
-};
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "F1";
@@ -100,17 +99,19 @@ impl Default for HotkeyManager {
 
 pub struct HotkeyService {
     manager: HotkeyManager,
-    action_tx: Sender<HotkeyAction>,
+    action_tx: UnboundedSender<HotkeyAction>,
 }
 
 impl Global for HotkeyService {}
 
 pub fn install_hotkey_service(cx: &mut App) {
-    let (action_tx, action_rx) = channel();
+    let (action_tx, action_rx) = unbounded_channel();
     let mut service = HotkeyService::new(action_tx);
     service.register_from_settings();
+    let shutdown_token = crate::core::shutdown::cancellation_token().unwrap_or_default();
     cx.spawn(async move |cx| {
-        hotkey_action_loop(action_rx, cx).await;
+        hotkey_action_loop(action_rx, shutdown_token, cx).await;
+        GlobalHotKeyEvent::set_event_handler::<fn(GlobalHotKeyEvent)>(None);
     })
     .detach();
     cx.set_global(service);
@@ -175,8 +176,8 @@ pub fn format_keystroke(keystroke: &gpui::Keystroke) -> Option<String> {
 impl HotkeyManager {
     pub fn register_global_hotkeys<F1, F2>(&mut self, screen_shortcut: &str, quick_shortcut: &str, screen_callback: F1, quick_callback: F2)
     where
-        F1: Fn() + Send + 'static,
-        F2: Fn() + Send + 'static,
+        F1: Fn() + Send + Sync + 'static,
+        F2: Fn() + Send + Sync + 'static,
     {
         let manager = match GlobalHotKeyManager::new() {
             Ok(m) => m,
@@ -213,28 +214,27 @@ impl HotkeyManager {
         }
 
         let ids_clone = self.ids.clone();
-        crate::core::RUNTIME.spawn_blocking(move || {
-            let receiver = GlobalHotKeyEvent::receiver();
-            while let Ok(event) = receiver.recv() {
-                if event.state == HotKeyState::Pressed {
-                    let ids = ids_clone.lock().unwrap();
-
-                    if let Some(id) = ids.screen_capture
-                        && event.id == id
-                    {
-                        info!("Screen capture hotkey triggered (id: {id})");
-                        screen_callback();
-                    }
-
-                    if let Some(id) = ids.quick_capture
-                        && event.id == id
-                    {
-                        info!("Quick capture hotkey triggered (id: {id})");
-                        quick_callback();
-                    }
-                }
+        GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
+            if event.state != HotKeyState::Pressed {
+                return;
             }
-        });
+
+            let ids = ids_clone.lock().unwrap();
+
+            if let Some(id) = ids.screen_capture
+                && event.id == id
+            {
+                info!("Screen capture hotkey triggered (id: {id})");
+                screen_callback();
+            }
+
+            if let Some(id) = ids.quick_capture
+                && event.id == id
+            {
+                info!("Quick capture hotkey triggered (id: {id})");
+                quick_callback();
+            }
+        }));
 
         info!("Global hotkeys registered");
     }
@@ -286,7 +286,7 @@ impl HotkeyManager {
 }
 
 impl HotkeyService {
-    pub fn new(action_tx: Sender<HotkeyAction>) -> Self {
+    pub fn new(action_tx: UnboundedSender<HotkeyAction>) -> Self {
         Self {
             manager: HotkeyManager::default(),
             action_tx,
@@ -381,36 +381,51 @@ fn display_key_token(key: &str) -> String {
     }
 }
 
-fn enqueue_action(action_tx: &Sender<HotkeyAction>, action: HotkeyAction) {
+fn enqueue_action(action_tx: &UnboundedSender<HotkeyAction>, action: HotkeyAction) {
     if let Err(err) = action_tx.send(action) {
         error!("Failed to enqueue hotkey action: {err}");
     }
 }
 
-async fn hotkey_action_loop(action_rx: Receiver<HotkeyAction>, cx: &mut AsyncApp) {
+async fn hotkey_action_loop(mut action_rx: UnboundedReceiver<HotkeyAction>, shutdown_token: CancellationToken, cx: &mut AsyncApp) {
     loop {
-        let mut processed = false;
+        tokio::select! {
+            _ = shutdown_token.cancelled() => return,
+            action = action_rx.recv() => {
+                let Some(action) = action else {
+                    return;
+                };
 
-        while let Ok(action) = action_rx.try_recv() {
-            processed = true;
-            handle_hotkey_action(action, cx);
-        }
-
-        if !processed {
-            cx.background_executor().timer(Duration::from_millis(50)).await;
+                if !handle_hotkey_action(action, cx) {
+                    return;
+                }
+            }
         }
     }
 }
 
-fn handle_hotkey_action(action: HotkeyAction, async_app: &mut AsyncApp) {
+fn handle_hotkey_action(action: HotkeyAction, async_app: &mut AsyncApp) -> bool {
+    if !app_ready(async_app) {
+        return false;
+    }
+
     match action {
         HotkeyAction::Capture => {
-            let _ = async_app.update(|cx| {
-                crate::app::open_capture_overlay(cx);
-            });
+            if !update_app(async_app, |app| {
+                crate::app::open_capture_overlay(app);
+            }) {
+                return false;
+            }
         }
-        HotkeyAction::QuickCapture => crate::app::run_quick_capture_with_notification(),
+        HotkeyAction::QuickCapture => {
+            if !app_ready(async_app) {
+                return false;
+            }
+            crate::app::run_quick_capture_with_notification();
+        }
     }
+
+    true
 }
 
 #[cfg(test)]

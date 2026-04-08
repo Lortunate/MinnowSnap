@@ -7,9 +7,11 @@ use crate::core::app::{ensure_single_instance, get_instance_id, init_logger, set
 use crate::core::capture::service::CaptureService;
 use crate::core::geometry::Rect;
 use crate::core::notify::init_windows_notification_app_id;
+use crate::core::shutdown;
 use crate::core::{i18n, notify};
 use crate::ui::{overlay, pin, preferences};
-use gpui::Application;
+use gpui::{App, Application};
+use tokio::sync::broadcast;
 use tracing::info;
 
 pub fn run() {
@@ -19,6 +21,13 @@ pub fn run() {
     if !ensure_single_instance(&get_instance_id()) {
         info!("Another instance is running, exiting.");
         return;
+    }
+
+    shutdown::init_control_plane();
+    #[cfg(target_os = "windows")]
+    {
+        shutdown::install_ctrl_c_handler();
+        shutdown::start_control_pipe_server();
     }
 
     #[cfg(target_os = "windows")]
@@ -35,6 +44,8 @@ pub fn run() {
     let app = Application::new().with_assets(assets::AppAssets);
 
     app.run(move |cx| {
+        install_shutdown_listener(cx);
+
         let locale = crate::core::settings::SETTINGS
             .lock()
             .map(|settings| settings.get().general.language)
@@ -60,6 +71,46 @@ pub fn run() {
             tracing::error!("Failed to install background host window: {err}");
             cx.quit();
         }
+    });
+
+    shutdown::clear_control_plane();
+}
+
+fn install_shutdown_listener(cx: &mut App) {
+    let Some(mut shutdown_rx) = shutdown::subscribe() else {
+        tracing::warn!("Shutdown control plane is not initialized; skip shutdown listener.");
+        return;
+    };
+    let Some(shutdown_token) = shutdown::cancellation_token() else {
+        tracing::warn!("Shutdown cancellation token is unavailable; skip shutdown listener.");
+        return;
+    };
+
+    cx.spawn(async move |cx| {
+        tokio::select! {
+            _ = shutdown_token.cancelled() => {
+                request_app_quit(cx);
+            }
+            trigger = shutdown_rx.recv() => {
+                match trigger {
+                    Ok(trigger) => {
+                        info!("Applying shutdown trigger: {trigger:?}");
+                        request_app_quit(cx);
+                    }
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        request_app_quit(cx);
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {}
+                }
+            }
+        }
+    })
+    .detach();
+}
+
+fn request_app_quit(cx: &mut gpui::AsyncApp) {
+    let _ = cx.update(|app| {
+        app.quit();
     });
 }
 
@@ -92,4 +143,24 @@ pub fn run_quick_capture_with_notification() {
 
 pub fn open_preferences_window(cx: &mut gpui::App) {
     preferences::open_window(cx);
+}
+
+pub fn shutdown_running_instance() -> u8 {
+    #[cfg(target_os = "windows")]
+    {
+        match shutdown::shutdown_running_instance() {
+            Ok(()) => 0,
+            Err(shutdown::ShutdownClientError::NotRunning) => 2,
+            Err(err) => {
+                eprintln!("Failed to request graceful shutdown: {err}");
+                3
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        eprintln!("Shutdown command is only supported on Windows.");
+        3
+    }
 }

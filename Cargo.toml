@@ -45,10 +45,12 @@ rqrr = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 single-instance = "0.3"
-tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "time"] }
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "net"] }
+tokio-util = "0.7"
 toml = "1.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+thiserror = "2.0"
 walkdir = "2.5"
 winres = "0.1"
 xcap = { version = "0.9", features = ["image"] }
@@ -86,11 +88,13 @@ serde_json = { workspace = true }
 single-instance = { workspace = true }
 sys-locale = "0.3.2"
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = "0.2.4"
 tracing-log = "0.2.0"
 tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
 tray-icon = "0.21.3"
 xcap = { workspace = true }
 
@@ -99,6 +103,7 @@ objc2 = { workspace = true }
 objc2-app-kit = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+ctrlc = "3.5"
 tauri-winrt-notification = "0.7.2"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56"

@@ -1,8 +1,11 @@
 use crate::app::asset_bytes;
 use crate::core::app::APP_NAME;
+use crate::core::async_ui::{app_ready, update_app};
 use crate::core::i18n;
+use crate::core::shutdown::{self, ShutdownTrigger};
 use gpui::{App, Global};
-use std::time::Duration;
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
@@ -33,6 +36,11 @@ pub struct SystemTray {
     menu_ids: TrayMenuIds,
 }
 
+enum TrayDispatchEvent {
+    Menu(MenuEvent),
+    Tray(TrayIconEvent),
+}
+
 impl Global for SystemTray {}
 
 impl SystemTray {
@@ -41,11 +49,13 @@ impl SystemTray {
         let menu_ids = tray.menu_ids.clone();
         cx.set_global(tray);
 
-        let menu_rx = MenuEvent::receiver().clone();
-        let tray_rx = TrayIconEvent::receiver().clone();
+        let (event_tx, event_rx) = unbounded_channel();
+        Self::install_event_handlers(event_tx);
+        let shutdown_token = shutdown::cancellation_token().unwrap_or_default();
 
         cx.spawn(async move |cx| {
-            Self::event_loop(menu_ids, tray_rx, menu_rx, cx).await;
+            Self::event_loop(menu_ids, event_rx, shutdown_token, cx).await;
+            Self::clear_event_handlers();
         })
         .detach();
 
@@ -77,59 +87,73 @@ impl SystemTray {
         Ok(Self { tray_icon, menu_ids })
     }
 
+    fn install_event_handlers(event_tx: tokio::sync::mpsc::UnboundedSender<TrayDispatchEvent>) {
+        let menu_tx = event_tx.clone();
+        MenuEvent::set_event_handler(Some(move |event| {
+            let _ = menu_tx.send(TrayDispatchEvent::Menu(event));
+        }));
+
+        let tray_tx = event_tx;
+        TrayIconEvent::set_event_handler(Some(move |event| {
+            let _ = tray_tx.send(TrayDispatchEvent::Tray(event));
+        }));
+    }
+
+    fn clear_event_handlers() {
+        MenuEvent::set_event_handler::<fn(MenuEvent)>(None);
+        TrayIconEvent::set_event_handler::<fn(TrayIconEvent)>(None);
+    }
+
     async fn event_loop(
         menu_ids: TrayMenuIds,
-        tray_rx: tray_icon::TrayIconEventReceiver,
-        menu_rx: tray_icon::menu::MenuEventReceiver,
+        mut event_rx: UnboundedReceiver<TrayDispatchEvent>,
+        shutdown_token: CancellationToken,
         cx: &mut gpui::AsyncApp,
     ) {
         loop {
-            let mut processed = false;
+            tokio::select! {
+                _ = shutdown_token.cancelled() => return,
+                event = event_rx.recv() => {
+                    let Some(event) = event else {
+                        return;
+                    };
 
-            while let Ok(event) = menu_rx.try_recv() {
-                processed = true;
-                if Self::handle_menu_event(&menu_ids, event, cx) {
-                    return;
+                    let should_exit = match event {
+                        TrayDispatchEvent::Menu(event) => Self::handle_menu_event(&menu_ids, event, cx),
+                        TrayDispatchEvent::Tray(event) => Self::handle_tray_event(event, cx),
+                    };
+
+                    if should_exit {
+                        return;
+                    }
                 }
-            }
-
-            while let Ok(event) = tray_rx.try_recv() {
-                processed = true;
-                if Self::handle_tray_event(event, cx) {
-                    return;
-                }
-            }
-
-            if !processed {
-                cx.background_executor().timer(Duration::from_millis(50)).await;
             }
         }
     }
 
     fn handle_menu_event(menu_ids: &TrayMenuIds, event: MenuEvent, cx: &mut gpui::AsyncApp) -> bool {
         if event.id == menu_ids.capture_overlay {
-            let _ = cx.update(|app| {
+            return !update_app(cx, |app| {
                 crate::app::open_capture_overlay(app);
             });
-            return false;
         }
 
         if event.id == menu_ids.quick_capture {
+            if !app_ready(cx) {
+                return true;
+            }
             crate::app::run_quick_capture_with_notification();
             return false;
         }
 
         if event.id == menu_ids.preferences {
-            let _ = cx.update(|app| {
+            return !update_app(cx, |app| {
                 crate::app::open_preferences_window(app);
             });
-            return false;
         }
 
         if event.id == menu_ids.exit {
-            let _ = cx.update(|app| {
-                app.quit();
-            });
+            shutdown::request_shutdown(ShutdownTrigger::TrayMenu);
             return true;
         }
 
@@ -138,7 +162,7 @@ impl SystemTray {
 
     fn handle_tray_event(event: TrayIconEvent, cx: &mut gpui::AsyncApp) -> bool {
         if let TrayIconEvent::DoubleClick { .. } = event {
-            let _ = cx.update(|app| {
+            return !update_app(cx, |app| {
                 crate::app::open_capture_overlay(app);
             });
         }
