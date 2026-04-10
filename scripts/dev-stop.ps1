@@ -8,5 +8,5 @@ if (Test-Path -LiteralPath $debugExe) {
     exit $LASTEXITCODE
 }
 
-cargo run -- shutdown
+cargo run -p minnow-app --bin MinnowSnap -- shutdown
 exit $LASTEXITCODE

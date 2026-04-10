@@ -1,0 +1,45 @@
+[package]
+name = "minnow-app"
+version = "0.1.0"
+edition = "2024"
+authors = ["Lortuante"]
+
+[[bin]]
+name = "MinnowSnap"
+path = "src/main.rs"
+
+[features]
+default = []
+dhat-heap = ["dep:dhat"]
+overlay-diagnostics = ["minnow-ui/overlay-diagnostics"]
+
+[dependencies]
+minnow-assets = { path = "../minnow-assets" }
+minnow-core = { path = "../minnow-core" }
+minnow-ui = { path = "../minnow-ui" }
+
+auto-launch = { workspace = true }
+dhat = { workspace = true, optional = true }
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+mimalloc = { workspace = true }
+notify-rust = { workspace = true }
+single-instance = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { workspace = true }
+objc2-app-kit = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+ico = { workspace = true }
+image = { workspace = true, features = ["default"] }
+winres = { workspace = true }
+
+[package.metadata.bundle]
+identifier = "com.lortunate.minnowsnap"
+icon = ["../minnow-assets/assets_icons/icon.icns", "../minnow-assets/assets_icons/icon.ico"]
+osx_info_plist_exts = ["../minnow-assets/resources/Info.plist.extra"]

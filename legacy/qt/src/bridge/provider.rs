@@ -1,4 +1,4 @@
-use crate::core::capture::datasource::{self, VirtualCaptureSource};
+use crate::core::capture::source::{self, VirtualCaptureSource};
 use crate::core::capture::get_cached_capture;
 use cxx_qt_lib::{QImage, QImageFormat, QQmlApplicationEngine, QString};
 use image::RgbaImage;
@@ -155,9 +155,9 @@ pub fn clear_cached_qimages() {
 
 fn get_capture_qimage(id: QString) -> QImage {
     let id_str = id.to_string();
-    debug!("ImageProvider request: {}", datasource::normalize_provider_id(&id_str));
+    debug!("ImageProvider request: {}", source::normalize_provider_id(&id_str));
 
-    let Some(source) = datasource::parse_provider_source(&id_str) else {
+    let Some(source) = source::parse_provider_source(&id_str) else {
         warn!("Unknown image provider id: {}", id_str);
         return empty_qimage();
     };

@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Sequence
 
 APP_NAME = "MinnowSnap"
+APP_PACKAGE = "minnow-app"
+APP_MANIFEST = Path("crates") / APP_PACKAGE / "Cargo.toml"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEPLOY_DIR = PROJECT_ROOT / "target" / "deploy"
 WINDOWS_DEBUG_GLOBS = ("*.pdb", "*.ilk", "*.exp", "*.lib", "*.a", "*.cmake")
@@ -68,7 +70,7 @@ def build_options(args: argparse.Namespace) -> DistOptions:
 
 
 def get_version() -> str:
-    cargo_toml = PROJECT_ROOT / "Cargo.toml"
+    cargo_toml = PROJECT_ROOT / APP_MANIFEST
     with cargo_toml.open("rb") as f:
         data = tomllib.load(f)
     return str(data.get("package", {}).get("version", "0.0.0"))
@@ -196,9 +198,9 @@ def print_bundle_report(bundle_dir: Path, *, max_files: int = 12) -> None:
 def cargo_build(profile: str) -> None:
     print_action("Building", f"profile={profile} (cargo)")
     if profile == "release":
-        run_command(["cargo", "build", "--release"])
+        run_command(["cargo", "build", "-p", APP_PACKAGE, "--bin", APP_NAME, "--release"])
     else:
-        run_command(["cargo", "build", "--profile", profile])
+        run_command(["cargo", "build", "-p", APP_PACKAGE, "--bin", APP_NAME, "--profile", profile])
 
 
 def versioned_artifact_name(prefix: str, extension: str) -> str:
@@ -255,7 +257,7 @@ def dist_windows(options: DistOptions) -> None:
 
 def dist_macos() -> None:
     print_action("Building", "bundle (cargo bundle)")
-    run_command(["cargo", "bundle", "--release"])
+    run_command(["cargo", "bundle", "--manifest-path", str(APP_MANIFEST), "--release"])
 
     bundle_path = get_target_dir("release") / "bundle" / "osx" / f"{APP_NAME}.app"
     if not bundle_path.exists():
@@ -268,7 +270,7 @@ def dist_macos() -> None:
     if not shutil.which("create-dmg"):
         fail("Error: create-dmg not found. Please install it (brew install create-dmg).")
 
-    volicon = PROJECT_ROOT / "assets_icons" / "icon.icns"
+    volicon = PROJECT_ROOT / "crates" / "minnow-assets" / "assets_icons" / "icon.icns"
     cmd = [
         "create-dmg",
         "--volname", f"{APP_NAME} Installer",

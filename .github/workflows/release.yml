@@ -56,6 +56,6 @@ jobs:
         with:
           name: MinnowSnap-${{ matrix.os_name }}
           path: |
-            deploy/*.zip
-            deploy/*.dmg
+            target/deploy/*.zip
+            target/deploy/*.dmg
           if-no-files-found: error

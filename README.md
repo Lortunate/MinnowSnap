@@ -21,4 +21,4 @@ MinnowSnap is a desktop screen capture tool built with Rust and GPUI. It focuses
 - [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)
 - [xcap](https://github.com/nashaofu/xcap)
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
-- [And more...](Cargo.toml)
+- [And more...](crates/minnow-app/Cargo.toml)

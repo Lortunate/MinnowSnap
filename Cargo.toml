@@ -1,29 +1,32 @@
-[package]
-name = "MinnowSnap"
-version = "0.1.0"
-edition = "2024"
-authors = ["Lortuante"]
-
-[features]
-default = []
-dhat-heap = ["dep:dhat"]
-overlay-diagnostics = []
-
 [workspace]
-members = ["rust/build-tools", "rust/gpui-window-ext", "rust/ocr"]
+resolver = "3"
+members = [
+  "crates/minnow-app",
+  "crates/minnow-assets",
+  "crates/minnow-core",
+  "crates/minnow-ui",
+  "crates/minnow-ocr",
+]
+default-members = ["crates/minnow-app"]
 
 [workspace.dependencies]
 ab_glyph = "0.2.32"
 anyhow = "1.0"
 arboard = "3.6"
 auto-launch = "0.6"
+cocoa = "0.26.0"
 config = { version = "0.15", default-features = false, features = ["async", "toml"] }
+ctrlc = "3.5"
+dhat = "0.3"
 directories = "6.0"
 dirs = "6.0"
 env_logger = "0.11"
 font-kit = "0.14"
 futures-util = "0.3"
 global-hotkey = { version = "0.7", features = ["tracing"] }
+gpui = "*"
+gpui-component = "0.5.1"
+gpui-component-assets = "0.5.1"
 ico = "0.5"
 image = { version = "0.25", default-features = false }
 imageproc = "0.26.1"
@@ -31,93 +34,43 @@ mimalloc = "0.1"
 ndarray = "0.17"
 notify-rust = "4"
 num-traits = "0.2"
+objc = "0.2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication"] }
 once_cell = "1"
 ort = "2.0.0-rc.12"
 oxipng = { version = "10.0", default-features = false, features = ["parallel", "zopfli", "filetime"] }
 quick-xml = { version = "0.39", features = ["serialize"] }
+raw-window-handle = "0.6"
 rayon = "1.8"
 rdev = "0.5"
 reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "stream"] }
 rodio = "0.22.2"
 rqrr = "0.10"
+rust-embed = "8"
+rust-i18n = "3.1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 single-instance = "0.3"
+sys-locale = "0.3.2"
+tauri-winrt-notification = "0.7.2"
+thiserror = "2.0"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "net"] }
 tokio-util = "0.7"
 toml = "1.0"
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
-thiserror = "2.0"
-walkdir = "2.5"
-winres = "0.1"
-xcap = { version = "0.9", features = ["image"] }
-
-[dependencies]
-gpui-window-ext = { path = "rust/gpui-window-ext" }
-ocr = { path = "rust/ocr" }
-
-arboard = { workspace = true }
-ab_glyph = { workspace = true }
-auto-launch = { workspace = true }
-config = { workspace = true }
-dhat = { version = "0.3", optional = true }
-directories = { workspace = true }
-dirs = { workspace = true }
-font-kit = { workspace = true }
-global-hotkey = { workspace = true }
-gpui = { version = "*" }
-gpui-component = "0.5.1"
-gpui-component-assets = "0.5.1"
-image = { workspace = true, features = ["rayon", "png", "jpeg"] }
-imageproc = { workspace = true }
-mimalloc = { workspace = true }
-notify-rust = { workspace = true }
-once_cell = { workspace = true }
-oxipng = { workspace = true }
-raw-window-handle = "0.6"
-rdev = { workspace = true }
-rodio = { workspace = true }
-rqrr = { workspace = true }
-rust-embed = "8"
-rust-i18n = "3.1.5"
-serde = { workspace = true }
-serde_json = { workspace = true }
-single-instance = { workspace = true }
-sys-locale = "0.3.2"
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-toml = { workspace = true }
-tracing = { workspace = true }
 tracing-appender = "0.2.4"
 tracing-log = "0.2.0"
-tracing-subscriber = { workspace = true }
-thiserror = { workspace = true }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 tray-icon = "0.21.3"
-xcap = { workspace = true }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-objc2 = { workspace = true }
-objc2-app-kit = { workspace = true }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-ctrlc = "3.5"
-tauri-winrt-notification = "0.7.2"
+walkdir = "2.5"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56"
-
-[build-dependencies]
-build-tools = { path = "rust/build-tools" }
+winres = "0.1"
+xcap = { version = "0.9", features = ["image"] }
 
 [profile.release]
 lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
-
-[package.metadata.bundle]
-identifier = "com.lortunate.minnowsnap"
-icon = ["assets_icons/icon.icns", "assets_icons/icon.ico"]
-osx_info_plist_exts = ["resources/Info.plist.extra"]

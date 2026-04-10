@@ -19,18 +19,18 @@ Archived Areas
 
 Legacy -> GPUI Mapping
 - `bridge/screen_capture`, `bridge/capture_session`, `bridge/capture_compositor`, `bridge/overlay_controller`, `bridge/annotation`
-  -> `src/ui/overlay/*` + `src/core/capture/*`
+  -> `crates/minnow-ui/src/features/overlay/*` + `crates/minnow-core/src/capture/*`
 - `bridge/pin`, `bridge/ocr_overlay`
-  -> `src/ui/pin/*`
+  -> `crates/minnow-ui/src/features/pin/*`
 - `bridge/config`, `bridge/shortcut_helper`
-  -> `src/core/settings/*` + `src/core/hotkey.rs` + `src/ui/preferences/*`
+  -> `crates/minnow-core/src/settings.rs` + `crates/minnow-ui/src/shell/hotkey.rs` + `crates/minnow-ui/src/features/preferences/*`
 - `bridge/tray_menu`
-  -> `src/ui/tray_icon.rs` + `src/core/tray/*`
+  -> `crates/minnow-ui/src/shell/tray.rs`
 - `bridge/window`
-  -> `src/ui/windowing.rs` + `rust/gpui-window-ext/*`
+  -> `crates/minnow-ui/src/shell/windowing.rs` + `crates/minnow-ui/src/shell/native_window.rs`
 - `qml/features/preferences/*`
-  -> `src/ui/preferences/*`
+  -> `crates/minnow-ui/src/features/preferences/*`
 
 Do not add new runtime code under `legacy/qt`.
-Do not add references from active runtime paths (`src/`, `Cargo.toml`, build or CI scripts) back to `legacy/qt`.
+Do not add references from active runtime paths (`crates/`, `Cargo.toml`, build or CI scripts) back to `legacy/qt`.
 CI guard: `scripts/check_no_qt_runtime_deps.py`.
