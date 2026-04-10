@@ -35,6 +35,7 @@ target/
 **/*.rs.bk
 *.pdb
 .idea/
+Cargo.lock
 
 ### Windows template
 Thumbs.db
