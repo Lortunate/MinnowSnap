@@ -24,8 +24,6 @@ jobs:
         include:
           - os: windows-latest
             os_name: Windows
-          - os: macos-15
-            os_name: macOS
 
     steps:
       - uses: actions/checkout@v6

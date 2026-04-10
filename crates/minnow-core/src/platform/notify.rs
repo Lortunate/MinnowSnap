@@ -1,5 +1,5 @@
-use crate::settings::SETTINGS;
 use crate::app_meta::APP_NAME;
+use crate::settings::SETTINGS;
 use minnow_assets::asset_bytes;
 use tracing::error;
 
@@ -70,30 +70,32 @@ fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
     Some(path)
 }
 
-#[cfg(target_os = "windows")]
 pub fn init_windows_notification_app_id() {
-    let key_path = format!(r"Software\Classes\AppUserModelId\{APP_ID}");
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    #[cfg(target_os = "windows")]
+    {
+        let key_path = format!(r"Software\Classes\AppUserModelId\{APP_ID}");
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
-    let Ok((key, _)) = hkcu.create_subkey(&key_path) else {
-        error!("Failed to create AppUserModelId registry key: {}", key_path);
-        return;
-    };
+        let Ok((key, _)) = hkcu.create_subkey(&key_path) else {
+            error!("Failed to create AppUserModelId registry key: {}", key_path);
+            return;
+        };
 
-    if let Err(e) = key.set_value("DisplayName", &APP_NAME) {
-        error!("Failed to set DisplayName for AppUserModelId: {}", e);
-    }
-    if let Err(e) = key.set_value("IconBackgroundColor", &"0") {
-        error!("Failed to set IconBackgroundColor for AppUserModelId: {}", e);
-    }
-
-    if let Some(path) = ensure_windows_toast_icon_file() {
-        let icon_uri = path.to_string_lossy();
-        if let Err(e) = key.set_value("IconUri", &icon_uri.as_ref()) {
-            error!("Failed to set IconUri for AppUserModelId: {}", e);
+        if let Err(e) = key.set_value("DisplayName", &APP_NAME) {
+            error!("Failed to set DisplayName for AppUserModelId: {}", e);
         }
-    } else {
-        error!("Failed to prepare toast icon file for IconUri");
+        if let Err(e) = key.set_value("IconBackgroundColor", &"0") {
+            error!("Failed to set IconBackgroundColor for AppUserModelId: {}", e);
+        }
+
+        if let Some(path) = ensure_windows_toast_icon_file() {
+            let icon_uri = path.to_string_lossy();
+            if let Err(e) = key.set_value("IconUri", &icon_uri.as_ref()) {
+                error!("Failed to set IconUri for AppUserModelId: {}", e);
+            }
+        } else {
+            error!("Failed to prepare toast icon file for IconUri");
+        }
     }
 }
 

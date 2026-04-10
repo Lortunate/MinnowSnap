@@ -21,10 +21,6 @@ jobs:
         include:
           - os: windows-latest
             os_name: Windows
-          - os: macos-15-intel
-            os_name: macos-15-intel
-          - os: macos-15
-            os_name: macos-15
 
     steps:
       - uses: actions/checkout@v6
@@ -37,16 +33,6 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
 
-      - name: Install cargo-bundle
-        if: runner.os == 'macOS'
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-bundle
-
-      - name: Install create-dmg
-        if: runner.os == 'macOS'
-        run: brew install create-dmg
-
       - name: Build and Package
         shell: bash
         run: python scripts/bundle.py
@@ -57,5 +43,4 @@ jobs:
           name: MinnowSnap-${{ matrix.os_name }}
           path: |
             target/deploy/*.zip
-            target/deploy/*.dmg
           if-no-files-found: error
