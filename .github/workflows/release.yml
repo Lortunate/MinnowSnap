@@ -21,29 +21,21 @@ jobs:
         include:
           - os: windows-latest
             os_name: Windows
-            qt_arch: win64_msvc2022_64
           - os: macos-15-intel
             os_name: macos-15-intel
-            qt_arch: clang_64
           - os: macos-15
             os_name: macos-15
-            qt_arch: clang_64
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Guard against legacy UI runtime dependency regressions
+        run: python scripts/check_no_qt_runtime_deps.py
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.10.0"
-          arch: ${{ matrix.qt_arch }}
-          cache: true
-          modules: "qtimageformats"
 
       - name: Install cargo-bundle
         if: runner.os == 'macOS'
@@ -64,6 +56,6 @@ jobs:
         with:
           name: MinnowSnap-${{ matrix.os_name }}
           path: |
-            deploy/*.zip
-            deploy/*.dmg
+            target/deploy/*.zip
+            target/deploy/*.dmg
           if-no-files-found: error

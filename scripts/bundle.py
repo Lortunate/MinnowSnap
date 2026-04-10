@@ -11,35 +11,11 @@ from pathlib import Path
 from typing import Sequence
 
 APP_NAME = "MinnowSnap"
+APP_PACKAGE = "minnow-app"
+APP_MANIFEST = Path("crates") / APP_PACKAGE / "Cargo.toml"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEPLOY_DIR = PROJECT_ROOT / "target" / "deploy"
-
-WINDOWS_STYLE_DIRS = (
-    "qml/QtQuick/Controls/FluentWinUI3",
-    "qml/QtQuick/Controls/Fusion",
-    "qml/QtQuick/Controls/Imagine",
-    "qml/QtQuick/Controls/Material",
-    "qml/QtQuick/Controls/Universal",
-    "qml/QtQuick/Controls/Windows",
-    "qml/QtQuick/NativeStyle",
-)
-
-WINDOWS_STYLE_DLLS = (
-    "Qt6QuickControls2FluentWinUI3StyleImpl.dll",
-    "Qt6QuickControls2Fusion.dll",
-    "Qt6QuickControls2FusionStyleImpl.dll",
-    "Qt6QuickControls2Imagine.dll",
-    "Qt6QuickControls2ImagineStyleImpl.dll",
-    "Qt6QuickControls2Material.dll",
-    "Qt6QuickControls2MaterialStyleImpl.dll",
-    "Qt6QuickControls2Universal.dll",
-    "Qt6QuickControls2UniversalStyleImpl.dll",
-    "Qt6QuickControls2WindowsStyleImpl.dll",
-)
-
 WINDOWS_DEBUG_GLOBS = ("*.pdb", "*.ilk", "*.exp", "*.lib", "*.a", "*.cmake")
-WINDOWS_PRUNED_PLUGIN_TYPES = ("qmltooling", "generic", "networkinformation")
-WINDOWS_EXCLUDED_IMAGE_PLUGINS = ("qgif", "qico")
 
 
 @dataclass(frozen=True)
@@ -47,11 +23,6 @@ class DistOptions:
     upx: bool
     upx_aggressive: bool
     cargo_profile: str
-    aggressive_slim: bool
-    keep_opengl_sw: bool
-    keep_d3d_compiler: bool
-    keep_all_qt_styles: bool
-    remove_qmltypes: bool
     zip_lzma: bool
 
 
@@ -94,17 +65,12 @@ def build_options(args: argparse.Namespace) -> DistOptions:
         upx=args.upx or get_bool_env("MINNOWSNAP_USE_UPX", False),
         upx_aggressive=args.upx_aggressive or get_bool_env("MINNOWSNAP_UPX_AGGRESSIVE", False),
         cargo_profile=profile,
-        aggressive_slim=get_bool_env("MINNOWSNAP_AGGRESSIVE_SLIM", False),
-        keep_opengl_sw=get_bool_env("MINNOWSNAP_KEEP_OPENGL_SW", False),
-        keep_d3d_compiler=get_bool_env("MINNOWSNAP_KEEP_D3D_COMPILER", False),
-        keep_all_qt_styles=get_bool_env("MINNOWSNAP_KEEP_ALL_QT_STYLES", False),
-        remove_qmltypes=get_bool_env("MINNOWSNAP_REMOVE_QMLTYPES", True),
         zip_lzma=get_bool_env("MINNOWSNAP_ZIP_LZMA", False),
     )
 
 
 def get_version() -> str:
-    cargo_toml = PROJECT_ROOT / "Cargo.toml"
+    cargo_toml = PROJECT_ROOT / APP_MANIFEST
     with cargo_toml.open("rb") as f:
         data = tomllib.load(f)
     return str(data.get("package", {}).get("version", "0.0.0"))
@@ -138,16 +104,6 @@ def clean_deploy_dir(name: str = APP_NAME) -> tuple[Path, Path]:
     bundle_dir = DEPLOY_DIR / name
     bundle_dir.mkdir(parents=True, exist_ok=True)
     return DEPLOY_DIR, bundle_dir
-
-
-def remove_path(path: Path) -> bool:
-    if not path.exists():
-        return False
-    if path.is_dir():
-        shutil.rmtree(path, ignore_errors=True)
-    else:
-        path.unlink(missing_ok=True)
-    return True
 
 
 def get_dir_size(path: Path) -> int:
@@ -188,42 +144,6 @@ def create_zip(src_dir: Path, zip_path: Path, *, use_lzma: bool) -> None:
                     zf.write(file_path, arcname)
                 except ValueError:
                     zf.write(file_path, file_path.name)
-
-
-def write_basic_controls_config(bundle_dir: Path) -> None:
-    conf = bundle_dir / "qtquickcontrols2.conf"
-    conf.write_text("[Controls]\nStyle=Basic\nFallbackStyle=Basic\n", encoding="utf-8")
-
-
-def prune_windows_bundle(bundle_dir: Path, options: DistOptions) -> int:
-    to_remove: set[Path] = set()
-
-    write_basic_controls_config(bundle_dir)
-
-    if not options.keep_all_qt_styles:
-        to_remove.update(bundle_dir / rel for rel in WINDOWS_STYLE_DIRS)
-        to_remove.update(bundle_dir / name for name in WINDOWS_STYLE_DLLS)
-
-    to_remove.update(bundle_dir / rel for rel in WINDOWS_PRUNED_PLUGIN_TYPES)
-    to_remove.update(bundle_dir / "imageformats" / f"{name}.dll" for name in WINDOWS_EXCLUDED_IMAGE_PLUGINS)
-
-    if options.remove_qmltypes:
-        to_remove.update(bundle_dir.rglob("plugins.qmltypes"))
-
-    if not options.keep_d3d_compiler:
-        to_remove.add(bundle_dir / "D3Dcompiler_47.dll")
-
-    if options.aggressive_slim:
-        to_remove.add(bundle_dir / "styles")
-
-    for pattern in WINDOWS_DEBUG_GLOBS:
-        to_remove.update(bundle_dir.rglob(pattern))
-
-    removed_count = 0
-    for path in sorted(to_remove, key=lambda p: len(p.parts), reverse=True):
-        if remove_path(path):
-            removed_count += 1
-    return removed_count
 
 
 def maybe_compress_exe_with_upx(exe_path: Path, *, enabled: bool, aggressive: bool) -> None:
@@ -278,32 +198,9 @@ def print_bundle_report(bundle_dir: Path, *, max_files: int = 12) -> None:
 def cargo_build(profile: str) -> None:
     print_action("Building", f"profile={profile} (cargo)")
     if profile == "release":
-        run_command(["cargo", "build", "--release"])
+        run_command(["cargo", "build", "-p", APP_PACKAGE, "--bin", APP_NAME, "--release"])
     else:
-        run_command(["cargo", "build", "--profile", profile])
-
-
-def build_windeployqt_command(exe_path: Path, qml_dir: Path, options: DistOptions) -> list[str]:
-    cmd = [
-        "windeployqt",
-        "--qmldir",
-        str(qml_dir),
-        "--release",
-        "--no-translations",
-        "--no-compiler-runtime",
-        "--skip-plugin-types",
-        ",".join(WINDOWS_PRUNED_PLUGIN_TYPES),
-        "--exclude-plugins",
-        ",".join(WINDOWS_EXCLUDED_IMAGE_PLUGINS),
-    ]
-
-    if not options.keep_opengl_sw:
-        cmd.append("--no-opengl-sw")
-    if not options.keep_d3d_compiler:
-        cmd.append("--no-system-d3d-compiler")
-
-    cmd.append(str(exe_path))
-    return cmd
+        run_command(["cargo", "build", "-p", APP_PACKAGE, "--bin", APP_NAME, "--profile", profile])
 
 
 def versioned_artifact_name(prefix: str, extension: str) -> str:
@@ -318,6 +215,19 @@ def macos_dmg_name() -> str:
     return versioned_artifact_name(APP_NAME, "dmg")
 
 
+def prune_windows_bundle(bundle_dir: Path) -> int:
+    to_remove: set[Path] = set()
+    for pattern in WINDOWS_DEBUG_GLOBS:
+        to_remove.update(bundle_dir.rglob(pattern))
+
+    removed_count = 0
+    for path in sorted(to_remove, key=lambda p: len(p.parts), reverse=True):
+        if path.exists():
+            path.unlink(missing_ok=True)
+            removed_count += 1
+    return removed_count
+
+
 def dist_windows(options: DistOptions) -> None:
     cargo_build(options.cargo_profile)
 
@@ -329,12 +239,9 @@ def dist_windows(options: DistOptions) -> None:
     bundle_exe = bundle_dir / f"{APP_NAME}.exe"
     shutil.copy2(target_exe, bundle_exe)
 
-    print_action("Deploying", "Qt dependencies (windeployqt)")
-    run_command(build_windeployqt_command(bundle_exe, PROJECT_ROOT / "qml", options), silent=True)
-
     before_prune = get_dir_size(bundle_dir)
-    removed = prune_windows_bundle(bundle_dir, options)
-    print_action("Slimming", f"removed {removed} items")
+    removed = prune_windows_bundle(bundle_dir)
+    print_action("Slimming", f"removed {removed} debug artifacts")
     maybe_compress_exe_with_upx(bundle_exe, enabled=options.upx, aggressive=options.upx_aggressive)
     after_prune = get_dir_size(bundle_dir)
 
@@ -350,14 +257,11 @@ def dist_windows(options: DistOptions) -> None:
 
 def dist_macos() -> None:
     print_action("Building", "bundle (cargo bundle)")
-    run_command(["cargo", "bundle", "--release"])
+    run_command(["cargo", "bundle", "--manifest-path", str(APP_MANIFEST), "--release"])
 
     bundle_path = get_target_dir("release") / "bundle" / "osx" / f"{APP_NAME}.app"
     if not bundle_path.exists():
         fail(f"Error: {bundle_path} not found")
-
-    print_action("Deploying", "Qt dependencies (macdeployqt)")
-    run_command(["macdeployqt", str(bundle_path), f"-qmldir={PROJECT_ROOT / 'qml'}"], silent=True)
 
     ensure_clean_dir(DEPLOY_DIR)
     dmg_path = DEPLOY_DIR / macos_dmg_name()
@@ -366,7 +270,7 @@ def dist_macos() -> None:
     if not shutil.which("create-dmg"):
         fail("Error: create-dmg not found. Please install it (brew install create-dmg).")
 
-    volicon = PROJECT_ROOT / "assets_icons" / "icon.icns"
+    volicon = PROJECT_ROOT / "crates" / "minnow-assets" / "assets_icons" / "icon.icns"
     cmd = [
         "create-dmg",
         "--volname", f"{APP_NAME} Installer",
