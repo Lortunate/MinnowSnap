@@ -1,7 +1,3 @@
-use minnow_core::capture::action::{ActionContext, ActionResult, CaptureAction};
-use minnow_core::capture::service::CaptureService;
-use minnow_core::i18n;
-use minnow_core::notify::NotificationType;
 use crate::features::long_capture::coordinator::LongCaptureCoordinator;
 use crate::features::long_capture::layout::TOOLBAR_TOP_RESERVED;
 use crate::features::overlay::render::layout::{OverlayPanelLayout, toolbar_size};
@@ -11,6 +7,10 @@ use gpui::InteractiveElement;
 use gpui::{ClickEvent, Context, FocusHandle, IntoElement, KeyDownEvent, ParentElement, Render, Styled, Window, div, px};
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::{ActiveTheme as _, Disableable, h_flex};
+use minnow_core::capture::action::{ActionContext, ActionResult, CaptureAction};
+use minnow_core::capture::service::CaptureService;
+use minnow_core::i18n;
+use minnow_core::notify::NotificationType;
 use std::sync::Arc;
 use std::time::Duration;
 

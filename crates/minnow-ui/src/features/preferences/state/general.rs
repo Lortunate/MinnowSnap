@@ -1,15 +1,15 @@
 use super::{MutationResult, frame::SelectOption, store};
 use crate::features::preferences::view::PreferencesView;
-use crate::support::locale;
-use crate::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM};
 use crate::shell::system::UiSystemActions;
+use crate::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM};
+use crate::support::locale;
+use gpui::{App, Context, SharedString, Window};
 use minnow_core::{
     i18n,
     i18n::SYSTEM_LOCALE,
     io::{fonts::get_system_fonts, storage::get_default_save_path},
     settings::AppSettings,
 };
-use gpui::{App, Context, SharedString, Window};
 use tracing::warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

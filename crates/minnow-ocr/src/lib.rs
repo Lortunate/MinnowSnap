@@ -2,8 +2,8 @@ pub mod config;
 pub mod detector;
 pub mod engine;
 pub mod model_manager;
-pub mod recognizer;
 pub mod preprocess;
+pub mod recognizer;
 pub mod visualization;
 
 pub use config::{OcrConfig, OcrModelType};

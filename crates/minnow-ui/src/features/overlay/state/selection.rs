@@ -1,7 +1,7 @@
 use gpui::{Pixels, Point};
 
-use minnow_core::geometry::RectF;
 use crate::features::overlay::window_catalog::find_window_at;
+use minnow_core::geometry::RectF;
 
 use super::{DragMode, OverlaySession, ResizeCorner};
 

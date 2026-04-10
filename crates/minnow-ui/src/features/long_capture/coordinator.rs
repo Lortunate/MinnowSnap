@@ -1,9 +1,9 @@
 use super::LongCaptureRequest;
 use super::layout::frame_visibility_after_click_through;
 use crate::support::render_image;
-use minnow_core::capture::long_capture::{LongCaptureEvent, LongCaptureRuntime};
 use gpui::{AnyWindowHandle, AppContext, AsyncWindowContext, Context, RenderImage, WeakEntity, Window, WindowId};
 use image::RgbaImage;
+use minnow_core::capture::long_capture::{LongCaptureEvent, LongCaptureRuntime};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

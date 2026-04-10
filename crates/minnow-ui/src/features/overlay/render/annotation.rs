@@ -2,8 +2,8 @@ use gpui::prelude::FluentBuilder as _;
 use gpui::{App, IntoElement, ParentElement, Styled, div, img, px, rgba};
 use gpui_component::ActiveTheme as _;
 
-use minnow_core::geometry::RectF;
 use crate::features::overlay::state::AnnotationLayerState;
+use minnow_core::geometry::RectF;
 
 fn color(value: u32) -> gpui::Hsla {
     rgba(value).into()

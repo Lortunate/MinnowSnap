@@ -1,6 +1,6 @@
 use super::request::PinRequest;
-use minnow_core::ocr::{OcrBlock, format_selected_blocks};
 use gpui::{AnyWindowHandle, App, AppContext, Entity, Global, Pixels, Point, Size, WindowId, px, size};
+use minnow_core::ocr::{OcrBlock, format_selected_blocks};
 use std::collections::BTreeSet;
 use tracing::{info, warn};
 

@@ -1,9 +1,9 @@
-use minnow_assets::asset_bytes;
 use crate::shell::async_ui::{app_ready, update_app};
 use gpui::{App, Global};
-use minnow_core::platform::shutdown::{self, ShutdownTrigger};
+use minnow_assets::asset_bytes;
 use minnow_core::app_meta::APP_NAME;
 use minnow_core::i18n;
+use minnow_core::platform::shutdown::{self, ShutdownTrigger};
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tokio_util::sync::CancellationToken;

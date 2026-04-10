@@ -1,7 +1,3 @@
-use minnow_assets::asset_paths;
-use minnow_core::capture::action::CaptureAction;
-use minnow_core::i18n;
-use minnow_core::ocr::service;
 use crate::features::overlay::render::OverlayActionHandler;
 use crate::features::overlay::render::layout::OverlayPanelLayout;
 use crate::features::overlay::state::{AnnotationCommand, AnnotationTool, CaptureCommand, LifecycleCommand, OverlayCommand};
@@ -15,6 +11,10 @@ use gpui_component::{
     h_flex,
     popover::Popover,
 };
+use minnow_assets::asset_paths;
+use minnow_core::capture::action::CaptureAction;
+use minnow_core::i18n;
+use minnow_core::ocr::service;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]

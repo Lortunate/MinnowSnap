@@ -1,9 +1,9 @@
 use gpui::{App, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
-use minnow_core::geometry::RectF;
-use crate::features::overlay::window_catalog::WindowInfo;
 use crate::features::overlay::render::layout::OverlayPanelLayout;
+use crate::features::overlay::window_catalog::WindowInfo;
+use minnow_core::geometry::RectF;
 
 const WINDOW_INFO_VERTICAL_PADDING: f64 = 4.0;
 const WINDOW_INFO_LINE_HEIGHT: f64 = 16.0;

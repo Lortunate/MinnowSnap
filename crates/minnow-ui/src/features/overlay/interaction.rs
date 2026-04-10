@@ -1,7 +1,7 @@
 use gpui::{MouseButton, Pixels, Point};
 
-use minnow_core::geometry::RectF;
 use crate::features::overlay::state::{AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner};
+use minnow_core::geometry::RectF;
 
 pub(crate) fn resolve_mouse_down_command(
     session: &OverlaySession,

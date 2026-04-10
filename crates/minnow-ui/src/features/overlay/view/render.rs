@@ -1,6 +1,4 @@
 use super::{OverlayView, SelectionHudVisibility, should_show_property_panel};
-use minnow_core::geometry::RectF;
-use crate::features::overlay::window_catalog::WindowInfo;
 use crate::features::overlay::actions::OVERLAY_CONTEXT;
 use crate::features::overlay::render::OverlayActionHandler;
 use crate::features::overlay::render::annotation::overlay_annotations_layer;
@@ -16,9 +14,11 @@ use crate::features::overlay::render::properties::{OverlayPropertyState, overlay
 use crate::features::overlay::render::selection::{overlay_mask, selection_frame, selection_handles};
 use crate::features::overlay::render::toolbar::{OverlayToolbarState, overlay_toolbar, toolbar_button_count};
 use crate::features::overlay::state::{AnnotationKindTag, OverlayCommand, OverlayFrame, PickerVm};
+use crate::features::overlay::window_catalog::WindowInfo;
 use gpui::InteractiveElement;
 use gpui::{Context, Div, Entity, IntoElement, MouseButton, ParentElement, Stateful, Styled, Window, div, img};
 use gpui_component::{ActiveTheme, color_picker::ColorPickerState};
+use minnow_core::geometry::RectF;
 use std::rc::Rc;
 
 impl OverlayView {

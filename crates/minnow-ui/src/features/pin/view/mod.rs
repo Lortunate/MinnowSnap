@@ -6,12 +6,12 @@ use super::{
     actions::{CloseAllPins, ClosePin, CopyPinContent, SavePinImage},
     state::{PinManager, PinSession},
 };
+use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
 use minnow_core::capture::action::{ActionContext, ActionResult, CaptureAction};
 use minnow_core::i18n;
 use minnow_core::io::clipboard::copy_text_to_clipboard;
 use minnow_core::notify::NotificationType;
 use minnow_core::ocr::service;
-use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
 use std::collections::BTreeSet;
 
 enum PointerMode {

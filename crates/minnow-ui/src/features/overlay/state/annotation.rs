@@ -1,9 +1,9 @@
 use gpui::{Pixels, Point};
 
-use minnow_core::capture::active_monitor_scale;
 #[cfg(test)]
 use crate::features::overlay::annotation::AnnotationItem;
 use crate::features::overlay::annotation::{AnnotationKind, AnnotationTool, AnnotationUiState, MosaicMode};
+use minnow_core::capture::active_monitor_scale;
 
 use super::{DragMode, OverlaySession};
 

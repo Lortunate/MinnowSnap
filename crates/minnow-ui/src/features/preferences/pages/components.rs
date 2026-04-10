@@ -1,6 +1,4 @@
 use super::{SelectAction, ToggleAction};
-use minnow_assets::asset_paths;
-use minnow_core::i18n;
 use crate::features::preferences::{
     state::{
         frame::{ActionRowProps, ButtonProps, SelectOption, SelectRowProps, SidebarItemProps, ToggleRowProps},
@@ -19,6 +17,8 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
+use minnow_assets::asset_paths;
+use minnow_core::i18n;
 
 #[derive(Clone, Copy)]
 pub(crate) enum PreferencesChromeIcon {

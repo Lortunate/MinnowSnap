@@ -1,9 +1,9 @@
-use minnow_core::i18n;
 use gpui::{App, IntoElement, ParentElement, Styled, div, px, rgba};
 use gpui_component::ActiveTheme as _;
+use minnow_core::i18n;
 
-use crate::key_unicode::{KeyUnicode, key_symbol};
 use crate::features::overlay::state::{PickerFormat, PickerNeighborhood, PickerSample};
+use crate::key_unicode::{KeyUnicode, key_symbol};
 
 const PICKER_MARGIN: f64 = 16.0;
 const MAGNIFIER_CELL_SIZE: f32 = 11.0;

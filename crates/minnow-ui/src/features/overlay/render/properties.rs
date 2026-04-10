@@ -1,4 +1,3 @@
-use minnow_assets::asset_paths;
 use gpui::{
     App, Corner, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div,
     px, rgba,
@@ -9,14 +8,15 @@ use gpui_component::{
     color_picker::{ColorPicker, ColorPickerState},
     h_flex, v_flex,
 };
+use minnow_assets::asset_paths;
 
-use minnow_core::i18n;
 use crate::features::overlay::annotation::COLOR_PRESETS;
 use crate::features::overlay::render::OverlayActionHandler;
 use crate::features::overlay::render::layout::OverlayPanelLayout;
 use crate::features::overlay::state::{
     AnnotationCommand, AnnotationKindTag, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, MosaicMode, OverlayCommand,
 };
+use minnow_core::i18n;
 
 #[derive(Clone)]
 pub(crate) struct OverlayPropertyState {

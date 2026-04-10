@@ -1,6 +1,6 @@
-use minnow_core::settings::SETTINGS;
 use gpui::{App, Window};
 use gpui_component::{Theme, ThemeMode};
+use minnow_core::settings::SETTINGS;
 
 pub const THEME_SYSTEM: &str = "System";
 pub const THEME_LIGHT: &str = "Light";

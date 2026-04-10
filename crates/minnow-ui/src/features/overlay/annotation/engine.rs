@@ -3,8 +3,8 @@ use image::{GenericImage, RgbaImage};
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use minnow_core::capture::source::PREVIEW_SOURCE;
 use minnow_core::capture::service::CaptureService;
+use minnow_core::capture::source::PREVIEW_SOURCE;
 use minnow_core::geometry::RectF;
 
 use super::hit_test::AnnotationHitProxy;
@@ -13,12 +13,12 @@ use super::model::{
     AnnotationStyleState, AnnotationTool, AnnotationUiState, COLOR_PRESETS, MosaicMode, TEXT_DEFAULT, TextEditState,
 };
 use super::ops::{annotation_item_large_enough, build_drawing_item, ensure_mosaic_kind_style, sync_style_from_item};
-use crate::support::render_image;
 use super::raster::{compose_background_with_annotations, compose_selection_base, draw_items_on_selection};
 #[cfg(any(feature = "overlay-diagnostics", test))]
 use super::raster_cache::AnnotationRasterDiagnostics;
 use super::raster_cache::{AnnotationRasterCache, CommittedLayerCache, ComposedLayerCache, InteractionBaseCache};
 use super::store::AnnotationStore;
+use crate::support::render_image;
 
 #[derive(Clone, Debug)]
 pub(crate) struct AnnotationEngine {

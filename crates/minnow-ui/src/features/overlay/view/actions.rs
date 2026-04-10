@@ -1,5 +1,4 @@
 use super::OverlayView;
-use minnow_core::capture::action::CaptureAction;
 use crate::features::overlay::actions::{
     CloseOverlay, CopyPixelColor, CopySelection, CycleAnnotationColorAction, CyclePickerFormat, DecreaseAnnotationStroke, DeleteAnnotation,
     IncreaseAnnotationStroke, MovePickerDown, MovePickerLeft, MovePickerRight, MovePickerUp, PickColorSelection, PinSelection, QrSelection,
@@ -8,6 +7,7 @@ use crate::features::overlay::actions::{
 };
 use crate::features::overlay::state::{AnnotationCommand, CaptureCommand, LifecycleCommand, PickerCommand};
 use gpui::{Context, Window};
+use minnow_core::capture::action::CaptureAction;
 
 macro_rules! annotation_action_handler {
     ($name:ident, $action:ty, $command:expr) => {

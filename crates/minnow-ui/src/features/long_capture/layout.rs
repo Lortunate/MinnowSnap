@@ -1,7 +1,7 @@
 use super::LongCaptureRequest;
-use minnow_core::geometry::RectF;
 use crate::features::overlay::render::layout::{resolve_toolbar_layout, toolbar_size};
 use gpui::{Bounds, Pixels, point, px, size};
+use minnow_core::geometry::RectF;
 
 const PREVIEW_WIDTH: f64 = 320.0;
 const PREVIEW_HEIGHT: f64 = 230.0;

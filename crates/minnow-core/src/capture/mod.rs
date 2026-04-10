@@ -1,7 +1,7 @@
 pub mod action;
-pub mod source;
 pub mod long_capture;
 pub mod service;
+pub mod source;
 pub mod stitcher;
 
 use crate::capture::source::VirtualCaptureSource;

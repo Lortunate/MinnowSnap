@@ -1,7 +1,7 @@
-use minnow_core::i18n;
 use crate::features::long_capture::coordinator::LongCaptureCoordinator;
 use gpui::{Context, InteractiveElement, IntoElement, ObjectFit, ParentElement, Render, Styled, StyledImage, Window, div, img, px};
 use gpui_component::ActiveTheme as _;
+use minnow_core::i18n;
 use std::sync::Arc;
 
 pub(crate) struct PreviewWindowView {

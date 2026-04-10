@@ -2,10 +2,10 @@ use gpui::RenderImage;
 use image::RgbaImage;
 use std::sync::Arc;
 
+use crate::features::overlay::window_catalog::{WindowInfo, fetch_windows_data};
 use crate::support::render_image;
 use minnow_core::capture::service::CaptureService;
 use minnow_core::capture::update_last_capture;
-use crate::features::overlay::window_catalog::{WindowInfo, fetch_windows_data};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OverlaySurface {

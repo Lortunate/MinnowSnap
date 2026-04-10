@@ -1,9 +1,9 @@
 use gpui::{App, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
-use minnow_core::geometry::RectF;
 use crate::features::overlay::render::components::handle_marker;
 use crate::features::overlay::state::ResizeCorner;
+use minnow_core::geometry::RectF;
 
 pub(crate) fn overlay_mask(app_ctx: &App, selection: Option<RectF>, viewport_w: f64, viewport_h: f64) -> impl IntoElement {
     let theme = app_ctx.theme();

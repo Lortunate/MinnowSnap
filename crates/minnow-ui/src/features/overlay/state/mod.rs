@@ -11,11 +11,11 @@ use gpui::{App, AppContext, Entity, Global, Pixels, Point, RenderImage, Window};
 use image::RgbaImage;
 use std::sync::Arc;
 
+use crate::features::overlay::annotation::AnnotationEngine;
+use crate::features::overlay::window_catalog::{WindowInfo, find_window_at};
 use minnow_core::capture::action::{ActionContext, CaptureAction};
 use minnow_core::geometry::{RectF, clamp_point, normalize_rect};
 use minnow_core::notify::NotificationType;
-use crate::features::overlay::window_catalog::{WindowInfo, find_window_at};
-use crate::features::overlay::annotation::AnnotationEngine;
 
 pub(crate) use crate::features::overlay::annotation::{
     AnnotationKind, AnnotationKindTag, AnnotationLayerState, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, AnnotationUiState,
@@ -478,8 +478,8 @@ impl OverlaySession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use minnow_core::capture::source::PREVIEW_SOURCE;
     use crate::features::overlay::interaction::resolve_mouse_down_command;
+    use minnow_core::capture::source::PREVIEW_SOURCE;
 
     fn window(title: &str, app_name: &str, x: i32, y: i32, width: u32, height: u32) -> WindowInfo {
         WindowInfo {

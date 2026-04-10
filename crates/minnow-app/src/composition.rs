@@ -7,10 +7,10 @@ use minnow_core::notify::init_windows_notification_app_id;
 use minnow_core::shutdown;
 use minnow_core::{i18n, settings};
 use minnow_ui::features::{overlay, pin, preferences};
-use minnow_ui::support::{appearance, locale};
 use minnow_ui::shell::hotkey::HotkeyActionSink;
 use minnow_ui::shell::system::install_ui_system_actions;
 use minnow_ui::shell::tray::TrayActions;
+use minnow_ui::support::{appearance, locale};
 use tokio::sync::broadcast;
 use tracing::info;
 
@@ -46,20 +46,13 @@ pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         pin::bind_keys(cx);
         pin::install(cx);
         set_auto_start(settings::SETTINGS.lock().unwrap().get().general.auto_start);
-        minnow_ui::shell::hotkey::install_hotkey_service(
-            cx,
-            HotkeyActionSink::new(open_capture_overlay, run_quick_capture_with_notification),
-        );
+        minnow_ui::shell::hotkey::install_hotkey_service(cx, HotkeyActionSink::new(open_capture_overlay, run_quick_capture_with_notification));
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);
 
         if let Err(err) = minnow_ui::shell::tray::SystemTray::install(
             cx,
-            TrayActions::new(
-                open_capture_overlay,
-                run_quick_capture_with_notification,
-                open_preferences_window,
-            ),
+            TrayActions::new(open_capture_overlay, run_quick_capture_with_notification, open_preferences_window),
         ) {
             tracing::error!("Failed to install system tray: {err}");
             cx.quit();

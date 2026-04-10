@@ -1,12 +1,12 @@
 use super::PinView;
 use super::ocr_geometry::{bounds_from_points, compute_block_geometries, paint_rotated_rect, paint_rotated_stroke, sub_geometry_by_ratio};
-use minnow_core::capture::action::CaptureAction;
-use minnow_core::i18n;
 use crate::features::pin::{actions::PIN_CONTEXT, render, state::PinFrame};
 use gpui::InteractiveElement;
 use gpui::{App, Context, IntoElement, MouseButton, ParentElement, Styled, Window, WindowControlArea, canvas, div, px, quad};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::ContextMenuExt;
+use minnow_core::capture::action::CaptureAction;
+use minnow_core::i18n;
 use std::borrow::BorrowMut;
 
 impl PinView {

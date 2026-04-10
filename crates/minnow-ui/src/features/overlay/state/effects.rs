@@ -1,11 +1,11 @@
 use super::{OverlayEffect, OverlayHandle, OverlayOutcome};
+use crate::features::long_capture::{self, LongCaptureRequest};
+use crate::features::pin::{self, PinRequest};
+use gpui::{App, Window};
 use minnow_core::capture::action::{ActionResult, CaptureAction};
 use minnow_core::i18n;
 use minnow_core::io::clipboard::copy_text_to_clipboard;
 use minnow_core::notify::NotificationType;
-use crate::features::long_capture::{self, LongCaptureRequest};
-use crate::features::pin::{self, PinRequest};
-use gpui::{App, Window};
 
 struct CopyTextPayload {
     text: String,

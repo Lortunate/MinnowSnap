@@ -1,7 +1,7 @@
 use crate::config::OcrConfig;
 use crate::detector::Detector;
-use crate::recognizer::Recognizer;
 use crate::preprocess::crop_image_by_box;
+use crate::recognizer::Recognizer;
 use anyhow::Result;
 use image::DynamicImage;
 use serde::{Deserialize, Serialize};
