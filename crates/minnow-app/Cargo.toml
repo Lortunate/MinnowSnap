@@ -43,3 +43,6 @@ winres = { workspace = true }
 identifier = "com.lortunate.minnowsnap"
 icon = ["../minnow-assets/assets_icons/icon.icns", "../minnow-assets/assets_icons/icon.ico"]
 osx_info_plist_exts = ["../minnow-assets/resources/Info.plist.extra"]
+
+[package.metadata.cargo-machete]
+ignored = ["anyhow", "ico", "image", "winres"]

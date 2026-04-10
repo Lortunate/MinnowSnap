@@ -7,23 +7,19 @@ edition = "2024"
 minnow-assets = { path = "../minnow-assets" }
 minnow-ocr = { path = "../minnow-ocr" }
 
-ab_glyph = { workspace = true }
 arboard = { workspace = true }
 config = { workspace = true }
 directories = { workspace = true }
 dirs = { workspace = true }
 font-kit = { workspace = true }
 image = { workspace = true, features = ["rayon", "png", "jpeg"] }
-imageproc = { workspace = true }
 notify-rust = { workspace = true }
 once_cell = { workspace = true }
 oxipng = { workspace = true }
-rdev = { workspace = true }
 rodio = { workspace = true }
 rqrr = { workspace = true }
 rust-i18n = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 sys-locale = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
