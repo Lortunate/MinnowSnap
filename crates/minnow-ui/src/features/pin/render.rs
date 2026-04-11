@@ -1,6 +1,5 @@
-use gpui::{
-    App, ClickEvent, Div, InteractiveElement, ObjectFit, ParentElement, SharedString, Styled, StyledImage, Window, WindowControlArea, div, img,
-};
+use crate::shell::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use gpui::{App, ClickEvent, Div, InteractiveElement, ObjectFit, ParentElement, SharedString, Styled, StyledImage, Window, div, img};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::PopupMenuItem;
 use std::path::PathBuf;
@@ -21,7 +20,7 @@ pub(super) fn panel(image_path: PathBuf, opacity: f32, cx: &App) -> Div {
         .border_1()
         .border_color(theme.border)
         .bg(theme.popover)
-        .window_control_area(WindowControlArea::Drag);
+        .popup_drag_region(PopupDragBehavior::HitTest);
 
     if theme.shadow {
         panel = panel.shadow_lg();

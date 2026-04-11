@@ -1,8 +1,9 @@
 use super::PinView;
 use super::ocr_geometry::{bounds_from_points, compute_block_geometries, paint_rotated_rect, paint_rotated_stroke, sub_geometry_by_ratio};
 use crate::features::pin::{actions::PIN_CONTEXT, render, state::PinFrame};
+use crate::shell::window_drag::{PopupDragBehavior, PopupDragRegionExt};
 use gpui::InteractiveElement;
-use gpui::{App, Context, IntoElement, MouseButton, ParentElement, Styled, Window, WindowControlArea, canvas, div, px, quad};
+use gpui::{App, Context, IntoElement, MouseButton, ParentElement, Styled, Window, canvas, div, px, quad};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::ContextMenuExt;
 use minnow_core::capture::action::CaptureAction;
@@ -144,7 +145,7 @@ impl gpui::Render for PinView {
                 div()
                     .size_full()
                     .relative()
-                    .window_control_area(WindowControlArea::Drag)
+                    .popup_drag_region(PopupDragBehavior::HitTest)
                     .child(render::panel(frame.image_path.clone(), frame.opacity, cx).absolute().size_full())
                     .children((!frame.ocr.blocks.is_empty() || frame.ocr.processing).then(|| Self::render_ocr_overlay(frame.clone(), cx))),
             )

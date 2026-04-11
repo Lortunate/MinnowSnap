@@ -1,9 +1,60 @@
 use super::components::window_brand;
-use gpui::{AnyElement, App, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, WindowControlArea, div, px};
+use crate::shell::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use gpui::{AnyElement, App, IntoElement, ParentElement, SharedString, Styled, div, px};
 use gpui_component::{ActiveTheme as _, scroll::ScrollableElement, v_flex};
 
 pub(crate) const SIDEBAR_WIDTH: f32 = 208.0;
 pub(crate) const TITLEBAR_HEIGHT: f32 = 48.0;
+
+pub(crate) fn title_bar(page_title: impl Into<SharedString>, close_button: impl IntoElement, cx: &App) -> AnyElement {
+    let theme = cx.theme();
+
+    div()
+        .h(px(TITLEBAR_HEIGHT))
+        .flex()
+        .items_center()
+        .border_b_1()
+        .border_color(theme.border.alpha(0.7))
+        .child(
+            div()
+                .w(px(SIDEBAR_WIDTH))
+                .min_w(px(SIDEBAR_WIDTH))
+                .max_w(px(SIDEBAR_WIDTH))
+                .h_full()
+                .px_4()
+                .border_r_1()
+                .border_color(theme.border)
+                .bg(theme.background)
+                .popup_drag_region(PopupDragBehavior::SystemMove)
+                .child(window_brand()),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.))
+                .h_full()
+                .flex()
+                .items_center()
+                .gap_3()
+                .px_4()
+                .bg(theme.popover)
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .h_full()
+                        .flex()
+                        .items_center()
+                        .overflow_hidden()
+                        .line_clamp(1)
+                        .text_ellipsis()
+                        .popup_drag_region(PopupDragBehavior::SystemMove)
+                        .child(page_title.into()),
+                )
+                .child(close_button),
+        )
+        .into_any_element()
+}
 
 pub(crate) fn sidebar_panel(items: Vec<AnyElement>, cx: &App) -> AnyElement {
     let theme = cx.theme();
@@ -21,15 +72,6 @@ pub(crate) fn sidebar_panel(items: Vec<AnyElement>, cx: &App) -> AnyElement {
         .bg(theme.background)
         .child(
             div()
-                .h(px(TITLEBAR_HEIGHT))
-                .px_4()
-                .border_b_1()
-                .border_color(theme.border.alpha(0.7))
-                .window_control_area(WindowControlArea::Drag)
-                .child(window_brand()),
-        )
-        .child(
-            div()
                 .flex_1()
                 .min_w(px(0.))
                 .min_h(px(0.))
@@ -41,13 +83,7 @@ pub(crate) fn sidebar_panel(items: Vec<AnyElement>, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-pub(crate) fn content_panel(
-    page_title: impl Into<SharedString>,
-    close_button: impl IntoElement,
-    notice: Option<AnyElement>,
-    page_body: AnyElement,
-    cx: &App,
-) -> AnyElement {
+pub(crate) fn content_panel(notice: Option<AnyElement>, page_body: AnyElement, cx: &App) -> AnyElement {
     let theme = cx.theme();
 
     div()
@@ -57,28 +93,6 @@ pub(crate) fn content_panel(
         .flex()
         .flex_col()
         .bg(theme.popover)
-        .child(
-            div()
-                .h(px(TITLEBAR_HEIGHT))
-                .flex()
-                .items_center()
-                .justify_between()
-                .gap_3()
-                .px_6()
-                .border_b_1()
-                .border_color(theme.border.alpha(0.7))
-                .window_control_area(WindowControlArea::Drag)
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.))
-                        .overflow_hidden()
-                        .line_clamp(1)
-                        .text_ellipsis()
-                        .child(page_title.into()),
-                )
-                .child(close_button),
-        )
         .child(
             div().flex_1().min_w(px(0.)).min_h(px(0.)).overflow_y_scrollbar().child(
                 div()

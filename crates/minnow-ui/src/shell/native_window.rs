@@ -42,15 +42,19 @@ mod platform {
         SetWindowLongPtrW, SetWindowPos, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     };
 
-    pub(super) fn set_level(window: &Window, level: Level) -> Result<()> {
+    fn hwnd(window: &Window) -> Result<HWND> {
         let raw = HasWindowHandle::window_handle(window)
             .map_err(|e| anyhow!("failed to get native window handle: {e}"))?
             .as_raw();
 
-        let hwnd = match raw {
-            RawWindowHandle::Win32(h) => HWND(h.hwnd.get() as *mut _),
-            other => return Err(anyhow!("expected Win32 handle, got {other:?}")),
-        };
+        match raw {
+            RawWindowHandle::Win32(h) => Ok(HWND(h.hwnd.get() as *mut _)),
+            other => Err(anyhow!("expected Win32 handle, got {other:?}")),
+        }
+    }
+
+    pub(super) fn set_level(window: &Window, level: Level) -> Result<()> {
+        let hwnd = hwnd(window)?;
 
         let insert_after = match level {
             Level::Normal => HWND_NOTOPMOST,
@@ -75,14 +79,7 @@ mod platform {
     }
 
     pub(super) fn set_click_through(window: &Window, enabled: bool) -> Result<()> {
-        let raw = HasWindowHandle::window_handle(window)
-            .map_err(|e| anyhow!("failed to get native window handle: {e}"))?
-            .as_raw();
-
-        let hwnd = match raw {
-            RawWindowHandle::Win32(h) => HWND(h.hwnd.get() as *mut _),
-            other => return Err(anyhow!("expected Win32 handle, got {other:?}")),
-        };
+        let hwnd = hwnd(window)?;
 
         unsafe {
             let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);

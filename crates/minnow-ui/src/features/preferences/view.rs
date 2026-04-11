@@ -12,7 +12,7 @@ use crate::shell::{
 };
 use gpui::{
     AnyElement, App, AsyncWindowContext, ClickEvent, Context, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent, ParentElement,
-    PathPromptOptions, SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div,
+    PathPromptOptions, SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
 };
 use gpui_component::ActiveTheme as _;
 use minnow_core::{i18n, ocr::service};
@@ -310,6 +310,7 @@ impl PreferencesView {
             .bg(theme.transparent)
             .child(
                 div()
+                    .flex_col()
                     .flex()
                     .size_full()
                     .rounded(theme.radius_lg)
@@ -317,14 +318,19 @@ impl PreferencesView {
                     .border_color(theme.border)
                     .bg(theme.popover)
                     .overflow_hidden()
-                    .child(pages::chrome::sidebar_panel(sidebar_items, cx))
-                    .child(pages::chrome::content_panel(
+                    .child(pages::chrome::title_bar(
                         frame.page_title.clone(),
                         pages::components::close_button(|_, window, cx| Self::request_close(window, cx), cx),
-                        page_notice,
-                        page_body,
                         cx,
-                    )),
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_1()
+                            .min_h(px(0.))
+                            .child(pages::chrome::sidebar_panel(sidebar_items, cx))
+                            .child(pages::chrome::content_panel(page_notice, page_body, cx)),
+                    ),
             );
 
         if theme.shadow {
