@@ -1,4 +1,4 @@
-use directories::ProjectDirs;
+use crate::paths::ensure_dir;
 use std::env;
 use std::io::LineWriter;
 use std::panic;
@@ -10,7 +10,6 @@ use tracing_appender::non_blocking::{NonBlocking, NonBlockingBuilder, WorkerGuar
 use tracing_appender::rolling::{Builder as RollingFileAppenderBuilder, Rotation};
 use tracing_subscriber::{EnvFilter, Layer, filter::filter_fn, layer::SubscriberExt, util::SubscriberInitExt};
 
-const LOG_DIR_NAME: &str = "logs";
 const LOG_FILE_PREFIX: &str = "minnowsnap";
 const LOG_FILE_SUFFIX: &str = "log";
 const DEFAULT_LOG_LEVEL: &str = "info";
@@ -47,8 +46,8 @@ fn should_suppress_gpui_window_not_found(metadata: &tracing::Metadata<'_>) -> bo
     }
 }
 
-pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
-    let log_dir = prepare_log_dir(app_name)?;
+pub fn init_logger() -> Option<WorkerGuard> {
+    let log_dir = prepare_log_dir()?;
     let (non_blocking, guard) = build_file_writer(&log_dir)?;
     let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
 
@@ -69,22 +68,17 @@ pub fn init_logger(app_name: &str) -> Option<WorkerGuard> {
 
     let _ = tracing_log::LogTracer::init();
     install_panic_hook();
+    log_portable_paths();
     Some(guard)
 }
 
-pub fn log_dir(app_name: &str) -> PathBuf {
-    resolve_log_dir(app_name)
+pub fn log_dir() -> PathBuf {
+    minnow_paths::app_paths().logs_dir().to_path_buf()
 }
 
-fn resolve_log_dir(app_name: &str) -> PathBuf {
-    ProjectDirs::from("com", "lortunate", app_name)
-        .map(|d| d.data_local_dir().join(LOG_DIR_NAME))
-        .unwrap_or_else(|| env::current_dir().unwrap_or_default().join(LOG_DIR_NAME))
-}
-
-fn prepare_log_dir(app_name: &str) -> Option<PathBuf> {
-    let log_dir = resolve_log_dir(app_name);
-    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+fn prepare_log_dir() -> Option<PathBuf> {
+    let log_dir = log_dir();
+    if let Err(e) = ensure_dir(&log_dir) {
         eprintln!("Failed to create log directory {}: {}", log_dir.display(), e);
         return None;
     }
@@ -165,3 +159,19 @@ fn install_panic_hook() {
         }));
     });
 }
+
+#[cfg(feature = "portable")]
+fn log_portable_paths() {
+    let paths = minnow_paths::app_paths();
+    tracing::info!(
+        data_dir = %paths.data_dir().display(),
+        config_file = %paths.config_file().display(),
+        logs_dir = %paths.logs_dir().display(),
+        temp_dir = %paths.temp_dir().display(),
+        ocr_models_dir = %paths.ocr_models_dir().display(),
+        "Portable storage enabled"
+    );
+}
+
+#[cfg(not(feature = "portable"))]
+fn log_portable_paths() {}

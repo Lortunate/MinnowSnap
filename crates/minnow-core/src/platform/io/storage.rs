@@ -1,3 +1,4 @@
+use crate::paths::ensure_dir;
 use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, ImageEncoder, RgbaImage};
 use std::fs;
@@ -17,20 +18,12 @@ pub fn get_default_save_path() -> String {
 }
 
 #[must_use]
-pub fn save_image_to_temp(image: &RgbaImage, compress: bool) -> Option<String> {
-    let mut path = std::env::temp_dir();
-    path.push("minnowsnap_preview.png");
-
-    if compress {
-        save_compressed_png(image, &path)
-    } else {
-        save_uncompressed_png(image, &path)
+pub fn save_temp_image(image: &RgbaImage, compress: bool) -> Option<String> {
+    let mut path = minnow_paths::app_paths().temp_dir().to_path_buf();
+    if let Err(e) = ensure_dir(&path) {
+        error!("Failed to create temp directory {:?}: {}", path, e);
+        return None;
     }
-}
-
-#[must_use]
-pub fn save_image_to_unique_temp(image: &RgbaImage, compress: bool) -> Option<String> {
-    let mut path = std::env::temp_dir();
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
     path.push(format!("minnowsnap_pin_{timestamp}.png"));
 
@@ -53,7 +46,7 @@ pub fn save_image_to_user_dir(image: &RgbaImage, compress: bool, custom_path: Op
         return None;
     };
 
-    if let Err(e) = fs::create_dir_all(&dir) {
+    if let Err(e) = ensure_dir(&dir) {
         error!("Failed to create directory {:?}: {}", dir, e);
         return None;
     }

@@ -11,6 +11,8 @@ use notify_rust::Notification;
 use tauri_winrt_notification::Toast;
 
 #[cfg(target_os = "windows")]
+use crate::paths::ensure_parent_dir;
+#[cfg(target_os = "windows")]
 use std::{fs, path::PathBuf};
 #[cfg(target_os = "windows")]
 use winreg::{RegKey, enums::HKEY_CURRENT_USER};
@@ -56,7 +58,11 @@ pub fn play_shutter() {
 
 #[cfg(target_os = "windows")]
 fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
-    let path = std::env::temp_dir().join(WINDOWS_TOAST_ICON_FILE);
+    let path = minnow_paths::app_paths().temp_file(WINDOWS_TOAST_ICON_FILE);
+    if let Err(e) = ensure_parent_dir(&path) {
+        error!("Failed to create toast icon directory for {:?}: {}", path, e);
+        return None;
+    }
 
     let needs_update = fs::metadata(&path)
         .map(|m| m.len() != asset_bytes::LOGO_BYTES.len() as u64)

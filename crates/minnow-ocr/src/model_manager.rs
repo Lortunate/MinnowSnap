@@ -1,4 +1,3 @@
-use crate::config::{APP_DATA_DIR, MODEL_DIR};
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use std::io::ErrorKind;
@@ -21,10 +20,7 @@ impl ModelManager {
     }
 
     pub fn default_dir() -> Result<PathBuf> {
-        let mut path = dirs::data_local_dir().context("Could not find data local dir")?;
-        path.push(APP_DATA_DIR);
-        path.push(MODEL_DIR);
-        Ok(path)
+        Some(minnow_paths::app_paths().ocr_models_dir().to_path_buf()).context("Could not resolve OCR models directory")
     }
 
     pub fn check_models_existence(&self, filenames: &[&str]) -> bool {

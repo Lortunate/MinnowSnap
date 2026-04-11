@@ -3,7 +3,7 @@ use crate::capture::source::{self, VirtualCaptureSource};
 use crate::capture::{active_monitor_scale, capture_active_monitor, get_cached_capture, perform_crop, update_last_capture};
 use crate::geometry::Rect;
 use crate::io::clipboard::copy_image_to_clipboard;
-use crate::io::storage::{save_image_to_unique_temp, save_image_to_user_dir};
+use crate::io::storage::{save_image_to_user_dir, save_temp_image};
 use crate::settings::SETTINGS;
 use image::RgbaImage;
 use std::sync::Arc;
@@ -167,17 +167,8 @@ impl CaptureService {
         true
     }
 
-    pub fn generate_temp_path(extension: &str) -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let filename = format!("minnow_capture_{}.{}", timestamp, extension);
-        let mut path = std::env::temp_dir();
-        path.push(filename);
-        path.to_string_lossy().replace('\\', "/")
-    }
-
     pub fn save_temp(image: &RgbaImage) -> Option<String> {
-        save_image_to_unique_temp(image, false).map(|path| path.replace('\\', "/"))
+        save_temp_image(image, false).map(|path| path.replace('\\', "/"))
     }
 
     pub fn detect_qrcode(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<String> {

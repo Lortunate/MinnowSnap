@@ -27,6 +27,7 @@ pub mod capture;
 pub mod geometry;
 pub mod i18n;
 pub mod ocr;
+pub mod paths;
 pub mod platform;
 pub mod settings;
 

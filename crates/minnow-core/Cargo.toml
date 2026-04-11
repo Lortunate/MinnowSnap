@@ -3,9 +3,14 @@ name = "minnow-core"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+portable = ["minnow-ocr/portable", "minnow-paths/portable"]
+
 [dependencies]
 minnow-assets = { path = "../minnow-assets" }
 minnow-ocr = { path = "../minnow-ocr" }
+minnow-paths = { path = "../minnow-paths" }
 
 arboard = { workspace = true }
 config = { workspace = true }

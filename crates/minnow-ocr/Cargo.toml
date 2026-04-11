@@ -3,7 +3,13 @@ name = "minnow-ocr"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+portable = ["minnow-paths/portable"]
+
 [dependencies]
+minnow-paths = { path = "../minnow-paths" }
+
 anyhow = { workspace = true }
 dirs = { workspace = true }
 futures-util = { workspace = true }

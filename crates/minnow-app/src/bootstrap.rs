@@ -1,12 +1,14 @@
 use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
 use minnow_core::app_meta::{APP_LOCK_ID, APP_NAME};
+#[cfg(target_os = "macos")]
+use minnow_core::paths;
 use single_instance::SingleInstance;
 use std::env;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
 pub fn init_logger() -> Option<WorkerGuard> {
-    minnow_core::logging::init_logger(APP_NAME)
+    minnow_core::logging::init_logger()
 }
 
 #[cfg(target_os = "macos")]
@@ -38,7 +40,13 @@ pub fn ensure_single_instance(uniq_id: &str) -> bool {
 
 pub fn get_instance_id() -> String {
     #[cfg(target_os = "macos")]
-    return env::temp_dir().join(APP_LOCK_ID).to_string_lossy().into();
+    {
+        let path = paths::lock_file();
+        if let Err(err) = paths::ensure_parent_dir(&path) {
+            error!("Failed to create single-instance lock directory for {:?}: {}", path, err);
+        }
+        return path.to_string_lossy().into();
+    }
     #[cfg(not(target_os = "macos"))]
     return APP_LOCK_ID.to_string();
 }

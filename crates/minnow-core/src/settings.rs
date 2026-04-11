@@ -1,5 +1,5 @@
+use crate::paths::ensure_parent_dir;
 use config::{Config, File};
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -125,16 +125,15 @@ impl SettingsManager {
         Self { config, config_path }
     }
 
-    fn get_config_dir() -> Option<PathBuf> {
-        ProjectDirs::from("com", "lortunate", "MinnowSnap").map(|dirs| dirs.config_dir().to_path_buf())
+    fn get_config_path() -> PathBuf {
+        minnow_paths::app_paths().config_file().to_path_buf()
     }
 
     fn load_config() -> (AppSettings, PathBuf) {
-        let config_dir = Self::get_config_dir().unwrap_or_else(|| PathBuf::from("."));
-        let config_path = config_dir.join("config.toml");
+        let config_path = Self::get_config_path();
 
         if !config_path.exists() {
-            if let Err(e) = fs::create_dir_all(&config_dir) {
+            if let Err(e) = ensure_parent_dir(&config_path) {
                 error!("Failed to create config directory: {}", e);
             }
             return (AppSettings::default(), config_path);
@@ -231,6 +230,10 @@ impl SettingsManager {
 
         crate::RUNTIME.spawn_blocking(move || match toml::to_string_pretty(&config) {
             Ok(toml_string) => {
+                if let Err(e) = ensure_parent_dir(&path) {
+                    error!("Failed to create config directory for {:?}: {}", path, e);
+                    return;
+                }
                 if let Err(e) = fs::write(&path, toml_string) {
                     error!("Failed to write config file to {:?}: {}", path, e);
                 } else {

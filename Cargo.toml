@@ -4,6 +4,7 @@ members = [
     "crates/minnow-app",
     "crates/minnow-assets",
     "crates/minnow-core",
+    "crates/minnow-paths",
     "crates/minnow-ui",
     "crates/minnow-ocr",
 ]

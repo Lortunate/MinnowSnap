@@ -12,6 +12,7 @@ path = "src/main.rs"
 default = []
 dhat-heap = ["dep:dhat"]
 overlay-diagnostics = ["minnow-ui/overlay-diagnostics"]
+portable = ["minnow-core/portable"]
 
 [dependencies]
 minnow-assets = { path = "../minnow-assets" }

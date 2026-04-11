@@ -369,7 +369,7 @@ fn build_ocr_props(snapshot: ocr::OcrSnapshot) -> OcrPageProps {
 }
 
 fn build_about_props() -> AboutPageProps {
-    let log_directory_path = logging::log_dir(APP_NAME);
+    let log_directory_path = logging::log_dir();
 
     AboutPageProps {
         app_name: APP_NAME.into(),

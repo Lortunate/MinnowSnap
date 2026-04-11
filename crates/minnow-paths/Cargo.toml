@@ -1,0 +1,12 @@
+[package]
+name = "minnow-paths"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+portable = []
+
+[dependencies]
+directories = { workspace = true }
+dirs = { workspace = true }

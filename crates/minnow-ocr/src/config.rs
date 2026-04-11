@@ -14,9 +14,6 @@ pub struct ModelSource<'a> {
     pub rec_name: &'a str,
 }
 
-pub const APP_DATA_DIR: &str = "MinnowSnap";
-pub const MODEL_DIR: &str = "ocr_models";
-
 pub const KEYS_URL: &str = "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/dict/ppocrv5_dict.txt";
 pub const KEYS_NAME: &str = "ppocrv5_dict.txt";
 

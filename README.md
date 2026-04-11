@@ -12,6 +12,18 @@ MinnowSnap is a desktop screen capture tool built with Rust and GPUI. It focuses
 - QR code detection
 - Copy, save, and pin
 
+## Build
+
+- Default build: `cargo build -p minnow-app --release`
+- Portable build: `cargo build -p minnow-app --features portable --release`
+
+Portable builds store app-internal data next to the executable in `data/`:
+
+- `data/config.toml`
+- `data/logs/`
+- `data/temp/`
+- `data/ocr_models/`
+
 ## TODO
 
 - improvement long capture
