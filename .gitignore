@@ -6,6 +6,7 @@ dhat-heap.json
 /output/
 /er/
 /scripts/__pycache__/
+/docs/superpowers
 
 /legacy/qt/cpp/.idea/
 /legacy/qt/cpp/cmake-build-*/
@@ -52,3 +53,8 @@ $RECYCLE.BIN/
 *.msp
 *.lnk
 
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

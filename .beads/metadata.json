@@ -1,0 +1,10 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_server_host": "127.0.0.1",
+  "dolt_server_port": 3307,
+  "dolt_server_user": "root",
+  "dolt_database": "MinnowSnap",
+  "project_id": "8e7dd788-070e-4a60-87aa-3abe471a420a"
+}
