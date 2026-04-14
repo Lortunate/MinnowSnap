@@ -110,19 +110,19 @@ impl OverlaySession {
                 self.start_selection(point);
                 SessionTransition::Refresh
             }
+            LifecycleCommand::StartMove(point) => {
+                self.start_move(point);
+                SessionTransition::Refresh
+            }
             LifecycleCommand::StartResize { corner, point } => {
                 self.start_resize(corner, point);
                 SessionTransition::Refresh
             }
             LifecycleCommand::PointerMoved(point) => {
-                let queued_first = self.queue_pointer(point);
-                let refresh = match self.mode() {
-                    DragMode::Idle => queued_first,
-                    DragMode::Selecting | DragMode::Resizing(_) => self.apply_pending_pointer(),
-                };
-                SessionTransition::from_changed(refresh)
+                SessionTransition::from_changed(self.queue_pointer(point))
             }
             LifecycleCommand::PointerReleased => {
+                let _ = self.apply_pending_pointer();
                 if self.has_active_annotation_interaction() {
                     self.finish_annotation_interaction();
                 } else {

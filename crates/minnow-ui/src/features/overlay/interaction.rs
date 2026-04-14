@@ -43,7 +43,7 @@ fn resolve_left_click_command(session: &OverlaySession, point: Point<Pixels>, cl
                 if session.has_active_annotation_tool() {
                     return Some(OverlayCommand::Annotation(AnnotationCommand::StartDraw(point)));
                 }
-                return None;
+                return Some(OverlayCommand::Lifecycle(LifecycleCommand::StartMove(point)));
             }
 
             return Some(OverlayCommand::Annotation(AnnotationCommand::Select(None)));
@@ -83,5 +83,38 @@ fn hit_resize_corner(selection: RectF, point: Point<Pixels>) -> Option<ResizeCor
         (false, false, true, false) => Some(ResizeCorner::Top),
         (false, false, false, true) => Some(ResizeCorner::Bottom),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_mouse_down_command;
+    use crate::features::overlay::state::{DragMode, LifecycleCommand, OverlayCommand, OverlaySession};
+    use gpui::{MouseButton, Point, px};
+
+    #[test]
+    fn inside_selection_without_tool_starts_selection_move() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.start_selection(Point::new(px(20.0), px(20.0)));
+        session.update_selection(Point::new(px(80.0), px(70.0)));
+        session.finish_selection();
+
+        assert!(matches!(session.mode(), DragMode::Idle));
+
+        let command = resolve_mouse_down_command(
+            &session,
+            MouseButton::Left,
+            Point::new(px(40.0), px(40.0)),
+            1,
+        );
+
+        assert_eq!(
+            command,
+            Some(OverlayCommand::Lifecycle(LifecycleCommand::StartMove(Point::new(
+                px(40.0),
+                px(40.0),
+            ))))
+        );
     }
 }

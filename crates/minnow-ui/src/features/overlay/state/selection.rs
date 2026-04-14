@@ -7,6 +7,8 @@ use super::{DragMode, OverlaySession, ResizeCorner};
 
 impl OverlaySession {
     pub(crate) fn start_selection(&mut self, point: Point<Pixels>) {
+        self.viewport.selection_move_delta = None;
+        self.viewport.selection_move_origin = None;
         let (x, y) = self.clamp_point_to_viewport(point);
         self.viewport.mode = DragMode::Selecting;
         self.viewport.drag_start = Some(point);
@@ -86,6 +88,8 @@ impl OverlaySession {
             return;
         };
 
+        self.viewport.selection_move_delta = None;
+        self.viewport.selection_move_origin = None;
         self.viewport.mode = DragMode::Resizing(corner);
         self.viewport.drag_start = Some(point);
         self.viewport.drag_start_rect = Some(selection);
@@ -130,6 +134,78 @@ impl OverlaySession {
         }
     }
 
+    pub(crate) fn start_move(&mut self, point: Point<Pixels>) {
+        let Some(selection) = self.viewport.selection else {
+            return;
+        };
+
+        self.viewport.mode = DragMode::Idle;
+        self.viewport.drag_start = Some(point);
+        self.viewport.drag_start_rect = Some(selection);
+        self.viewport.selection_move_origin = Some(selection);
+        self.viewport.selection_move_delta = Some((0.0, 0.0));
+        self.viewport.confirm_target_on_release = false;
+    }
+
+    pub(crate) fn update_move(&mut self, point: Point<Pixels>) {
+        if self.viewport.selection_move_origin.is_none() {
+            return;
+        }
+
+        let Some(start) = self.viewport.drag_start else {
+            return;
+        };
+        let Some(start_rect) = self.viewport.drag_start_rect else {
+            return;
+        };
+
+        let (current_x, current_y) = self.clamp_point_to_viewport(point);
+        let dx = current_x - start.x.to_f64();
+        let dy = current_y - start.y.to_f64();
+
+        let width = start_rect.width.max(0.0);
+        let height = start_rect.height.max(0.0);
+        let max_x = (self.viewport.viewport_w - width).max(0.0);
+        let max_y = (self.viewport.viewport_h - height).max(0.0);
+        let next_x = (start_rect.x + dx).clamp(0.0, max_x);
+        let next_y = (start_rect.y + dy).clamp(0.0, max_y);
+        let next = RectF::new(next_x, next_y, width, height);
+
+        let origin = self.viewport.selection_move_origin.unwrap_or(start_rect);
+        self.viewport.selection = Some(next);
+        self.viewport.selection_move_delta = Some((next.x - origin.x, next.y - origin.y));
+    }
+
+    pub(crate) fn finish_move(&mut self) -> bool {
+        let Some(origin) = self.viewport.selection_move_origin else {
+            return false;
+        };
+        let Some(selection) = self.viewport.selection else {
+            self.viewport.selection_move_origin = None;
+            self.viewport.selection_move_delta = None;
+            self.viewport.drag_start = None;
+            self.viewport.drag_start_rect = None;
+            return false;
+        };
+
+        // Delta is defined in selection-space, so compute from the stored origin to keep
+        // behavior consistent even if clamping changed the effective drag distance.
+        let dx = selection.x - origin.x;
+        let dy = selection.y - origin.y;
+
+        let changed = if dx.abs() <= f64::EPSILON && dy.abs() <= f64::EPSILON {
+            false
+        } else {
+            self.annotation.translate_all_annotations(dx, dy)
+        };
+
+        self.viewport.selection_move_origin = None;
+        self.viewport.selection_move_delta = None;
+        self.viewport.drag_start = None;
+        self.viewport.drag_start_rect = None;
+        changed
+    }
+
     pub(crate) fn clear(&mut self) {
         self.reset_interaction_state();
         self.clear_annotation_state();
@@ -140,7 +216,8 @@ impl OverlaySession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::overlay::state::OverlaySession;
+    use crate::features::overlay::annotation::AnnotationTool;
+    use crate::features::overlay::state::{LifecycleCommand, OverlayCommand, OverlaySession};
 
     fn session() -> OverlaySession {
         let mut session = OverlaySession::default();
@@ -169,5 +246,45 @@ mod tests {
 
         assert_eq!(session.selection(), Some(RectF::new(20.0, 20.0, 60.0, 50.0)));
         assert_eq!(session.mode(), DragMode::Idle);
+    }
+
+    #[test]
+    fn selection_move_translates_annotations_on_release() {
+        let mut session = session();
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 80.0, 40.0));
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(30.0), gpui::px(30.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(60.0), gpui::px(60.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let before = session.selected_annotation_item().unwrap().bounds();
+        let dx: f64 = 30.0;
+        let dy: f64 = 40.0;
+
+        // Simulate a selection move drag followed by pointer release.
+        session.start_move(Point::new(gpui::px(30.0), gpui::px(30.0)));
+        session.update_move(Point::new(
+            gpui::px((30.0 + dx) as f32),
+            gpui::px((30.0 + dy) as f32),
+        ));
+        session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerReleased));
+
+        let after = session.selected_annotation_item().unwrap().bounds();
+
+        assert_eq!(after.x, before.x + dx);
+        assert_eq!(after.y, before.y + dy);
+        assert_eq!(after.width, before.width);
+        assert_eq!(after.height, before.height);
+    }
+
+    #[test]
+    fn selection_move_clamps_to_viewport_edge_without_resizing() {
+        let mut session = session();
+        session.viewport.selection = Some(RectF::new(80.0, 30.0, 80.0, 50.0));
+
+        session.start_move(Point::new(gpui::px(100.0), gpui::px(40.0)));
+        session.update_move(Point::new(gpui::px(190.0), gpui::px(100.0)));
+
+        assert_eq!(session.selection(), Some(RectF::new(120.0, 50.0, 80.0, 50.0)));
     }
 }

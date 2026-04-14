@@ -516,6 +516,26 @@ impl AnnotationEngine {
         }
     }
 
+    pub(crate) fn translate_all_annotations(&mut self, dx: f64, dy: f64) -> bool {
+        if dx.abs() <= f64::EPSILON && dy.abs() <= f64::EPSILON {
+            return false;
+        }
+        if self.store.visible_len() == 0 {
+            return false;
+        }
+
+        // Collect ids first to avoid borrowing issues while mutating.
+        let ids: Vec<u64> = self.store.visible_items().iter().map(|item| item.id).collect();
+        for id in ids {
+            if let Some(item) = self.store.visible_item_mut(id) {
+                item.move_by(dx, dy);
+            }
+        }
+
+        self.bump_committed();
+        true
+    }
+
     pub(crate) fn delete_selected(&mut self) -> bool {
         let Some(id) = self.selected_id else {
             return false;
@@ -564,8 +584,14 @@ impl AnnotationEngine {
         })
     }
 
-    pub(crate) fn ui_state(&mut self, selection: Option<RectF>, background: Option<&Arc<RgbaImage>>, scale: f64) -> AnnotationUiState {
-        let layer = self.layer_state(selection, background, scale);
+    pub(crate) fn ui_state(
+        &mut self,
+        selection: Option<RectF>,
+        background: Option<&Arc<RgbaImage>>,
+        scale: f64,
+        preview_translate: Option<(f64, f64)>,
+    ) -> AnnotationUiState {
+        let layer = self.layer_state(selection, background, scale, preview_translate);
         AnnotationUiState {
             layer,
             selected: self.selected_summary(),
@@ -598,7 +624,13 @@ impl AnnotationEngine {
 }
 
 impl AnnotationEngine {
-    fn layer_state(&mut self, selection: Option<RectF>, background: Option<&Arc<RgbaImage>>, scale: f64) -> AnnotationLayerState {
+    fn layer_state(
+        &mut self,
+        selection: Option<RectF>,
+        background: Option<&Arc<RgbaImage>>,
+        scale: f64,
+        preview_translate: Option<(f64, f64)>,
+    ) -> AnnotationLayerState {
         let Some(selection) = selection else {
             return AnnotationLayerState::default();
         };
@@ -634,7 +666,16 @@ impl AnnotationEngine {
             });
         }
 
-        let image = self.layer_image(selection, background, scale, transient_item.as_ref());
+        if let Some((dx, dy)) = preview_translate
+            && (dx.abs() > f64::EPSILON || dy.abs() > f64::EPSILON)
+        {
+            for outline in &mut outlines {
+                outline.bounds.x += dx;
+                outline.bounds.y += dy;
+            }
+        }
+
+        let image = self.layer_image(selection, background, scale, transient_item.as_ref(), preview_translate);
 
         AnnotationLayerState { image, outlines }
     }
@@ -645,11 +686,43 @@ impl AnnotationEngine {
         background: Option<&Arc<RgbaImage>>,
         scale: f64,
         transient_item: Option<&AnnotationItem>,
+        preview_translate: Option<(f64, f64)>,
     ) -> Option<Arc<RenderImage>> {
         if self.store.visible_len() == 0 && transient_item.is_none() {
             return None;
         }
         let background = background?;
+
+        let preview_translate = preview_translate.filter(|(dx, dy)| dx.abs() > f64::EPSILON || dy.abs() > f64::EPSILON);
+        if let Some((dx, dy)) = preview_translate {
+            // When preview-translating (e.g. selection move), we need to render items at translated positions
+            // while still sampling the *current* selection background. The existing caches do not key on the
+            // preview translation, so bypass them.
+            let editing = self.text_editing.clone();
+
+            let mut items = self.store.clone_visible_items();
+            if let Some(editing) = editing
+                && let Some(item) = items.iter_mut().find(|item| item.id == editing.id)
+                && let AnnotationKind::Text { origin, .. } = item.kind
+            {
+                item.kind = AnnotationKind::Text { origin, text: editing.draft };
+            }
+
+            if let Some(transient) = transient_item {
+                if let Some(item) = items.iter_mut().find(|item| item.id == transient.id) {
+                    *item = transient.clone();
+                } else {
+                    items.push(transient.clone());
+                }
+            }
+
+            for item in &mut items {
+                item.move_by(dx, dy);
+            }
+
+            let layer = compose_selection_base(background.as_ref(), selection, &items, scale)?;
+            return Some(render_image::from_rgba(layer));
+        }
 
         let committed = self.ensure_committed_layer(selection, background, scale)?;
         let editing = self.text_editing.clone();
@@ -980,7 +1053,7 @@ mod tests {
         let after = engine.selected_item().unwrap().bounds();
         assert!(after.x > before.x);
 
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
     }
 
     #[test]
@@ -994,11 +1067,11 @@ mod tests {
         assert!(engine.update_interaction((90.0, 80.0), sel));
         assert!(engine.finish_interaction(8.0));
 
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_rebuilds();
 
         engine.set_tool(AnnotationTool::Arrow);
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let after = engine.raster_rebuilds();
 
         assert_eq!(before.0, after.0);
@@ -1034,10 +1107,10 @@ mod tests {
 
         let selected = engine.selected_item().unwrap().style.stroke_color;
         assert!(engine.set_color(selected));
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_rebuilds();
         assert!(!engine.set_color(selected));
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let after = engine.raster_rebuilds();
         assert_eq!(before, after);
     }
@@ -1090,9 +1163,9 @@ mod tests {
         assert!(engine.update_interaction((90.0, 80.0), sel));
         assert!(engine.finish_interaction(8.0));
 
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_diagnostics();
-        let _ = engine.ui_state(sel, Some(&bg), 1.5);
+        let _ = engine.ui_state(sel, Some(&bg), 1.5, None);
         let after = engine.raster_diagnostics();
         assert_eq!(after.committed_rebuilds, before.committed_rebuilds + 1);
     }
@@ -1113,14 +1186,14 @@ mod tests {
         assert!(engine.finish_interaction(8.0));
 
         let moving_id = engine.selected_item().unwrap().id;
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_diagnostics();
 
         assert!(engine.start_move(moving_id, (120.0, 70.0), sel, true));
         assert!(engine.update_interaction((130.0, 75.0), sel));
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         assert!(engine.update_interaction((145.0, 85.0), sel));
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
 
         let after = engine.raster_diagnostics();
         assert_eq!(after.interaction_base_rebuilds, before.interaction_base_rebuilds + 1);
@@ -1143,7 +1216,7 @@ mod tests {
         assert!(engine.finish_interaction(8.0));
 
         let moving_id = engine.selected_item().unwrap().id;
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_diagnostics();
 
         assert!(engine.start_move(moving_id, (120.0, 70.0), sel, true));
@@ -1153,7 +1226,7 @@ mod tests {
             let y = 70.0 + f64::from(step) * 0.4;
             if engine.update_interaction((x, y), sel) {
                 changed_steps += 1;
-                let _ = engine.ui_state(sel, Some(&bg), 1.0);
+                let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
             }
         }
 
@@ -1172,7 +1245,7 @@ mod tests {
 
         engine.set_tool(AnnotationTool::Arrow);
         assert!(engine.start_draw((40.0, 55.0), sel, true));
-        let _ = engine.ui_state(sel, Some(&bg), 1.0);
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
         let before = engine.raster_diagnostics();
         let mut changed_steps = 0u64;
         for step in 0..120 {
@@ -1180,7 +1253,7 @@ mod tests {
             let y = 55.0 + f64::from(step) * 0.45;
             if engine.update_interaction((x, y), sel) {
                 changed_steps += 1;
-                let _ = engine.ui_state(sel, Some(&bg), 1.0);
+                let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
             }
         }
         let after = engine.raster_diagnostics();

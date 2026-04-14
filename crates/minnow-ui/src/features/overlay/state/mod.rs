@@ -70,6 +70,11 @@ struct OverlayViewportModel {
     target: Option<RectF>,
     drag_start: Option<Point<Pixels>>,
     drag_start_rect: Option<RectF>,
+    /// During selection moves, `selection` is updated live while dragging.
+    /// `selection_move_origin` captures the selection rect at drag start, and
+    /// `selection_move_delta` is the current (dx, dy) relative to that origin.
+    selection_move_delta: Option<(f64, f64)>,
+    selection_move_origin: Option<RectF>,
     confirm_target_on_release: bool,
     viewport_w: f64,
     viewport_h: f64,
@@ -84,6 +89,8 @@ impl Default for OverlayViewportModel {
             target: None,
             drag_start: None,
             drag_start_rect: None,
+            selection_move_delta: None,
+            selection_move_origin: None,
             confirm_target_on_release: false,
             viewport_w: 0.0,
             viewport_h: 0.0,
@@ -134,6 +141,8 @@ pub(crate) struct HudVm {
 pub(crate) struct OverlayFrame {
     pub background_image: Option<Arc<RenderImage>>,
     pub selection: SelectionVm,
+    #[allow(dead_code)]
+    pub selection_move_delta: Option<(f64, f64)>,
     pub picker: Option<PickerVm>,
     pub annotation: AnnotationUiState,
     pub hud: HudVm,
@@ -184,6 +193,7 @@ pub(crate) enum AnnotationCommand {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum LifecycleCommand {
     StartSelection(Point<Pixels>),
+    StartMove(Point<Pixels>),
     StartResize { corner: ResizeCorner, point: Point<Pixels> },
     PointerMoved(Point<Pixels>),
     PointerReleased,
@@ -335,6 +345,8 @@ impl OverlaySession {
         self.hovered_window = None;
         self.viewport.drag_start = None;
         self.viewport.drag_start_rect = None;
+        self.viewport.selection_move_delta = None;
+        self.viewport.selection_move_origin = None;
         self.viewport.pending_pointer = None;
         self.viewport.confirm_target_on_release = false;
         self.cancel_annotation_interaction_state();
@@ -367,7 +379,10 @@ impl OverlaySession {
                 refresh = true;
             }
             DragMode::Idle => {
-                if self.has_active_annotation_interaction() {
+                if self.viewport.selection_move_origin.is_some() {
+                    self.update_move(point);
+                    refresh = true;
+                } else if self.has_active_annotation_interaction() {
                     refresh = self.update_annotation_interaction(point) || refresh;
                 } else {
                     refresh = self.update_pointer(point) || refresh;
@@ -652,6 +667,52 @@ mod tests {
     }
 
     #[test]
+    fn selection_move_preview_offsets_annotation_layer() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
+
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(60.0), gpui::px(60.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(100.0), gpui::px(100.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let annotation_id = session.selected_annotation_item().unwrap().id;
+
+        let frame_before = session.frame();
+        let before_outline = frame_before
+            .annotation
+            .layer
+            .outlines
+            .iter()
+            .find(|outline| outline.id == annotation_id)
+            .unwrap();
+
+        let dx: f64 = 50.0;
+        let dy: f64 = 40.0;
+        session.start_move(Point::new(gpui::px(60.0), gpui::px(60.0)));
+        session.update_move(Point::new(
+            gpui::px((60.0 + dx) as f32),
+            gpui::px((60.0 + dy) as f32),
+        ));
+
+        // Selection-move preview is expected to offset the rendered annotation layer while dragging.
+        let frame_after = session.frame();
+        let after_outline = frame_after
+            .annotation
+            .layer
+            .outlines
+            .iter()
+            .find(|outline| outline.id == annotation_id)
+            .unwrap();
+
+        assert_eq!(after_outline.bounds.x, before_outline.bounds.x + dx);
+        assert_eq!(after_outline.bounds.y, before_outline.bounds.y + dy);
+        assert_eq!(after_outline.bounds.width, before_outline.bounds.width);
+        assert_eq!(after_outline.bounds.height, before_outline.bounds.height);
+    }
+
+    #[test]
     fn no_tool_disables_draw_but_still_allows_moving_existing_annotation() {
         let mut session = OverlaySession::default();
         session.set_viewport_size(300.0, 200.0);
@@ -680,17 +741,54 @@ mod tests {
     }
 
     #[test]
-    fn left_click_inside_selection_without_tool_dispatches_no_command() {
+    fn left_click_inside_selection_without_tool_starts_move() {
         let mut session = OverlaySession::default();
         session.set_viewport_size(300.0, 200.0);
         session.viewport.selection = Some(RectF::new(20.0, 20.0, 160.0, 100.0));
 
         let command = resolve_mouse_down_command(&session, gpui::MouseButton::Left, Point::new(gpui::px(80.0), gpui::px(70.0)), 1);
-        assert!(command.is_none());
+        assert!(matches!(
+            command,
+            Some(OverlayCommand::Lifecycle(LifecycleCommand::StartMove(_)))
+        ));
 
         session.set_annotation_tool(AnnotationTool::Rectangle);
         let command = resolve_mouse_down_command(&session, gpui::MouseButton::Left, Point::new(gpui::px(80.0), gpui::px(70.0)), 1);
         assert!(matches!(command, Some(OverlayCommand::Annotation(AnnotationCommand::StartDraw(_)))));
+    }
+
+    #[test]
+    fn drag_pointer_moves_coalesce_to_latest_pending_point() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.apply(OverlayCommand::Lifecycle(LifecycleCommand::StartSelection(Point::new(gpui::px(40.0), gpui::px(40.0)))));
+
+        let first_point = Point::new(gpui::px(90.0), gpui::px(90.0));
+        let second_point = Point::new(gpui::px(95.0), gpui::px(110.0));
+
+        let first = session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerMoved(first_point)));
+        let second = session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerMoved(second_point)));
+
+        // Pointer-move events during drag should coalesce: refresh once, but keep the latest pending point.
+        // This test should fail until drag-pointer coalescing is implemented for drag modes.
+        assert!(first.effects.iter().any(|effect| matches!(effect, OverlayEffect::Refresh)));
+        assert!(second.effects.is_empty(), "expected coalesced pointer move to avoid refresh");
+        assert_eq!(session.viewport.pending_pointer, Some(second_point));
+    }
+
+    #[test]
+    fn pointer_release_applies_latest_pending_drag_point_before_finishing_selection() {
+        let mut session = OverlaySession::default();
+        session.set_viewport_size(300.0, 200.0);
+        session.apply(OverlayCommand::Lifecycle(LifecycleCommand::StartSelection(Point::new(gpui::px(40.0), gpui::px(40.0)))));
+
+        let final_point = Point::new(gpui::px(150.0), gpui::px(120.0));
+        session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerMoved(final_point)));
+        let outcome = session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerReleased));
+
+        assert!(outcome.effects.iter().any(|effect| matches!(effect, OverlayEffect::Refresh)));
+        assert_eq!(session.selection(), Some(RectF::new(40.0, 40.0, 110.0, 80.0)));
+        assert_eq!(session.mode(), DragMode::Idle);
     }
 
     #[test]

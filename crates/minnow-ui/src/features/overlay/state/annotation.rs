@@ -10,7 +10,12 @@ use super::{DragMode, OverlaySession};
 impl OverlaySession {
     pub(crate) fn annotation_ui_state(&mut self) -> AnnotationUiState {
         let scale = f64::from(active_monitor_scale()).max(1.0);
-        self.annotation.ui_state(self.viewport.selection, self.background_pixels.as_ref(), scale)
+        self.annotation.ui_state(
+            self.viewport.selection,
+            self.background_pixels.as_ref(),
+            scale,
+            self.viewport.selection_move_delta,
+        )
     }
 
     pub(crate) fn text_editing_id(&self) -> Option<u64> {
@@ -111,7 +116,7 @@ impl OverlaySession {
     }
 
     pub(crate) fn has_active_annotation_interaction(&self) -> bool {
-        self.annotation.has_active_interaction()
+        self.annotation.has_active_interaction() || self.viewport.selection_move_origin.is_some()
     }
 
     pub(crate) fn update_annotation_interaction(&mut self, point: Point<Pixels>) -> bool {
@@ -120,6 +125,9 @@ impl OverlaySession {
     }
 
     pub(crate) fn finish_annotation_interaction(&mut self) -> bool {
+        if self.viewport.selection_move_origin.is_some() && !self.annotation.has_active_interaction() {
+            return self.finish_move();
+        }
         self.annotation.finish_interaction(Self::MIN_SELECTION_SIZE)
     }
 

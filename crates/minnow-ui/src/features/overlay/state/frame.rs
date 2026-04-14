@@ -9,6 +9,7 @@ impl OverlaySession {
                 target: self.viewport.target,
                 drag_mode: self.viewport.mode,
             },
+            selection_move_delta: self.viewport.selection_move_delta,
             picker: self.picker_visible().then(|| PickerVm {
                 cursor: self.picker_cursor,
                 sample: self.picker_sample.clone(),
