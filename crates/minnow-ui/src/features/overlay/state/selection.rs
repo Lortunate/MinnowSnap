@@ -278,6 +278,60 @@ mod tests {
     }
 
     #[test]
+    fn selection_move_translation_undo_redo_preserves_annotation() {
+        let mut session = session();
+        session.viewport.selection = Some(RectF::new(20.0, 20.0, 80.0, 40.0));
+        session.set_annotation_tool(AnnotationTool::Rectangle);
+        assert!(session.start_annotation_draw(Point::new(gpui::px(30.0), gpui::px(30.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(60.0), gpui::px(60.0))));
+        assert!(session.finish_annotation_interaction());
+        assert!(session.start_annotation_draw(Point::new(gpui::px(65.0), gpui::px(35.0))));
+        assert!(session.update_annotation_interaction(Point::new(gpui::px(90.0), gpui::px(55.0))));
+        assert!(session.finish_annotation_interaction());
+
+        let before = session
+            .annotation_ui_state()
+            .layer
+            .outlines
+            .iter()
+            .map(|outline| (outline.id, outline.bounds))
+            .collect::<Vec<_>>();
+
+        session.start_move(Point::new(gpui::px(30.0), gpui::px(30.0)));
+        session.update_move(Point::new(gpui::px(60.0), gpui::px(70.0)));
+        session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerReleased));
+
+        let moved = session
+            .annotation_ui_state()
+            .layer
+            .outlines
+            .iter()
+            .map(|outline| (outline.id, outline.bounds))
+            .collect::<Vec<_>>();
+        assert_ne!(moved, before);
+
+        assert!(session.undo_annotation());
+        let undone = session
+            .annotation_ui_state()
+            .layer
+            .outlines
+            .iter()
+            .map(|outline| (outline.id, outline.bounds))
+            .collect::<Vec<_>>();
+        assert_eq!(undone, before);
+
+        assert!(session.redo_annotation());
+        let redone = session
+            .annotation_ui_state()
+            .layer
+            .outlines
+            .iter()
+            .map(|outline| (outline.id, outline.bounds))
+            .collect::<Vec<_>>();
+        assert_eq!(redone, moved);
+    }
+
+    #[test]
     fn selection_move_clamps_to_viewport_edge_without_resizing() {
         let mut session = session();
         session.viewport.selection = Some(RectF::new(80.0, 30.0, 80.0, 50.0));

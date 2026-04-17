@@ -507,8 +507,9 @@ impl AnnotationEngine {
                     self.bump_transient();
                     return false;
                 }
-                if let Some(item) = self.store.visible_item_mut(id) {
-                    item.move_by(dx, dy);
+                if !self.store.move_visible_item_by(id, dx, dy) {
+                    self.bump_transient();
+                    return false;
                 }
                 self.bump_committed();
                 true
@@ -517,19 +518,8 @@ impl AnnotationEngine {
     }
 
     pub(crate) fn translate_all_annotations(&mut self, dx: f64, dy: f64) -> bool {
-        if dx.abs() <= f64::EPSILON && dy.abs() <= f64::EPSILON {
+        if !self.store.translate_all_visible(dx, dy) {
             return false;
-        }
-        if self.store.visible_len() == 0 {
-            return false;
-        }
-
-        // Collect ids first to avoid borrowing issues while mutating.
-        let ids: Vec<u64> = self.store.visible_items().iter().map(|item| item.id).collect();
-        for id in ids {
-            if let Some(item) = self.store.visible_item_mut(id) {
-                item.move_by(dx, dy);
-            }
         }
 
         self.bump_committed();
