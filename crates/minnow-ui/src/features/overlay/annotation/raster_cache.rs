@@ -9,6 +9,7 @@ pub(crate) struct CommittedLayerCache {
     pub selection: RectF,
     pub scale: f64,
     pub revision: u64,
+    pub background_rgba: Arc<RgbaImage>,
     pub rgba: Arc<RgbaImage>,
     pub image: Arc<RenderImage>,
 }
@@ -19,6 +20,7 @@ pub(crate) struct ComposedLayerCache {
     pub scale: f64,
     pub committed_revision: u64,
     pub transient_revision: u64,
+    pub preview_translate: Option<(f64, f64)>,
     pub image: Arc<RenderImage>,
 }
 

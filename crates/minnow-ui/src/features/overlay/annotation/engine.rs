@@ -13,7 +13,7 @@ use super::model::{
     AnnotationStyleState, AnnotationTool, AnnotationUiState, COLOR_PRESETS, MosaicMode, TEXT_DEFAULT, TextEditState,
 };
 use super::ops::{annotation_item_large_enough, build_drawing_item, ensure_mosaic_kind_style, sync_style_from_item};
-use super::raster::{compose_background_with_annotations, compose_selection_base, draw_items_on_selection};
+use super::raster::{compose_background_with_annotations, compose_selection_background, compose_selection_base, draw_items_on_selection};
 #[cfg(any(feature = "overlay-diagnostics", test))]
 use super::raster_cache::AnnotationRasterDiagnostics;
 use super::raster_cache::{AnnotationRasterCache, CommittedLayerCache, ComposedLayerCache, InteractionBaseCache};
@@ -684,36 +684,6 @@ impl AnnotationEngine {
         let background = background?;
 
         let preview_translate = preview_translate.filter(|(dx, dy)| dx.abs() > f64::EPSILON || dy.abs() > f64::EPSILON);
-        if let Some((dx, dy)) = preview_translate {
-            // When preview-translating (e.g. selection move), we need to render items at translated positions
-            // while still sampling the *current* selection background. The existing caches do not key on the
-            // preview translation, so bypass them.
-            let editing = self.text_editing.clone();
-
-            let mut items = self.store.clone_visible_items();
-            if let Some(editing) = editing
-                && let Some(item) = items.iter_mut().find(|item| item.id == editing.id)
-                && let AnnotationKind::Text { origin, .. } = item.kind
-            {
-                item.kind = AnnotationKind::Text { origin, text: editing.draft };
-            }
-
-            if let Some(transient) = transient_item {
-                if let Some(item) = items.iter_mut().find(|item| item.id == transient.id) {
-                    *item = transient.clone();
-                } else {
-                    items.push(transient.clone());
-                }
-            }
-
-            for item in &mut items {
-                item.move_by(dx, dy);
-            }
-
-            let layer = compose_selection_base(background.as_ref(), selection, &items, scale)?;
-            return Some(render_image::from_rgba(layer));
-        }
-
         let committed = self.ensure_committed_layer(selection, background, scale)?;
         let editing = self.text_editing.clone();
         let moving_id = match &self.interaction {
@@ -721,7 +691,7 @@ impl AnnotationEngine {
             _ => None,
         };
 
-        if transient_item.is_none() && editing.is_none() {
+        if transient_item.is_none() && editing.is_none() && preview_translate.is_none() {
             return Some(committed.image.clone());
         }
 
@@ -730,8 +700,32 @@ impl AnnotationEngine {
             && (cache.scale - scale).abs() <= f64::EPSILON
             && cache.committed_revision == self.committed_revision
             && cache.transient_revision == self.transient_revision
+            && cache.preview_translate == preview_translate
         {
             return Some(cache.image.clone());
+        }
+
+        if let Some((dx, dy)) = preview_translate
+            && transient_item.is_none()
+        {
+            let mut items = self.store.clone_visible_items();
+            if let Some(editing) = &editing
+                && let Some(item) = items.iter_mut().find(|item| item.id == editing.id)
+                && let AnnotationKind::Text { origin, .. } = item.kind
+            {
+                item.kind = AnnotationKind::Text {
+                    origin,
+                    text: editing.draft.clone(),
+                };
+            }
+
+            for item in &mut items {
+                item.move_by(dx, dy);
+            }
+
+            let image = self.render_items_on_base(committed.background_rgba.as_ref(), selection, scale, &items);
+            self.cache_composed(selection, scale, preview_translate, image.clone());
+            return Some(image);
         }
 
         if editing.is_none()
@@ -740,14 +734,14 @@ impl AnnotationEngine {
             if matches!(self.interaction, AnnotationInteractionState::Drawing { .. }) {
                 self.raster_cache.drawing_fast_path_hits = self.raster_cache.drawing_fast_path_hits.saturating_add(1);
                 let image = self.render_transient_on_base(committed.rgba.as_ref(), selection, scale, transient);
-                self.cache_composed(selection, scale, image.clone());
+                self.cache_composed(selection, scale, None, image.clone());
                 return Some(image);
             }
             if let Some(moving_id) = moving_id {
                 let base = self.ensure_interaction_base_layer(selection, background, scale, moving_id)?;
                 self.raster_cache.moving_fast_path_hits = self.raster_cache.moving_fast_path_hits.saturating_add(1);
                 let image = self.render_transient_on_base(base.as_ref(), selection, scale, transient);
-                self.cache_composed(selection, scale, image.clone());
+                self.cache_composed(selection, scale, None, image.clone());
                 return Some(image);
             }
         }
@@ -770,7 +764,7 @@ impl AnnotationEngine {
 
         let layer = compose_selection_base(background.as_ref(), selection, &items, scale)?;
         let image = render_image::from_rgba(layer);
-        self.cache_composed(selection, scale, image.clone());
+        self.cache_composed(selection, scale, None, image.clone());
         Some(image)
     }
 
@@ -782,13 +776,16 @@ impl AnnotationEngine {
             return self.raster_cache.committed.clone();
         }
 
-        let layer = compose_selection_base(background.as_ref(), selection, self.store.visible_items(), scale)?;
+        let background_rgba = compose_selection_background(background.as_ref(), selection, scale)?;
+        let mut layer = background_rgba.clone();
+        draw_items_on_selection(&mut layer, selection, self.store.visible_items(), scale);
         let image = render_image::from_rgba(layer.clone());
         self.raster_cache.committed_rebuilds = self.raster_cache.committed_rebuilds.saturating_add(1);
         self.raster_cache.committed = Some(CommittedLayerCache {
             selection,
             scale,
             revision: self.committed_revision,
+            background_rgba: Arc::new(background_rgba),
             rgba: Arc::new(layer),
             image,
         });
@@ -838,13 +835,20 @@ impl AnnotationEngine {
         render_image::from_rgba(scratch.clone())
     }
 
-    fn cache_composed(&mut self, selection: RectF, scale: f64, image: Arc<RenderImage>) {
+    fn render_items_on_base(&mut self, base: &RgbaImage, selection: RectF, scale: f64, items: &[AnnotationItem]) -> Arc<RenderImage> {
+        let scratch = self.prepare_scratch_layer(base);
+        draw_items_on_selection(scratch, selection, items, scale);
+        render_image::from_rgba(scratch.clone())
+    }
+
+    fn cache_composed(&mut self, selection: RectF, scale: f64, preview_translate: Option<(f64, f64)>, image: Arc<RenderImage>) {
         self.raster_cache.composed_rebuilds = self.raster_cache.composed_rebuilds.saturating_add(1);
         self.raster_cache.composed = Some(ComposedLayerCache {
             selection,
             scale,
             committed_revision: self.committed_revision,
             transient_revision: self.transient_revision,
+            preview_translate,
             image,
         });
     }
@@ -1225,6 +1229,44 @@ mod tests {
         assert_eq!(after.committed_rebuilds, before.committed_rebuilds);
         assert!(changed_steps > 0);
         assert!(after.moving_fast_path_hits >= before.moving_fast_path_hits + changed_steps);
+    }
+
+    #[test]
+    fn selection_move_preview_reuses_cached_composed_layer_for_same_delta() {
+        let mut engine = AnnotationEngine::default();
+        let sel = Some(selection());
+        let bg = fake_background();
+
+        engine.set_tool(AnnotationTool::Rectangle);
+        assert!(engine.start_draw((30.0, 40.0), sel, true));
+        assert!(engine.update_interaction((90.0, 80.0), sel));
+        assert!(engine.finish_interaction(8.0));
+        assert!(engine.start_draw((100.0, 50.0), sel, true));
+        assert!(engine.update_interaction((150.0, 90.0), sel));
+        assert!(engine.finish_interaction(8.0));
+
+        let _ = engine.ui_state(sel, Some(&bg), 1.0, None);
+        let before = engine.raster_diagnostics();
+
+        let first = engine
+            .ui_state(sel, Some(&bg), 1.0, Some((18.0, 12.0)))
+            .layer
+            .image
+            .expect("preview translate should render a layer");
+        let after_first = engine.raster_diagnostics();
+        assert_eq!(after_first.committed_rebuilds, before.committed_rebuilds);
+        assert_eq!(after_first.composed_rebuilds, before.composed_rebuilds + 1);
+
+        let second = engine
+            .ui_state(sel, Some(&bg), 1.0, Some((18.0, 12.0)))
+            .layer
+            .image
+            .expect("same preview delta should reuse cached layer");
+        let after_second = engine.raster_diagnostics();
+
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(after_second.composed_rebuilds, after_first.composed_rebuilds);
+        assert_eq!(after_second.committed_rebuilds, after_first.committed_rebuilds);
     }
 
     #[test]

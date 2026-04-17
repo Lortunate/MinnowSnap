@@ -269,16 +269,22 @@ pub(crate) fn compose_background_with_annotations(background: &RgbaImage, items:
     image
 }
 
-pub(crate) fn compose_selection_base(background: &RgbaImage, selection: RectF, items: &[AnnotationItem], scale: f64) -> Option<RgbaImage> {
+pub(crate) fn compose_selection_background(background: &RgbaImage, selection: RectF, scale: f64) -> Option<RgbaImage> {
     let source_rect = clamp_image_rect(background, selection, scale, (0.0, 0.0))?;
-    let mut layer = imageops::crop_imm(
-        background,
-        source_rect.left() as u32,
-        source_rect.top() as u32,
-        source_rect.width(),
-        source_rect.height(),
+    Some(
+        imageops::crop_imm(
+            background,
+            source_rect.left() as u32,
+            source_rect.top() as u32,
+            source_rect.width(),
+            source_rect.height(),
+        )
+        .to_image(),
     )
-    .to_image();
+}
+
+pub(crate) fn compose_selection_base(background: &RgbaImage, selection: RectF, items: &[AnnotationItem], scale: f64) -> Option<RgbaImage> {
+    let mut layer = compose_selection_background(background, selection, scale)?;
     for item in items {
         draw_annotation_item(&mut layer, item, scale, (selection.x, selection.y));
     }
