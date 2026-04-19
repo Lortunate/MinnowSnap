@@ -51,7 +51,10 @@ impl OverlayView {
         let Some(selection) = frame.selection.selection else {
             return Self::overlay_layer();
         };
-        let hud_visibility = SelectionHudVisibility::from(frame.selection.drag_mode);
+        let hud_visibility = SelectionHudVisibility::from_selection_state(
+            frame.selection.drag_mode,
+            frame.selection_move_delta.is_some(),
+        );
         let selected_is_text = frame
             .annotation
             .selected

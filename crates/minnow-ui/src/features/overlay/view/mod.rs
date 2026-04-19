@@ -27,14 +27,20 @@ struct SelectionHudVisibility {
     show_toolbar: bool,
 }
 
-impl From<DragMode> for SelectionHudVisibility {
-    fn from(drag_mode: DragMode) -> Self {
-        let locked = matches!(drag_mode, DragMode::Idle);
+impl SelectionHudVisibility {
+    fn from_selection_state(drag_mode: DragMode, selection_move_active: bool) -> Self {
+        let locked = matches!(drag_mode, DragMode::Idle) && !selection_move_active;
         Self {
             show_handles: locked,
             show_resolution_tooltip: true,
             show_toolbar: locked,
         }
+    }
+}
+
+impl From<DragMode> for SelectionHudVisibility {
+    fn from(drag_mode: DragMode) -> Self {
+        Self::from_selection_state(drag_mode, false)
     }
 }
 
@@ -161,7 +167,7 @@ mod tests {
     #[test]
     fn drag_move_and_resize_only_keep_resolution_tooltip() {
         for drag_mode in [DragMode::Selecting, DragMode::Resizing(ResizeCorner::TopLeft)] {
-            let visibility = SelectionHudVisibility::from(drag_mode);
+            let visibility = SelectionHudVisibility::from_selection_state(drag_mode, false);
             assert_eq!(
                 visibility,
                 SelectionHudVisibility {
@@ -171,6 +177,20 @@ mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn active_selection_move_hides_handles_and_toolbar() {
+        let visibility = SelectionHudVisibility::from_selection_state(DragMode::Idle, true);
+
+        assert_eq!(
+            visibility,
+            SelectionHudVisibility {
+                show_handles: false,
+                show_resolution_tooltip: true,
+                show_toolbar: false,
+            }
+        );
     }
 
     #[test]
