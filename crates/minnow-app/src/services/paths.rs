@@ -1,6 +1,7 @@
 #[cfg(not(feature = "portable"))]
 use directories::ProjectDirs;
 use std::env;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -74,6 +75,21 @@ fn resolve_app_paths() -> AppPaths {
 
 pub fn app_paths() -> &'static AppPaths {
     APP_PATHS.get_or_init(resolve_app_paths)
+}
+
+pub fn lock_file() -> PathBuf {
+    app_paths().temp_file(super::app_meta::APP_LOCK_ID)
+}
+
+pub fn ensure_dir(path: &Path) -> io::Result<()> {
+    std::fs::create_dir_all(path)
+}
+
+pub fn ensure_parent_dir(path: &Path) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        ensure_dir(parent)?;
+    }
+    Ok(())
 }
 
 impl AppPaths {

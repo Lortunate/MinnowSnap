@@ -5,6 +5,7 @@ use minnow_app::{
 };
 use gpui::AssetSource;
 use std::process::ExitCode;
+use std::str::FromStr;
 
 #[test]
 fn app_public_api_matches_task1_surface() {
@@ -173,4 +174,93 @@ fn services_paths_semantics_stay_in_parity_with_legacy_crate() {
     assert_eq!(new_paths.temp_dir(), old_paths.temp_dir());
     assert_eq!(new_paths.temp_file("parity.lock"), old_paths.temp_file("parity.lock"));
     assert_eq!(new_paths.ocr_models_dir(), old_paths.ocr_models_dir());
+}
+
+#[test]
+fn services_expose_task3_domain_surface() {
+    use minnow_app::services::{
+        app_meta,
+        capture::{
+            self,
+            action::{ActionContext, CaptureAction, CaptureInputMode},
+            long_capture::LongCaptureRuntime,
+            source,
+            stitcher::{ScrollStitcher, StitchFrameStatus},
+        },
+        geometry::{self, Rect, RectF},
+        i18n,
+        ocr::{
+            self,
+            config::OcrModelType,
+            engine::OcrResult,
+            model_manager::ModelManager,
+            service::OcrModelStatus,
+            OcrBlock,
+        },
+        settings::{self, AppSettings},
+    };
+
+    assert_eq!(app_meta::APP_ID, "com.lortunate.minnow");
+    assert_eq!(app_meta::APP_NAME, "MinnowSnap");
+    assert_eq!(app_meta::APP_LOCK_ID, "com.lortunate.minnow.lock");
+
+    let rect = Rect::new(1, 2, 3, 4);
+    assert!(rect.has_area());
+    assert_eq!(Rect::empty(), Rect::new(0, 0, 0, 0));
+    assert!(RectF::new(0.0, 0.0, 10.0, 10.0).contains_point(5.0, 5.0));
+    assert_eq!(geometry::normalize_rect(1.2, 2.3, 3.4, 4.5), Rect::new(1, 2, 4, 5));
+    assert_eq!(rect.intersect(Rect::new(2, 3, 10, 10)), Some(Rect::new(2, 3, 2, 3)));
+
+    assert_eq!(i18n::SUPPORTED_LOCALES[0], i18n::SYSTEM_LOCALE);
+    assert_eq!(i18n::normalize_locale_tag("zh_CN"), "zh-CN");
+    assert_eq!(i18n::normalize_locale_tag("en_US"), "en");
+    assert!(!i18n::app::name().is_empty());
+
+    let settings_value = AppSettings::default();
+    assert_eq!(settings_value.general.language, "System");
+    assert_eq!(settings_value.shortcuts.capture, "F1");
+    let _settings_handle = &settings::SETTINGS;
+
+    assert_eq!(source::parse_virtual_source(source::PREVIEW_SOURCE), Some(source::VirtualCaptureSource::Preview));
+    assert_eq!(capture::active_monitor_target(), None);
+
+    let ctx = ActionContext::crop_selection("capture.png".to_string(), rect);
+    assert_eq!(ctx.input_mode, CaptureInputMode::CropSelection);
+    assert_eq!(
+        CaptureAction::from_str("copy").expect("action parse"),
+        CaptureAction::Copy
+    );
+    assert_eq!(
+        ActionContext::full_image("capture.png".to_string()).input_mode,
+        CaptureInputMode::FullImage
+    );
+
+    assert_eq!(OcrModelType::Mobile, OcrModelType::Mobile);
+    let results = vec![
+        OcrResult {
+            text: "hello".to_string(),
+            confidence: 0.9,
+            box_points: vec![(10, 20), (30, 20), (30, 40), (10, 40)],
+        },
+        OcrResult {
+            text: "world".to_string(),
+            confidence: 0.8,
+            box_points: vec![(40, 20), (60, 20), (60, 40), (40, 40)],
+        },
+    ];
+    let blocks: Vec<OcrBlock> = ocr::build_ocr_blocks(results, 100.0, 100.0);
+    assert_eq!(blocks.len(), 2);
+    assert!(blocks[0].percentage_coordinates);
+    assert_eq!(ocr::format_selected_blocks(&blocks, &[0, 1]).as_deref(), Some("hello world"));
+    assert!(ModelManager::default_dir().expect("ocr dir").ends_with("ocr_models"));
+    assert_eq!(OcrModelStatus::Ready.progress_percent(), 100);
+
+    let runtime = LongCaptureRuntime::new();
+    assert!(runtime.drain_events().is_empty());
+
+    let mut stitcher = ScrollStitcher::new();
+    let image = image::RgbaImage::from_pixel(64, 64, image::Rgba([1, 2, 3, 255]));
+    let detail = stitcher.process_frame_detailed(image);
+    assert_eq!(detail.status, StitchFrameStatus::Appended);
+    assert_eq!(detail.height, 64);
 }

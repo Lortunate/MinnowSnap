@@ -1,10 +1,7 @@
 use gpui::{App, Application};
-use minnow_core::capture::service::CaptureService;
-use minnow_core::geometry::Rect;
 use minnow_core::notify;
 use minnow_core::notify::init_windows_notification_app_id;
 use minnow_core::shutdown;
-use minnow_core::{i18n, settings};
 use minnow_ui::features::{overlay, pin, preferences};
 use minnow_ui::shell::hotkey::HotkeyActionSink;
 use minnow_ui::shell::system::install_ui_system_actions;
@@ -13,10 +10,16 @@ use minnow_ui::support::{appearance, locale};
 use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::services::assets::AppAssets;
+use crate::services::{
+    assets::AppAssets,
+    capture::service::CaptureService,
+    geometry::Rect,
+    i18n,
+    settings,
+};
 
 #[cfg(target_os = "macos")]
-use minnow_core::app_meta::APP_ID;
+use crate::services::app_meta::APP_ID;
 
 pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
     #[cfg(target_os = "windows")]
