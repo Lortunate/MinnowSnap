@@ -1,5 +1,4 @@
 use gpui::{App, Application};
-use minnow_assets::AppAssets;
 use minnow_core::capture::service::CaptureService;
 use minnow_core::geometry::Rect;
 use minnow_core::notify;
@@ -13,6 +12,8 @@ use minnow_ui::shell::tray::TrayActions;
 use minnow_ui::support::{appearance, locale};
 use tokio::sync::broadcast;
 use tracing::info;
+
+use crate::services::assets::AppAssets;
 
 #[cfg(target_os = "macos")]
 use minnow_core::app_meta::APP_ID;

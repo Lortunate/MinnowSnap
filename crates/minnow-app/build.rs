@@ -7,17 +7,14 @@ use image::{
 use std::{env, fs, path::Path, process::Command};
 
 fn main() {
-    println!("cargo:rerun-if-changed=../minnow-assets/resources/logo.png");
-    println!("cargo:rerun-if-changed=../minnow-assets/resources");
+    println!("cargo:rerun-if-changed=resources/logo.png");
+    println!("cargo:rerun-if-changed=resources");
 
-    if let Err(e) = generate_icons(
-        Path::new("../minnow-assets/resources/logo.png"),
-        Path::new("../minnow-assets/assets_icons"),
-    ) {
+    if let Err(e) = generate_icons(Path::new("resources/logo.png"), Path::new("assets_icons")) {
         println!("cargo:warning=Failed to generate icons: {}", e);
     }
 
-    if let Err(e) = embed_windows_icon(Path::new("../minnow-assets/assets_icons/icon.ico")) {
+    if let Err(e) = embed_windows_icon(Path::new("assets_icons/icon.ico")) {
         println!("cargo:warning=Failed to embed Windows icon: {}", e);
     }
 }
