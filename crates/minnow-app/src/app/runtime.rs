@@ -1,7 +1,7 @@
 #[cfg(target_os = "macos")]
-use crate::bootstrap::hide_dock_icon;
-use crate::bootstrap::{ensure_single_instance, get_instance_id, init_logger, set_auto_start};
-use crate::composition::run_application;
+use super::bootstrap::hide_dock_icon;
+use super::bootstrap::{ensure_single_instance, get_instance_id, init_logger, set_auto_start};
+use super::composition::run_application;
 use minnow_core::shutdown;
 use tracing::info;
 

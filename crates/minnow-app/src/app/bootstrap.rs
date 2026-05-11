@@ -7,12 +7,12 @@ use std::env;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
-pub fn init_logger() -> Option<WorkerGuard> {
+pub(crate) fn init_logger() -> Option<WorkerGuard> {
     minnow_core::logging::init_logger()
 }
 
 #[cfg(target_os = "macos")]
-pub fn hide_dock_icon() {
+pub(crate) fn hide_dock_icon() {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
 
@@ -28,7 +28,7 @@ pub fn hide_dock_icon() {
     }
 }
 
-pub fn ensure_single_instance(uniq_id: &str) -> bool {
+pub(crate) fn ensure_single_instance(uniq_id: &str) -> bool {
     if let Ok(instance) = SingleInstance::new(uniq_id)
         && instance.is_single()
     {
@@ -38,7 +38,7 @@ pub fn ensure_single_instance(uniq_id: &str) -> bool {
     false
 }
 
-pub fn get_instance_id() -> String {
+pub(crate) fn get_instance_id() -> String {
     #[cfg(target_os = "macos")]
     {
         let path = paths::lock_file();
@@ -51,7 +51,7 @@ pub fn get_instance_id() -> String {
     return APP_LOCK_ID.to_string();
 }
 
-pub fn set_auto_start(enabled: bool) {
+pub(crate) fn set_auto_start(enabled: bool) {
     let Ok(current_exe) = env::current_exe() else {
         error!("Failed to get current executable path for auto-start");
         return;

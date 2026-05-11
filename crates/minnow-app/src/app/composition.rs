@@ -104,17 +104,17 @@ fn request_app_quit(cx: &mut gpui::AsyncApp) {
     });
 }
 
-pub(crate) fn prepare_overlay_session(cx: &mut gpui::App) {
+fn prepare_overlay_session(cx: &mut gpui::App) {
     let overlay_handle = cx.global::<overlay::OverlayHandle>().clone();
     overlay_handle.prepare(cx);
 }
 
-pub(crate) fn open_capture_overlay(cx: &mut gpui::App) {
+fn open_capture_overlay(cx: &mut gpui::App) {
     prepare_overlay_session(cx);
     overlay::open_window(cx);
 }
 
-pub(crate) fn run_quick_capture_with_notification() {
+fn run_quick_capture_with_notification() {
     let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
     if ok {
         notify::show(
@@ -131,6 +131,6 @@ pub(crate) fn run_quick_capture_with_notification() {
     }
 }
 
-pub(crate) fn open_preferences_window(cx: &mut gpui::App) {
+fn open_preferences_window(cx: &mut gpui::App) {
     preferences::open_window(cx);
 }
