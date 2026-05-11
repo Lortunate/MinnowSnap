@@ -26,6 +26,64 @@ fn top_level_modules_export_stub_surface() {
 }
 
 #[test]
+fn ui_and_platform_modules_export_task4_runtime_surface() {
+    fn open_app(_: &mut gpui::App) {}
+    fn run_no_app() {}
+    fn set_auto_start(_: bool) {}
+
+    let _overlay_open: fn(&mut gpui::App) = ui::features::overlay::open_window;
+    let _overlay_bind: fn(&mut gpui::App) = ui::features::overlay::bind_keys;
+    let _overlay_handle_new: fn(&mut gpui::App) -> ui::features::overlay::OverlayHandle =
+        ui::features::overlay::OverlayHandle::new;
+    let _pin_bind: fn(&mut gpui::App) = ui::features::pin::bind_keys;
+    let _pin_install: fn(&mut gpui::App) = ui::features::pin::install;
+    let _preferences_open: fn(&mut gpui::App) = ui::features::preferences::open_window;
+    let _locale_apply: fn(&str) -> String = ui::support::locale::apply;
+    let _appearance_apply: fn(Option<&mut gpui::Window>, &mut gpui::App) =
+        ui::support::appearance::apply_saved_preferences;
+
+    let _ = platform::hotkey::HotkeyActionSink::new(open_app, run_no_app);
+    let _ = platform::tray::TrayActions::new(open_app, run_no_app, open_app);
+    let _ = platform::system::UiSystemActions::new(set_auto_start);
+    let _hotkey_install = platform::hotkey::install_hotkey_service;
+    let _tray_install = platform::tray::SystemTray::install;
+    let _background_install = platform::background_host::install;
+    let _system_install = platform::system::install_ui_system_actions::<fn(bool)>;
+    let _notification_type = platform::notify::NotificationType::Info;
+    let _shutdown_trigger = platform::shutdown::ShutdownTrigger::TrayMenu;
+    let _copy_text: fn(String) -> bool = platform::io::clipboard::copy_text_to_clipboard;
+    let _fonts: fn() -> Vec<String> = platform::io::fonts::get_system_fonts;
+    let _storage: fn(&image::RgbaImage, bool) -> Option<String> = platform::io::storage::save_temp_image;
+}
+
+#[test]
+fn composition_runtime_callback_wiring_matches_expected_actions() {
+    let hotkey = app::composition::hotkey_callback_bindings();
+    assert!(std::ptr::fn_addr_eq(
+        hotkey.open_capture_overlay,
+        app::composition::open_capture_overlay as fn(&mut gpui::App)
+    ));
+    assert!(std::ptr::fn_addr_eq(
+        hotkey.run_quick_capture,
+        app::composition::run_quick_capture_with_notification as fn()
+    ));
+
+    let tray = app::composition::tray_callback_bindings();
+    assert!(std::ptr::fn_addr_eq(
+        tray.open_capture_overlay,
+        app::composition::open_capture_overlay as fn(&mut gpui::App)
+    ));
+    assert!(std::ptr::fn_addr_eq(
+        tray.run_quick_capture,
+        app::composition::run_quick_capture_with_notification as fn()
+    ));
+    assert!(std::ptr::fn_addr_eq(
+        tray.open_preferences,
+        app::composition::open_preferences_window as fn(&mut gpui::App)
+    ));
+}
+
+#[test]
 fn services_own_assets_and_paths_surface() {
     use minnow_app::services::{
         assets::{asset_bytes, asset_paths, AppAssets},

@@ -1,15 +1,16 @@
 use gpui::{App, Application};
-use minnow_core::notify;
-use minnow_core::notify::init_windows_notification_app_id;
-use minnow_core::shutdown;
-use minnow_ui::features::{overlay, pin, preferences};
-use minnow_ui::shell::hotkey::HotkeyActionSink;
-use minnow_ui::shell::system::install_ui_system_actions;
-use minnow_ui::shell::tray::TrayActions;
-use minnow_ui::support::{appearance, locale};
 use tokio::sync::broadcast;
 use tracing::info;
 
+use crate::platform::{
+    self,
+    hotkey::HotkeyActionSink,
+    notify,
+    notify::init_windows_notification_app_id,
+    shutdown,
+    system::install_ui_system_actions,
+    tray::TrayActions,
+};
 use crate::services::{
     assets::AppAssets,
     capture::service::CaptureService,
@@ -17,9 +18,26 @@ use crate::services::{
     i18n,
     settings,
 };
+use crate::ui::{
+    features::{overlay, pin, preferences},
+    support::{appearance, locale},
+};
 
 #[cfg(target_os = "macos")]
 use crate::services::app_meta::APP_ID;
+
+#[derive(Clone, Copy, Debug)]
+pub struct HotkeyCallbackBindings {
+    pub open_capture_overlay: fn(&mut gpui::App),
+    pub run_quick_capture: fn(),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TrayCallbackBindings {
+    pub open_capture_overlay: fn(&mut gpui::App),
+    pub run_quick_capture: fn(),
+    pub open_preferences: fn(&mut gpui::App),
+}
 
 pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
     #[cfg(target_os = "windows")]
@@ -50,20 +68,32 @@ pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         pin::bind_keys(cx);
         pin::install(cx);
         set_auto_start(settings::SETTINGS.lock().unwrap().get().general.auto_start);
-        minnow_ui::shell::hotkey::install_hotkey_service(cx, HotkeyActionSink::new(open_capture_overlay, run_quick_capture_with_notification));
+        let hotkey_callbacks = hotkey_callback_bindings();
+        platform::hotkey::install_hotkey_service(
+            cx,
+            HotkeyActionSink::new(
+                hotkey_callbacks.open_capture_overlay,
+                hotkey_callbacks.run_quick_capture,
+            ),
+        );
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);
 
-        if let Err(err) = minnow_ui::shell::tray::SystemTray::install(
+        let tray_callbacks = tray_callback_bindings();
+        if let Err(err) = platform::tray::SystemTray::install(
             cx,
-            TrayActions::new(open_capture_overlay, run_quick_capture_with_notification, open_preferences_window),
+            TrayActions::new(
+                tray_callbacks.open_capture_overlay,
+                tray_callbacks.run_quick_capture,
+                tray_callbacks.open_preferences,
+            ),
         ) {
             tracing::error!("Failed to install system tray: {err}");
             cx.quit();
             return;
         }
 
-        if let Err(err) = minnow_ui::shell::background_host::install(cx) {
+        if let Err(err) = platform::background_host::install(cx) {
             tracing::error!("Failed to install background host window: {err}");
             cx.quit();
         }
@@ -108,17 +138,33 @@ fn request_app_quit(cx: &mut gpui::AsyncApp) {
     });
 }
 
-fn prepare_overlay_session(cx: &mut gpui::App) {
+pub fn hotkey_callback_bindings() -> HotkeyCallbackBindings {
+    HotkeyCallbackBindings {
+        open_capture_overlay,
+        run_quick_capture: run_quick_capture_with_notification,
+    }
+}
+
+pub fn tray_callback_bindings() -> TrayCallbackBindings {
+    let hotkey = hotkey_callback_bindings();
+    TrayCallbackBindings {
+        open_capture_overlay: hotkey.open_capture_overlay,
+        run_quick_capture: hotkey.run_quick_capture,
+        open_preferences: open_preferences_window,
+    }
+}
+
+pub fn prepare_overlay_session(cx: &mut gpui::App) {
     let overlay_handle = cx.global::<overlay::OverlayHandle>().clone();
     overlay_handle.prepare(cx);
 }
 
-fn open_capture_overlay(cx: &mut gpui::App) {
+pub fn open_capture_overlay(cx: &mut gpui::App) {
     prepare_overlay_session(cx);
     overlay::open_window(cx);
 }
 
-fn run_quick_capture_with_notification() {
+pub fn run_quick_capture_with_notification() {
     let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
     if ok {
         notify::show(
@@ -135,6 +181,6 @@ fn run_quick_capture_with_notification() {
     }
 }
 
-fn open_preferences_window(cx: &mut gpui::App) {
+pub fn open_preferences_window(cx: &mut gpui::App) {
     preferences::open_window(cx);
 }
