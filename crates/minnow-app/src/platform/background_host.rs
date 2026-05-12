@@ -1,4 +1,4 @@
-﻿use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+﻿use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use gpui::{App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBounds, WindowKind, div, point, px, rgba, size};
 use gpui_component::Root;
 use crate::services::app_meta::APP_ID;

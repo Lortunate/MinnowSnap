@@ -1,7 +1,7 @@
 ﻿use super::{MutationResult, store};
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings};
 use crate::ui::features::preferences::view::PreferencesView;
-use crate::ui::support::hotkeys::HotkeyService;
+use crate::platform::hotkey::HotkeyService;
 use crate::services::i18n;
 use gpui::{App, BorrowAppContext, Context, SharedString};
 
