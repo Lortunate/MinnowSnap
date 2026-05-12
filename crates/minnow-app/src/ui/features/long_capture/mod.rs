@@ -2,8 +2,8 @@
 mod layout;
 mod view;
 
-use crate::platform::native_window::{Level, WindowLevelExt};
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::ui::support::native_window::{Level, WindowLevelExt};
+use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use gpui::{App, AppContext, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions};
 use crate::services::app_meta::APP_ID;
 use crate::services::geometry::{Rect, RectF};

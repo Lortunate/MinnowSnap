@@ -1,11 +1,10 @@
 ﻿use super::{MutationResult, frame::SelectOption, store};
 use crate::ui::features::preferences::view::PreferencesView;
-use crate::platform::system::UiSystemActions;
+use crate::ui::support::system::UiSystemActions;
 use crate::ui::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM};
 use crate::ui::support::locale;
 use crate::{
-    platform::io::{fonts::get_system_fonts, storage::get_default_save_path},
-    services::{i18n, i18n::SYSTEM_LOCALE, settings::AppSettings},
+    services::{fonts::get_system_fonts, i18n, i18n::SYSTEM_LOCALE, settings::AppSettings, storage::get_default_save_path},
 };
 use gpui::{App, Context, SharedString, Window};
 use tracing::warn;

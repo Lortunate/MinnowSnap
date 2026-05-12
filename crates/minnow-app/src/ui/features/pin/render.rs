@@ -1,4 +1,4 @@
-﻿use crate::platform::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+﻿use crate::ui::support::window_drag::{PopupDragBehavior, PopupDragRegionExt};
 use gpui::{App, ClickEvent, Div, InteractiveElement, ObjectFit, ParentElement, SharedString, Styled, StyledImage, Window, div, img};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::PopupMenuItem;

@@ -1,7 +1,7 @@
 ﻿use super::PinView;
 use super::ocr_geometry::{bounds_from_points, compute_block_geometries, paint_rotated_rect, paint_rotated_stroke, sub_geometry_by_ratio};
 use crate::ui::features::pin::{actions::PIN_CONTEXT, render, state::PinFrame};
-use crate::platform::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use crate::ui::support::window_drag::{PopupDragBehavior, PopupDragRegionExt};
 use gpui::InteractiveElement;
 use gpui::{App, Context, IntoElement, MouseButton, ParentElement, Styled, Window, canvas, div, px, quad};
 use gpui_component::ActiveTheme as _;

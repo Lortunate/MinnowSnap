@@ -7,8 +7,8 @@ mod view;
 pub use actions::bind_keys;
 pub use request::PinRequest;
 
-use crate::platform::native_window::{Level, with_level};
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::ui::support::native_window::{Level, with_level};
+use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions, point, px, size};
 use gpui_component::Root;
 use crate::services::app_meta::APP_ID;

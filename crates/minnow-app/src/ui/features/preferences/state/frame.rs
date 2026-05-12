@@ -4,9 +4,9 @@
     ocr, shortcuts,
     state::{PreferencesNotice, PreferencesPage, PreferencesState},
 };
-use crate::platform::hotkey::HotkeyAction;
 use crate::services::app_meta::APP_NAME;
-use crate::{platform::logging, services::{i18n, ocr::service::OcrModelStatus}};
+use crate::services::hotkeys::HotkeyAction;
+use crate::services::{i18n, ocr::service::OcrModelStatus, paths};
 use gpui::{App, SharedString};
 use std::path::PathBuf;
 
@@ -369,7 +369,7 @@ fn build_ocr_props(snapshot: ocr::OcrSnapshot) -> OcrPageProps {
 }
 
 fn build_about_props() -> AboutPageProps {
-    let log_directory_path = logging::log_dir();
+    let log_directory_path = paths::app_paths().logs_dir().to_path_buf();
 
     AboutPageProps {
         app_name: APP_NAME.into(),
@@ -410,7 +410,7 @@ fn ocr_download_label(status: &OcrModelStatus) -> SharedString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::platform::hotkey::ShortcutBindings;
+    use crate::services::hotkeys::ShortcutBindings;
 
     #[test]
     fn select_option_label_uses_matching_label() {

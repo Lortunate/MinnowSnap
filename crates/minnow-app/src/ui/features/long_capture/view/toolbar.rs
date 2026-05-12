@@ -10,7 +10,7 @@ use gpui_component::{ActiveTheme as _, Disableable, h_flex};
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::capture::service::CaptureService;
 use crate::services::i18n;
-use crate::platform::notify::NotificationType;
+use crate::services::notify::NotificationType;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -130,7 +130,7 @@ impl ToolbarWindowView {
     fn handle_capture_action_result(&mut self, result: ActionResult, window: &mut Window, cx: &mut Context<Self>) {
         match result {
             ActionResult::Copied => {
-                crate::platform::notify::show(
+                crate::services::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
@@ -138,7 +138,7 @@ impl ToolbarWindowView {
                 self.close_capture_windows(window, cx);
             }
             ActionResult::Saved(path) => {
-                crate::platform::notify::show(
+                crate::services::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,

@@ -6,10 +6,8 @@
         state::{PreferencesNotice, PreferencesPage, PreferencesState},
     },
 };
-use crate::platform::{
-    hotkey::{self, HotkeyAction, ShortcutBindings},
-    system,
-};
+use crate::services::hotkeys::{HotkeyAction, ShortcutBindings, format_keystroke};
+use crate::ui::support::system;
 use gpui::{
     AnyElement, App, AsyncWindowContext, ClickEvent, Context, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent, ParentElement,
     PathPromptOptions, SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
@@ -134,7 +132,7 @@ impl PreferencesView {
             return;
         }
 
-        let Some(formatted) = hotkey::format_keystroke(&event.keystroke) else {
+        let Some(formatted) = format_keystroke(&event.keystroke) else {
             return;
         };
 

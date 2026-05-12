@@ -6,7 +6,7 @@ mod state;
 mod view;
 pub(crate) mod window_catalog;
 
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions};
 use gpui_component::Root;
 use crate::services::app_meta::APP_ID;

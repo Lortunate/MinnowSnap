@@ -6,9 +6,9 @@ use crate::services::capture::{
 use crate::services::geometry::Rect;
 use crate::services::settings::SETTINGS;
 use image::RgbaImage;
-use crate::platform::io::clipboard::copy_image_to_clipboard;
-use crate::platform::io::storage::{save_image_to_user_dir, save_temp_image};
-use crate::platform::notify;
+use crate::services::clipboard::copy_image_to_clipboard;
+use crate::services::notify;
+use crate::services::storage::{save_image_to_user_dir, save_temp_image};
 use std::sync::Arc;
 use tracing::{error, info};
 

@@ -59,10 +59,10 @@ fn task5_keeps_app_local_layout_and_packaging() {
 
     let capture_service_rs = read_repo_file("crates/minnow-app/src/services/capture/service.rs");
     assert!(
-        capture_service_rs.contains("use crate::platform::io::clipboard::copy_image_to_clipboard;")
-            && capture_service_rs.contains("use crate::platform::io::storage::{save_image_to_user_dir, save_temp_image};")
-            && capture_service_rs.contains("use crate::platform::notify;"),
-        "capture service should use app-local platform helpers"
+        capture_service_rs.contains("use crate::services::clipboard::copy_image_to_clipboard;")
+            && capture_service_rs.contains("use crate::services::storage::{save_image_to_user_dir, save_temp_image};")
+            && capture_service_rs.contains("use crate::services::notify;"),
+        "capture service should use app-local service helpers"
     );
 
     assert!(
@@ -113,19 +113,24 @@ fn ui_and_platform_modules_export_task4_runtime_surface() {
     let _locale_apply: fn(&str) -> String = ui::support::locale::apply;
     let _appearance_apply: fn(Option<&mut gpui::Window>, &mut gpui::App) =
         ui::support::appearance::apply_saved_preferences;
+    let _windowing: fn(ui::support::windowing::PopupWindowSpec, &'static str) -> gpui::WindowOptions =
+        ui::support::windowing::popup_window_options;
+    let _drag_behavior = ui::support::window_drag::PopupDragBehavior::HitTest;
+    let _native_level = ui::support::native_window::Level::Normal;
+    let _ui_system = ui::support::system::UiSystemActions::new(set_auto_start);
+    let _ui_system_install = ui::support::system::install_ui_system_actions::<fn(bool)>;
+    let _service_clipboard: fn(String) -> bool = services::clipboard::copy_text_to_clipboard;
+    let _service_fonts: fn() -> Vec<String> = services::fonts::get_system_fonts;
+    let _service_hotkeys = services::hotkeys::ShortcutBindings::default();
+    let _service_notify = services::notify::NotificationType::Info;
+    let _service_storage: fn(&image::RgbaImage, bool) -> Option<String> = services::storage::save_temp_image;
 
     let _ = platform::hotkey::HotkeyActionSink::new(open_app, run_no_app);
     let _ = platform::tray::TrayActions::new(open_app, run_no_app, open_app);
-    let _ = platform::system::UiSystemActions::new(set_auto_start);
     let _hotkey_install = platform::hotkey::install_hotkey_service;
     let _tray_install = platform::tray::SystemTray::install;
     let _background_install = platform::background_host::install;
-    let _system_install = platform::system::install_ui_system_actions::<fn(bool)>;
-    let _notification_type = platform::notify::NotificationType::Info;
     let _shutdown_trigger = platform::shutdown::ShutdownTrigger::TrayMenu;
-    let _copy_text: fn(String) -> bool = platform::io::clipboard::copy_text_to_clipboard;
-    let _fonts: fn() -> Vec<String> = platform::io::fonts::get_system_fonts;
-    let _storage: fn(&image::RgbaImage, bool) -> Option<String> = platform::io::storage::save_temp_image;
 }
 
 #[test]

@@ -1,6 +1,6 @@
 ﻿use super::{AboutPageActions, components};
 use crate::ui::features::preferences::{state::frame::AboutPageProps, view::PreferencesView};
-use crate::platform::system;
+use crate::ui::support::system;
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, div, img, px};
 use gpui_component::{ActiveTheme as _, v_flex};
 use crate::services::assets::asset_paths;

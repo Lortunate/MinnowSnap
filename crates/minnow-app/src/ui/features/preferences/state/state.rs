@@ -1,6 +1,6 @@
-﻿use crate::platform::hotkey::HotkeyAction;
-use gpui::SharedString;
+﻿use crate::services::hotkeys::HotkeyAction;
 use crate::services::i18n;
+use gpui::SharedString;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum PreferencesPage {

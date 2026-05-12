@@ -4,8 +4,8 @@ use crate::ui::features::pin::{self, PinRequest};
 use gpui::{App, Window};
 use crate::services::capture::action::{ActionResult, CaptureAction};
 use crate::services::i18n;
-use crate::platform::io::clipboard::copy_text_to_clipboard;
-use crate::platform::notify::NotificationType;
+use crate::services::clipboard::copy_text_to_clipboard;
+use crate::services::notify::NotificationType;
 
 struct CopyTextPayload {
     text: String,
@@ -103,7 +103,7 @@ impl OverlayHandle {
 
     fn copy_text(&self, payload: CopyTextPayload, window: &mut Window, cx: &mut App) {
         if copy_text_to_clipboard(payload.text) {
-            crate::platform::notify::show(&payload.title, &payload.message, payload.notification_type);
+            crate::services::notify::show(&payload.title, &payload.message, payload.notification_type);
             if payload.close_on_success {
                 self.close(window, cx);
             }
@@ -116,7 +116,7 @@ impl OverlayHandle {
     fn capture(&self, action: CaptureAction, context: crate::services::capture::action::ActionContext, window: &mut Window, cx: &mut App) {
         match action.execute(context) {
             ActionResult::Copied => {
-                crate::platform::notify::show(
+                crate::services::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
@@ -137,7 +137,7 @@ impl OverlayHandle {
                 );
             }
             ActionResult::Saved(path) => {
-                crate::platform::notify::show(
+                crate::services::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,
@@ -166,14 +166,14 @@ impl OverlayHandle {
             }
             ActionResult::NoOp => {
                 if matches!(action, CaptureAction::QrCode) {
-                    crate::platform::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
+                    crate::services::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
                 }
                 self.refresh(window, cx);
             }
             ActionResult::Error(err) => {
                 tracing::error!("Action error: {err}");
                 if matches!(action, CaptureAction::QrCode) {
-                    crate::platform::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
+                    crate::services::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
                 }
                 self.refresh(window, cx);
             }

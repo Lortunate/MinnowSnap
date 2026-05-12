@@ -5,10 +5,7 @@ use tracing::info;
 use crate::platform::{
     self,
     hotkey::HotkeyActionSink,
-    notify,
-    notify::init_windows_notification_app_id,
     shutdown,
-    system::install_ui_system_actions,
     tray::TrayActions,
 };
 use crate::services::{
@@ -16,11 +13,13 @@ use crate::services::{
     capture::service::CaptureService,
     geometry::Rect,
     i18n,
+    notify,
+    notify::init_windows_notification_app_id,
     settings,
 };
 use crate::ui::{
     features::{overlay, pin, preferences},
-    support::{appearance, locale},
+    support::{appearance, locale, system::install_ui_system_actions},
 };
 
 #[cfg(target_os = "macos")]

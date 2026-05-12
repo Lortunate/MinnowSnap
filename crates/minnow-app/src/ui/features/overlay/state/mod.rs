@@ -15,7 +15,7 @@ use crate::ui::features::overlay::annotation::AnnotationEngine;
 use crate::ui::features::overlay::window_catalog::{WindowInfo, find_window_at};
 use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::geometry::{RectF, clamp_point, normalize_rect};
-use crate::platform::notify::NotificationType;
+use crate::services::notify::NotificationType;
 
 pub(crate) use crate::ui::features::overlay::annotation::{
     AnnotationKind, AnnotationKindTag, AnnotationLayerState, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, AnnotationUiState,

@@ -6,7 +6,7 @@ use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::capture::active_monitor_scale;
 use crate::services::geometry::RectF;
 use crate::services::i18n;
-use crate::platform::notify::NotificationType;
+use crate::services::notify::NotificationType;
 
 impl OverlaySession {
     pub(super) fn apply(&mut self, command: OverlayCommand) -> OverlayOutcome {
