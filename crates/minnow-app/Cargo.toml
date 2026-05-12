@@ -12,11 +12,9 @@ path = "src/main.rs"
 default = []
 dhat-heap = ["dep:dhat"]
 overlay-diagnostics = []
-portable = ["minnow-core/portable"]
+portable = []
 
 [dependencies]
-minnow-core = { path = "../minnow-core" }
-
 ab_glyph = { workspace = true }
 anyhow = { workspace = true }
 arboard = { workspace = true }
@@ -79,10 +77,6 @@ anyhow = { workspace = true }
 ico = { workspace = true }
 image = { workspace = true, features = ["default"] }
 winres = { workspace = true }
-
-[dev-dependencies]
-minnow-assets = { path = "../minnow-assets" }
-minnow-paths = { path = "../minnow-paths" }
 
 [package.metadata.bundle]
 identifier = "com.lortunate.minnowsnap"

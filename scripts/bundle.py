@@ -270,7 +270,8 @@ def dist_macos() -> None:
     if not shutil.which("create-dmg"):
         fail("Error: create-dmg not found. Please install it (brew install create-dmg).")
 
-    volicon = PROJECT_ROOT / "crates" / "minnow-assets" / "assets_icons" / "icon.icns"
+    volicon = APP_MANIFEST.parent / "assets_icons" / "icon.icns"
+    volicon_path = PROJECT_ROOT / volicon
     cmd = [
         "create-dmg",
         "--volname", f"{APP_NAME} Installer",
@@ -283,8 +284,8 @@ def dist_macos() -> None:
         str(dmg_path),
         str(bundle_path),
     ]
-    if volicon.exists():
-        cmd[1:1] = ["--volicon", str(volicon)]
+    if volicon_path.exists():
+        cmd[1:1] = ["--volicon", str(volicon_path)]
 
     run_command(cmd)
     print_action("Finished", f"output: {dmg_path}")

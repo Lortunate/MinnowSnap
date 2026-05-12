@@ -6,9 +6,9 @@ use crate::services::capture::{
 use crate::services::geometry::Rect;
 use crate::services::settings::SETTINGS;
 use image::RgbaImage;
-use minnow_core::io::clipboard::copy_image_to_clipboard;
-use minnow_core::io::storage::{save_image_to_user_dir, save_temp_image};
-use minnow_core::notify;
+use crate::platform::io::clipboard::copy_image_to_clipboard;
+use crate::platform::io::storage::{save_image_to_user_dir, save_temp_image};
+use crate::platform::notify;
 use std::sync::Arc;
 use tracing::{error, info};
 

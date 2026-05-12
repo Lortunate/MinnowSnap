@@ -1,14 +1,14 @@
 use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
-use minnow_core::app_meta::{APP_LOCK_ID, APP_NAME};
+use crate::services::app_meta::{APP_LOCK_ID, APP_NAME};
 #[cfg(target_os = "macos")]
-use minnow_core::paths;
+use crate::services::paths;
 use single_instance::SingleInstance;
 use std::env;
 use tracing::{error, info};
 use tracing_appender::non_blocking::WorkerGuard;
 
 pub(crate) fn init_logger() -> Option<WorkerGuard> {
-    minnow_core::logging::init_logger()
+    crate::platform::logging::init_logger()
 }
 
 #[cfg(target_os = "macos")]

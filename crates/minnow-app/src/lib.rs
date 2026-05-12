@@ -20,7 +20,7 @@ fn build_runtime() -> Runtime {
 
 pub static RUNTIME: LazyLock<Runtime> = LazyLock::new(build_runtime);
 
-rust_i18n::i18n!("../minnow-assets/locales", fallback = "en");
+rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod app;
 pub mod platform;
