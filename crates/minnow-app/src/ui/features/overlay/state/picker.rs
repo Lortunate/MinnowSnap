@@ -1,4 +1,4 @@
-﻿use gpui::{Pixels, Point};
+use gpui::{Pixels, Point};
 
 use super::{DragMode, OverlaySession};
 
@@ -325,5 +325,3 @@ mod tests {
         assert!(session.picker_neighborhood.is_none());
     }
 }
-
-

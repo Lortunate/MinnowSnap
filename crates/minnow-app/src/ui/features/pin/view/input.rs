@@ -1,7 +1,7 @@
-﻿use super::ocr_geometry::{bounds_from_points, compute_block_geometries, hit_test_block, point_in_bounds, point_to_char_index};
+use super::ocr_geometry::{bounds_from_points, compute_block_geometries, hit_test_block, point_in_bounds, point_to_char_index};
 use super::{CloseAllPins, ClosePin, CopyPinContent, PinView, PointerMode, SavePinImage};
-use gpui::{Context, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ScrollWheelEvent, Window, px};
 use crate::services::capture::action::CaptureAction;
+use gpui::{Context, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ScrollWheelEvent, Window, px};
 use std::borrow::BorrowMut;
 use std::collections::BTreeSet;
 
@@ -170,5 +170,3 @@ impl PinView {
         }
     }
 }
-
-

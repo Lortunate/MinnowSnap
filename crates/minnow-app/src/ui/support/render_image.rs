@@ -1,4 +1,4 @@
-﻿use gpui::RenderImage;
+use gpui::RenderImage;
 use image::{Frame, RgbaImage};
 use std::sync::Arc;
 
@@ -10,4 +10,3 @@ pub fn from_rgba(mut image: RgbaImage) -> Arc<RenderImage> {
 
     Arc::new(RenderImage::new([Frame::new(image)]))
 }
-

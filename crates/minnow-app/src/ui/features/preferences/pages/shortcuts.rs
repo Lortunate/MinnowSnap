@@ -1,4 +1,4 @@
-﻿use super::{ShortcutsPageActions, components};
+use super::{ShortcutsPageActions, components};
 use crate::ui::features::preferences::{state::frame::ShortcutsPageProps, view::PreferencesView};
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::v_flex;
@@ -31,5 +31,3 @@ pub(super) fn render(props: &ShortcutsPageProps, actions: ShortcutsPageActions, 
         .child(footer)
         .into_any_element()
 }
-
-

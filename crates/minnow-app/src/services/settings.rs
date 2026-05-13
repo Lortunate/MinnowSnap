@@ -6,7 +6,91 @@ use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use tracing::{error, info};
 
-pub static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
+static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
+
+pub fn snapshot() -> AppSettings {
+    SETTINGS.lock().map(|guard| guard.get()).unwrap_or_default()
+}
+
+pub fn general_settings() -> GeneralSettings {
+    snapshot().general
+}
+
+pub fn output_settings() -> OutputSettings {
+    snapshot().output
+}
+
+pub fn shortcut_settings() -> ShortcutSettings {
+    snapshot().shortcuts
+}
+
+pub fn ocr_settings() -> OcrSettings {
+    snapshot().ocr
+}
+
+pub fn notification_settings() -> NotificationSettings {
+    snapshot().notification
+}
+
+pub fn language() -> String {
+    general_settings().language
+}
+
+pub fn auto_start_enabled() -> bool {
+    general_settings().auto_start
+}
+
+pub fn set_save_path(path: String) {
+    SETTINGS.lock().unwrap().set_save_path(path);
+}
+
+pub fn set_oxipng_enabled(enabled: bool) {
+    SETTINGS.lock().unwrap().set_oxipng_enabled(enabled);
+}
+
+pub fn set_font_family(font_family: String) {
+    SETTINGS.lock().unwrap().set_font_family(font_family);
+}
+
+pub fn set_theme(theme: String) {
+    SETTINGS.lock().unwrap().set_theme(theme);
+}
+
+pub fn set_language(language: String) {
+    SETTINGS.lock().unwrap().set_language(language);
+}
+
+pub fn set_auto_start(enabled: bool) {
+    SETTINGS.lock().unwrap().set_auto_start(enabled);
+}
+
+pub fn set_shortcuts(capture: String, quick_capture: String) {
+    SETTINGS.lock().unwrap().set_shortcuts(capture, quick_capture);
+}
+
+pub fn set_ocr_enabled(enabled: bool) {
+    SETTINGS.lock().unwrap().set_ocr_enabled(enabled);
+}
+
+pub fn set_notification_enabled(enabled: bool) {
+    SETTINGS.lock().unwrap().set_notification_enabled(enabled);
+}
+
+pub fn set_save_notification(enabled: bool) {
+    SETTINGS.lock().unwrap().set_save_notification(enabled);
+}
+
+pub fn set_copy_notification(enabled: bool) {
+    SETTINGS.lock().unwrap().set_copy_notification(enabled);
+}
+
+pub fn set_qr_code_notification(enabled: bool) {
+    SETTINGS.lock().unwrap().set_qr_code_notification(enabled);
+}
+
+pub fn set_shutter_sound(enabled: bool) {
+    SETTINGS.lock().unwrap().set_shutter_sound(enabled);
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
@@ -108,9 +192,11 @@ pub struct AppSettings {
     pub notification: NotificationSettings,
 }
 
-pub struct SettingsManager {
+struct SettingsManager {
     config: AppSettings,
     config_path: PathBuf,
+    #[cfg(test)]
+    save_count: usize,
 }
 
 impl Default for SettingsManager {
@@ -120,9 +206,14 @@ impl Default for SettingsManager {
 }
 
 impl SettingsManager {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let (config, config_path) = Self::load_config();
-        Self { config, config_path }
+        Self {
+            config,
+            config_path,
+            #[cfg(test)]
+            save_count: 0,
+        }
     }
 
     fn get_config_path() -> PathBuf {
@@ -159,7 +250,7 @@ impl SettingsManager {
         }
     }
 
-    pub fn get(&self) -> AppSettings {
+    fn get(&self) -> AppSettings {
         self.config.clone()
     }
 
@@ -168,63 +259,67 @@ impl SettingsManager {
         self.save();
     }
 
-    pub fn set_save_path(&mut self, path: String) {
+    fn set_save_path(&mut self, path: String) {
         self.update(|c| c.output.save_path = if path.is_empty() { None } else { Some(path) });
     }
 
-    pub fn set_oxipng_enabled(&mut self, enabled: bool) {
+    fn set_oxipng_enabled(&mut self, enabled: bool) {
         self.update(|c| c.output.oxipng_enabled = enabled);
     }
 
-    pub fn set_font_family(&mut self, font_family: String) {
+    fn set_font_family(&mut self, font_family: String) {
         self.update(|c| c.general.font_family = if font_family.is_empty() { None } else { Some(font_family) });
     }
 
-    pub fn set_theme(&mut self, theme: String) {
+    fn set_theme(&mut self, theme: String) {
         self.update(|c| c.general.theme = theme);
     }
 
-    pub fn set_language(&mut self, language: String) {
+    fn set_language(&mut self, language: String) {
         self.update(|c| c.general.language = language);
     }
 
-    pub fn set_auto_start(&mut self, enabled: bool) {
+    fn set_auto_start(&mut self, enabled: bool) {
         self.update(|c| c.general.auto_start = enabled);
     }
 
-    pub fn set_capture_shortcut(&mut self, shortcut: String) {
-        self.update(|c| c.shortcuts.capture = shortcut);
+    fn set_shortcuts(&mut self, capture: String, quick_capture: String) {
+        self.update(|c| {
+            c.shortcuts.capture = capture;
+            c.shortcuts.quick_capture = quick_capture;
+        });
     }
 
-    pub fn set_quick_capture_shortcut(&mut self, shortcut: String) {
-        self.update(|c| c.shortcuts.quick_capture = shortcut);
-    }
-
-    pub fn set_ocr_enabled(&mut self, enabled: bool) {
+    fn set_ocr_enabled(&mut self, enabled: bool) {
         self.update(|c| c.ocr.enabled = enabled);
     }
 
-    pub fn set_notification_enabled(&mut self, enabled: bool) {
+    fn set_notification_enabled(&mut self, enabled: bool) {
         self.update(|c| c.notification.enabled = enabled);
     }
 
-    pub fn set_save_notification(&mut self, enabled: bool) {
+    fn set_save_notification(&mut self, enabled: bool) {
         self.update(|c| c.notification.save_notification = enabled);
     }
 
-    pub fn set_copy_notification(&mut self, enabled: bool) {
+    fn set_copy_notification(&mut self, enabled: bool) {
         self.update(|c| c.notification.copy_notification = enabled);
     }
 
-    pub fn set_qr_code_notification(&mut self, enabled: bool) {
+    fn set_qr_code_notification(&mut self, enabled: bool) {
         self.update(|c| c.notification.qr_code_notification = enabled);
     }
 
-    pub fn set_shutter_sound(&mut self, enabled: bool) {
+    fn set_shutter_sound(&mut self, enabled: bool) {
         self.update(|c| c.notification.shutter_sound = enabled);
     }
 
-    fn save(&self) {
+    fn save(&mut self) {
+        #[cfg(test)]
+        {
+            self.save_count += 1;
+        }
+
         let config = self.config.clone();
         let path = self.config_path.clone();
 
@@ -242,5 +337,30 @@ impl SettingsManager {
             }
             Err(e) => error!("Failed to serialize config: {}", e),
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_manager() -> SettingsManager {
+        SettingsManager {
+            config: AppSettings::default(),
+            config_path: std::env::temp_dir().join("minnowsnap-settings-test.toml"),
+            save_count: 0,
+        }
+    }
+
+    #[test]
+    fn set_shortcuts_updates_both_bindings_with_one_save() {
+        let mut manager = test_manager();
+
+        manager.set_shortcuts("Ctrl+Shift+1".to_string(), "Ctrl+Shift+2".to_string());
+
+        let settings = manager.get();
+        assert_eq!(settings.shortcuts.capture, "Ctrl+Shift+1");
+        assert_eq!(settings.shortcuts.quick_capture, "Ctrl+Shift+2");
+        assert_eq!(manager.save_count, 1);
     }
 }

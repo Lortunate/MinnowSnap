@@ -1,4 +1,4 @@
-﻿#![cfg_attr(not(feature = "overlay-diagnostics"), allow(dead_code))]
+#![cfg_attr(not(feature = "overlay-diagnostics"), allow(dead_code))]
 
 use std::time::Instant;
 
@@ -219,5 +219,3 @@ mod tests {
         assert_eq!(parse_positive_u64(""), None);
     }
 }
-
-

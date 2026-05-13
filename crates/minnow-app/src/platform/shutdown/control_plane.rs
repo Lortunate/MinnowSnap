@@ -1,4 +1,4 @@
-﻿use super::ShutdownTrigger;
+use super::ShutdownTrigger;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
@@ -57,4 +57,3 @@ pub(super) fn cancel() {
         control.token.cancel();
     }
 }
-

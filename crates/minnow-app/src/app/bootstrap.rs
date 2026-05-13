@@ -1,7 +1,7 @@
-use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
 use crate::services::app_meta::{APP_LOCK_ID, APP_NAME};
 #[cfg(target_os = "macos")]
 use crate::services::paths;
+use auto_launch::{AutoLaunchBuilder, MacOSLaunchMode};
 use single_instance::SingleInstance;
 use std::env;
 use tracing::{error, info};

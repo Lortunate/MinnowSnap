@@ -1,4 +1,4 @@
-﻿use super::OverlayView;
+use super::OverlayView;
 use crate::ui::features::overlay::interaction::resolve_mouse_down_command;
 use crate::ui::features::overlay::state::{AnnotationCommand, LifecycleCommand};
 use gpui::{Context, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ScrollWheelEvent, Window, px};
@@ -72,5 +72,3 @@ impl OverlayView {
         );
     }
 }
-
-

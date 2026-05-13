@@ -1,9 +1,9 @@
-﻿use gpui::{App, IntoElement, ParentElement, Styled, div, px};
+use gpui::{App, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
+use crate::services::geometry::RectF;
 use crate::ui::features::overlay::render::layout::OverlayPanelLayout;
 use crate::ui::features::overlay::window_catalog::WindowInfo;
-use crate::services::geometry::RectF;
 
 const WINDOW_INFO_VERTICAL_PADDING: f64 = 4.0;
 const WINDOW_INFO_LINE_HEIGHT: f64 = 16.0;
@@ -144,5 +144,3 @@ mod tests {
         assert_eq!(content.height, WINDOW_INFO_VERTICAL_PADDING * 2.0 + WINDOW_INFO_LINE_HEIGHT);
     }
 }
-
-

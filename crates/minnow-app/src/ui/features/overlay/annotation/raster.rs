@@ -1,4 +1,4 @@
-﻿use image::imageops;
+use image::imageops;
 use image::{Rgba, RgbaImage};
 use imageproc::drawing::{
     draw_filled_circle_mut, draw_filled_ellipse_mut, draw_filled_rect_mut, draw_hollow_circle_mut, draw_hollow_ellipse_mut, draw_hollow_rect_mut,
@@ -296,5 +296,3 @@ pub(crate) fn draw_items_on_selection(layer: &mut RgbaImage, selection: RectF, i
         draw_annotation_item(layer, item, scale, (selection.x, selection.y));
     }
 }
-
-

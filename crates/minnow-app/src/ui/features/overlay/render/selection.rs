@@ -1,9 +1,9 @@
-﻿use gpui::{App, IntoElement, ParentElement, Styled, div, px};
+use gpui::{App, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
+use crate::services::geometry::RectF;
 use crate::ui::features::overlay::render::components::handle_marker;
 use crate::ui::features::overlay::state::ResizeCorner;
-use crate::services::geometry::RectF;
 
 pub(crate) fn overlay_mask(app_ctx: &App, selection: Option<RectF>, viewport_w: f64, viewport_h: f64) -> impl IntoElement {
     let theme = app_ctx.theme();
@@ -121,5 +121,3 @@ pub(crate) fn selection_handles(app_ctx: &App, selection: RectF) -> impl IntoEle
         )
         .cursor_move()
 }
-
-

@@ -1,4 +1,4 @@
-﻿mod engine;
+mod engine;
 mod hit_test;
 mod model;
 mod ops;
@@ -14,4 +14,3 @@ pub(crate) use model::{
     COLOR_PRESETS, MosaicMode,
 };
 pub(crate) use raster_cache::AnnotationRasterDiagnostics;
-

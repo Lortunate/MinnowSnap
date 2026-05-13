@@ -1,4 +1,4 @@
-﻿use std::f64::consts::PI;
+use std::f64::consts::PI;
 
 use crate::services::geometry::{RectF, normalize_rect};
 
@@ -277,5 +277,3 @@ pub(crate) fn ensure_mosaic_kind_style(kind: &mut AnnotationKind, style: &Annota
         *intensity = style.mosaic_intensity;
     }
 }
-
-

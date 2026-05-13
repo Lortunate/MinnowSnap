@@ -1,11 +1,11 @@
-﻿use gpui::RenderImage;
+use gpui::RenderImage;
 use image::RgbaImage;
 use std::sync::Arc;
 
-use crate::ui::features::overlay::window_catalog::{WindowInfo, fetch_windows_data};
-use crate::ui::support::render_image;
 use crate::services::capture::service::CaptureService;
 use crate::services::capture::update_last_capture;
+use crate::ui::features::overlay::window_catalog::{WindowInfo, fetch_windows_data};
+use crate::ui::support::render_image;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OverlaySurface {
@@ -32,5 +32,3 @@ impl OverlaySurface {
         }
     }
 }
-
-

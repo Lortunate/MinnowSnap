@@ -1,14 +1,14 @@
-﻿mod actions;
+mod actions;
 mod input;
 mod render;
 
+use crate::services::capture::action::CaptureAction;
 use crate::ui::features::overlay::annotation::COLOR_PRESETS;
 use crate::ui::features::overlay::state::{
     AnnotationCommand, AnnotationKindTag, AnnotationTool, CaptureCommand, DragMode, LifecycleCommand, OverlayCommand, OverlayHandle, PickerCommand,
 };
 use gpui::{AppContext, Context, Div, Entity, FocusHandle, Hsla, Rgba, Styled, Subscription, Window, div, rgba};
 use gpui_component::color_picker::ColorPickerState;
-use crate::services::capture::action::CaptureAction;
 
 pub(crate) struct OverlayView {
     handle: OverlayHandle,
@@ -204,5 +204,3 @@ mod tests {
         assert!(should_show_property_panel(None, Some(AnnotationKindTag::Rectangle)));
     }
 }
-
-

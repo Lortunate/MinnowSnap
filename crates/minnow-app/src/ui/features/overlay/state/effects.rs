@@ -1,11 +1,56 @@
-﻿use super::{OverlayEffect, OverlayHandle, OverlayOutcome};
+use super::OverlayHandle;
+use crate::platform::clipboard::copy_text_to_clipboard;
+use crate::platform::notify::NotificationType;
+use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
+use crate::services::geometry::{Rect, RectF};
+use crate::services::i18n;
 use crate::ui::features::long_capture::{self, LongCaptureRequest};
 use crate::ui::features::pin::{self, PinRequest};
 use gpui::{App, Window};
-use crate::services::capture::action::{ActionResult, CaptureAction};
-use crate::services::i18n;
-use crate::services::clipboard::copy_text_to_clipboard;
-use crate::services::notify::NotificationType;
+
+pub(crate) enum OverlayEffect {
+    Refresh,
+    Close,
+    StartLongCapture {
+        selection_rect: Rect,
+        viewport_rect: RectF,
+        viewport_scale: f64,
+    },
+    Capture {
+        action: CaptureAction,
+        context: ActionContext,
+    },
+    CopyText {
+        text: String,
+        title: String,
+        message: String,
+        notification_type: NotificationType,
+        close_on_success: bool,
+    },
+}
+
+#[derive(Default)]
+pub(crate) struct OverlayOutcome {
+    pub(super) effects: Vec<OverlayEffect>,
+}
+
+impl OverlayOutcome {
+    pub(super) fn push(&mut self, effect: OverlayEffect) {
+        self.effects.push(effect);
+    }
+
+    pub(super) fn refresh() -> Self {
+        let mut outcome = Self::default();
+        outcome.push(OverlayEffect::Refresh);
+        outcome
+    }
+
+    pub(super) fn with_effect(effect: OverlayEffect) -> Self {
+        let mut outcome = Self::default();
+        outcome.push(effect);
+        outcome
+    }
+}
 
 struct CopyTextPayload {
     text: String,
@@ -103,7 +148,7 @@ impl OverlayHandle {
 
     fn copy_text(&self, payload: CopyTextPayload, window: &mut Window, cx: &mut App) {
         if copy_text_to_clipboard(payload.text) {
-            crate::services::notify::show(&payload.title, &payload.message, payload.notification_type);
+            crate::platform::notify::show(&payload.title, &payload.message, payload.notification_type);
             if payload.close_on_success {
                 self.close(window, cx);
             }
@@ -116,7 +161,7 @@ impl OverlayHandle {
     fn capture(&self, action: CaptureAction, context: crate::services::capture::action::ActionContext, window: &mut Window, cx: &mut App) {
         match action.execute(context) {
             ActionResult::Copied => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
@@ -137,7 +182,7 @@ impl OverlayHandle {
                 );
             }
             ActionResult::Saved(path) => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,
@@ -166,19 +211,17 @@ impl OverlayHandle {
             }
             ActionResult::NoOp => {
                 if matches!(action, CaptureAction::QrCode) {
-                    crate::services::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
+                    crate::platform::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
                 }
                 self.refresh(window, cx);
             }
             ActionResult::Error(err) => {
                 tracing::error!("Action error: {err}");
                 if matches!(action, CaptureAction::QrCode) {
-                    crate::services::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
+                    crate::platform::notify::show(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
                 }
                 self.refresh(window, cx);
             }
         }
     }
 }
-
-

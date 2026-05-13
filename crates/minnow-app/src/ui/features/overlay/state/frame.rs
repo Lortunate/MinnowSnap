@@ -1,4 +1,4 @@
-﻿use super::{HudVm, OverlayFrame, OverlaySession, PickerVm, SelectionVm};
+use super::{HudVm, OverlayFrame, OverlaySession, PickerVm, SelectionVm};
 
 impl OverlaySession {
     pub(super) fn frame(&mut self) -> OverlayFrame {
@@ -25,4 +25,3 @@ impl OverlaySession {
         }
     }
 }
-

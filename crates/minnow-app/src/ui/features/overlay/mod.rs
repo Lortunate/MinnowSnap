@@ -1,4 +1,4 @@
-﻿mod actions;
+mod actions;
 mod annotation;
 mod interaction;
 pub(crate) mod render;
@@ -6,10 +6,11 @@ mod state;
 mod view;
 pub(crate) mod window_catalog;
 
-use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::services::app_meta::APP_ID;
+use crate::ui::support::appearance;
 use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions};
 use gpui_component::Root;
-use crate::services::app_meta::APP_ID;
 
 pub use actions::bind_keys;
 pub use state::OverlayHandle;
@@ -20,6 +21,7 @@ pub fn open_window(cx: &mut App) {
     let overlay_handle = cx.global::<OverlayHandle>().clone();
 
     if let Err(err) = cx.open_window(options, move |window, cx| {
+        appearance::apply_saved_preferences(Some(window), cx);
         configure_window(window, cx, true);
         let focus_handle = cx.focus_handle();
         let overlay_handle = overlay_handle.clone();
@@ -48,5 +50,3 @@ fn window_options(cx: &App) -> WindowOptions {
         APP_ID,
     )
 }
-
-

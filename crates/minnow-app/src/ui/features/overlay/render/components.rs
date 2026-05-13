@@ -1,4 +1,4 @@
-﻿use gpui::{App, IntoElement, Styled, div, px};
+use gpui::{App, IntoElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
 use crate::ui::features::overlay::state::ResizeCorner;
@@ -27,5 +27,3 @@ pub(crate) fn handle_marker(app_ctx: &App, x: f64, y: f64, corner: ResizeCorner)
         ResizeCorner::Top | ResizeCorner::Bottom => marker.cursor_ns_resize(),
     }
 }
-
-

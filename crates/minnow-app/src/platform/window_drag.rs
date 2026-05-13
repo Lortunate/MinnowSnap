@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
-use gpui::{Div, InteractiveElement, MouseButton, Window};
 #[cfg(not(target_os = "windows"))]
 use gpui::WindowControlArea;
+use gpui::{Div, InteractiveElement, MouseButton, Window};
 
 pub trait WindowDragExt {
     fn start_system_drag(&mut self) -> Result<()>;
@@ -71,8 +71,7 @@ mod platform {
 
         unsafe {
             let _ = ReleaseCapture();
-            PostMessageW(Some(hwnd), WM_NCLBUTTONDOWN, WPARAM(HTCAPTION as usize), LPARAM(0))
-                .map_err(|e| anyhow!("PostMessageW failed: {e}"))?;
+            PostMessageW(Some(hwnd), WM_NCLBUTTONDOWN, WPARAM(HTCAPTION as usize), LPARAM(0)).map_err(|e| anyhow!("PostMessageW failed: {e}"))?;
         }
 
         Ok(())
@@ -88,4 +87,3 @@ mod platform {
         Ok(())
     }
 }
-

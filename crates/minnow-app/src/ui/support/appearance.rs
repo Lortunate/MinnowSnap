@@ -1,6 +1,6 @@
-﻿use gpui::{App, Window};
+use crate::services::settings;
+use gpui::{App, Window};
 use gpui_component::{Theme, ThemeMode};
-use crate::services::settings::SETTINGS;
 
 pub const THEME_SYSTEM: &str = "System";
 pub const THEME_LIGHT: &str = "Light";
@@ -8,9 +8,9 @@ pub const THEME_DARK: &str = "Dark";
 const DEFAULT_FONT_FAMILY: &str = ".SystemUIFont";
 
 pub fn apply_saved_preferences(window: Option<&mut Window>, cx: &mut App) {
-    let settings = SETTINGS.lock().map(|guard| guard.get()).unwrap_or_default();
-    apply_theme_choice_inner(&settings.general.theme, window, cx);
-    apply_font_family_inner(settings.general.font_family.as_deref(), cx);
+    let settings = settings::general_settings();
+    apply_theme_choice_inner(&settings.theme, window, cx);
+    apply_font_family_inner(settings.font_family.as_deref(), cx);
     cx.refresh_windows();
 }
 
@@ -40,5 +40,3 @@ fn apply_font_family_inner(font_family: Option<&str>, cx: &mut App) {
         .to_string();
     Theme::global_mut(cx).font_family = family.into();
 }
-
-

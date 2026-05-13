@@ -1,6 +1,6 @@
-﻿use gpui::{App, IntoElement, ParentElement, Styled, div, px, rgba};
-use gpui_component::ActiveTheme as _;
 use crate::services::i18n;
+use gpui::{App, IntoElement, ParentElement, Styled, div, px, rgba};
+use gpui_component::ActiveTheme as _;
 
 use crate::ui::features::overlay::state::{PickerFormat, PickerNeighborhood, PickerSample};
 use crate::ui::key_unicode::{KeyUnicode, key_symbol};
@@ -259,5 +259,3 @@ mod tests {
         assert!(prefers_black_border(255, 0, 0));
     }
 }
-
-

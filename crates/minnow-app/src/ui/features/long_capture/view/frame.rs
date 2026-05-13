@@ -1,4 +1,4 @@
-﻿use super::super::LongCaptureRequest;
+use super::super::LongCaptureRequest;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
 use crate::ui::features::long_capture::layout::TOOLBAR_TOP_RESERVED;
 use gpui::{Context, InteractiveElement, IntoElement, ParentElement, Render, Styled, Window, div, px};
@@ -62,5 +62,3 @@ impl Render for FrameWindowView {
         root
     }
 }
-
-

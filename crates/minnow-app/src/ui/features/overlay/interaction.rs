@@ -1,7 +1,7 @@
-﻿use gpui::{MouseButton, Pixels, Point};
+use gpui::{MouseButton, Pixels, Point};
 
-use crate::ui::features::overlay::state::{AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner};
 use crate::services::geometry::RectF;
+use crate::ui::features::overlay::state::{AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner};
 
 pub(crate) fn resolve_mouse_down_command(
     session: &OverlaySession,
@@ -102,21 +102,11 @@ mod tests {
 
         assert!(matches!(session.mode(), DragMode::Idle));
 
-        let command = resolve_mouse_down_command(
-            &session,
-            MouseButton::Left,
-            Point::new(px(40.0), px(40.0)),
-            1,
-        );
+        let command = resolve_mouse_down_command(&session, MouseButton::Left, Point::new(px(40.0), px(40.0)), 1);
 
         assert_eq!(
             command,
-            Some(OverlayCommand::Lifecycle(LifecycleCommand::StartMove(Point::new(
-                px(40.0),
-                px(40.0),
-            ))))
+            Some(OverlayCommand::Lifecycle(LifecycleCommand::StartMove(Point::new(px(40.0), px(40.0),))))
         );
     }
 }
-
-

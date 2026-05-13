@@ -1,13 +1,13 @@
-﻿use super::PinView;
+use super::PinView;
 use super::ocr_geometry::{bounds_from_points, compute_block_geometries, paint_rotated_rect, paint_rotated_stroke, sub_geometry_by_ratio};
-use crate::ui::features::pin::{actions::PIN_CONTEXT, render, state::PinFrame};
-use crate::ui::support::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use crate::platform::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use crate::services::capture::action::CaptureAction;
+use crate::services::i18n;
+use crate::ui::features::pin::{PIN_CONTEXT, render, state::PinFrame};
 use gpui::InteractiveElement;
 use gpui::{App, Context, IntoElement, MouseButton, ParentElement, Styled, Window, canvas, div, px, quad};
 use gpui_component::ActiveTheme as _;
 use gpui_component::menu::ContextMenuExt;
-use crate::services::capture::action::CaptureAction;
-use crate::services::i18n;
 use std::borrow::BorrowMut;
 
 impl PinView {
@@ -151,5 +151,3 @@ impl gpui::Render for PinView {
             )
     }
 }
-
-

@@ -1,4 +1,4 @@
-﻿use crate::services::geometry::RectF;
+use crate::services::geometry::RectF;
 
 use super::model::{AnnotationItem, AnnotationKindTag, AnnotationOutline};
 
@@ -60,5 +60,3 @@ impl AnnotationHitProxy {
             .collect()
     }
 }
-
-

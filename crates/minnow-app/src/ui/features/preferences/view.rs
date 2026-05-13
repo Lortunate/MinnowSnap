@@ -1,19 +1,15 @@
-﻿use super::{
+use super::{
     pages::{self, PreferencesRenderActions},
-    state::{
-        self, MutationResult,
-        frame::PreferencesFrame,
-        state::{PreferencesNotice, PreferencesPage, PreferencesState},
-    },
+    state::{self, MutationResult, PreferencesNotice, PreferencesPage, PreferencesState, frame::PreferencesFrame},
 };
+use crate::platform::system;
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings, format_keystroke};
-use crate::ui::support::system;
+use crate::services::{i18n, ocr::service, settings};
 use gpui::{
     AnyElement, App, AsyncWindowContext, ClickEvent, Context, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent, ParentElement,
     PathPromptOptions, SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
 };
 use gpui_component::ActiveTheme as _;
-use crate::services::{i18n, ocr::service};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -87,23 +83,28 @@ impl PreferencesView {
     }
 
     pub(super) fn on_notifications_enabled_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.apply_mutation(state::notifications::set_enabled(checked), cx);
+        settings::set_notification_enabled(checked);
+        self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_save_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.apply_mutation(state::notifications::set_save_notification(checked), cx);
+        settings::set_save_notification(checked);
+        self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_copy_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.apply_mutation(state::notifications::set_copy_notification(checked), cx);
+        settings::set_copy_notification(checked);
+        self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_qr_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.apply_mutation(state::notifications::set_qr_code_notification(checked), cx);
+        settings::set_qr_code_notification(checked);
+        self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_shutter_sound_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.apply_mutation(state::notifications::set_shutter_sound(checked), cx);
+        settings::set_shutter_sound(checked);
+        self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_ocr_enabled_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
@@ -354,5 +355,3 @@ impl gpui::Render for PreferencesView {
         self.render_window(cx)
     }
 }
-
-

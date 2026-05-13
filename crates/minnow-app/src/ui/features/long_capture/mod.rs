@@ -1,12 +1,13 @@
-﻿mod coordinator;
+mod coordinator;
 mod layout;
 mod view;
 
-use crate::ui::support::native_window::{Level, WindowLevelExt};
-use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
-use gpui::{App, AppContext, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions};
+use crate::platform::native_window::{Level, WindowLevelExt};
+use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use crate::services::app_meta::APP_ID;
 use crate::services::geometry::{Rect, RectF};
+use crate::ui::support::appearance;
+use gpui::{App, AppContext, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions};
 use std::sync::Arc;
 use view::{FrameWindowView, LongCaptureToolbarAction, PreviewWindowView, ToolbarWindowView};
 use {coordinator::LongCaptureCoordinator, coordinator::LongCaptureWindowKind, layout::compute_window_layout};
@@ -49,6 +50,7 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
         let request = request.clone();
         let coordinator = coordinator.clone();
         move |window, cx| {
+            appearance::apply_saved_preferences(Some(window), cx);
             configure_window(window, cx, false);
             window.set_background_appearance(WindowBackgroundAppearance::Transparent);
             if let Err(err) = window.set_level(Level::AlwaysOnTop) {
@@ -75,6 +77,7 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
     if let Err(err) = cx.open_window(window_options(layout.toolbar_bounds, true), {
         let coordinator = coordinator.clone();
         move |window, cx| {
+            appearance::apply_saved_preferences(Some(window), cx);
             configure_window(window, cx, true);
             window.set_background_appearance(WindowBackgroundAppearance::Transparent);
             if let Err(err) = window.set_level(Level::AlwaysOnTop) {
@@ -92,6 +95,7 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
     }
 
     if let Err(err) = cx.open_window(window_options(layout.preview_bounds, false), move |window, cx| {
+        appearance::apply_saved_preferences(Some(window), cx);
         configure_window(window, cx, false);
         window.set_background_appearance(WindowBackgroundAppearance::Transparent);
         if let Err(err) = window.set_level(Level::AlwaysOnTop) {
@@ -140,5 +144,3 @@ mod tests {
         assert_eq!(mapped, RectF::new(370.0, -10.0, 200.0, 100.0));
     }
 }
-
-

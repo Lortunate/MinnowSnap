@@ -3,23 +3,12 @@ use tokio::sync::broadcast;
 use tracing::info;
 
 use crate::platform::{
-    self,
-    hotkey::HotkeyActionSink,
-    shutdown,
-    tray::TrayActions,
+    self, hotkey::HotkeyActionSink, notify, notify::init_windows_notification_app_id, shutdown, system::install_ui_system_actions, tray::TrayActions,
 };
-use crate::services::{
-    assets::AppAssets,
-    capture::service::CaptureService,
-    geometry::Rect,
-    i18n,
-    notify,
-    notify::init_windows_notification_app_id,
-    settings,
-};
+use crate::services::{assets::AppAssets, capture::service::CaptureService, geometry::Rect, i18n, settings};
 use crate::ui::{
     features::{overlay, pin, preferences},
-    support::{appearance, locale, system::install_ui_system_actions},
+    support::{appearance, locale},
 };
 
 #[cfg(target_os = "macos")]
@@ -55,10 +44,7 @@ pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
     app.run(move |cx| {
         install_shutdown_listener(cx);
 
-        let locale_choice = settings::SETTINGS
-            .lock()
-            .map(|settings| settings.get().general.language)
-            .unwrap_or_else(|_| i18n::SYSTEM_LOCALE.to_string());
+        let locale_choice = settings::language();
         locale::apply(&locale_choice);
         gpui_component::init(cx);
         appearance::apply_saved_preferences(None, cx);
@@ -66,14 +52,11 @@ pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         overlay::bind_keys(cx);
         pin::bind_keys(cx);
         pin::install(cx);
-        set_auto_start(settings::SETTINGS.lock().unwrap().get().general.auto_start);
+        set_auto_start(settings::auto_start_enabled());
         let hotkey_callbacks = hotkey_callback_bindings();
         platform::hotkey::install_hotkey_service(
             cx,
-            HotkeyActionSink::new(
-                hotkey_callbacks.open_capture_overlay,
-                hotkey_callbacks.run_quick_capture,
-            ),
+            HotkeyActionSink::new(hotkey_callbacks.open_capture_overlay, hotkey_callbacks.run_quick_capture),
         );
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);

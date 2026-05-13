@@ -1,4 +1,4 @@
-﻿use super::{NotificationsPageActions, components};
+use super::{NotificationsPageActions, components};
 use crate::ui::features::preferences::{state::frame::NotificationsPageProps, view::PreferencesView};
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, px};
 use gpui_component::v_flex;
@@ -23,5 +23,3 @@ pub(super) fn render(props: &NotificationsPageProps, actions: NotificationsPageA
         ))
         .into_any_element()
 }
-
-

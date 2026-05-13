@@ -1,4 +1,4 @@
-﻿use super::{OcrPageActions, components};
+use super::{OcrPageActions, components};
 use crate::ui::features::preferences::{state::frame::OcrPageProps, view::PreferencesView};
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::{ActiveTheme as _, v_flex};
@@ -30,5 +30,3 @@ pub(super) fn render(props: &OcrPageProps, actions: OcrPageActions, cx: &mut Con
         .children(note)
         .into_any_element()
 }
-
-

@@ -33,10 +33,8 @@ pub fn popup_window_options(spec: PopupWindowSpec, app_id: &'static str) -> Wind
 }
 
 pub fn configure_window(window: &mut Window, cx: &mut App, focus: bool) {
-    crate::ui::support::appearance::apply_saved_preferences(Some(window), cx);
     if focus {
         let focus_handle = cx.focus_handle();
         focus_handle.focus(window);
     }
 }
-

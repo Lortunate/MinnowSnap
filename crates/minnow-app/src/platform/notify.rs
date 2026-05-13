@@ -1,6 +1,6 @@
 use crate::services::app_meta::APP_NAME;
 use crate::services::assets::asset_bytes;
-use crate::services::settings::SETTINGS;
+use crate::services::settings;
 use tracing::error;
 
 #[cfg(target_os = "windows")]
@@ -29,12 +29,9 @@ pub enum NotificationType {
 }
 
 pub fn play_shutter() {
-    let settings = match SETTINGS.lock() {
-        Ok(guard) => guard.get(),
-        Err(_) => return,
-    };
+    let settings = settings::notification_settings();
 
-    if !settings.notification.shutter_sound {
+    if !settings.shutter_sound {
         return;
     }
 
@@ -106,19 +103,16 @@ pub fn init_windows_notification_app_id() {
 }
 
 pub fn show(title: &str, message: &str, type_: NotificationType) {
-    let settings = match SETTINGS.lock() {
-        Ok(guard) => guard.get(),
-        Err(_) => return,
-    };
+    let settings = settings::notification_settings();
 
-    if !settings.notification.enabled {
+    if !settings.enabled {
         return;
     }
 
     let allowed = match type_ {
-        NotificationType::Copy => settings.notification.copy_notification,
-        NotificationType::Save => settings.notification.save_notification,
-        NotificationType::QrCode => settings.notification.qr_code_notification,
+        NotificationType::Copy => settings.copy_notification,
+        NotificationType::Save => settings.save_notification,
+        NotificationType::QrCode => settings.qr_code_notification,
         _ => true,
     };
     if !allowed {
@@ -140,4 +134,3 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
         error!("Failed to send notification: {}", e);
     }
 }
-

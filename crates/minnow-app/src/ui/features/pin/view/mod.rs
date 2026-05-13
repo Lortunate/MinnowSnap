@@ -1,17 +1,17 @@
-﻿mod input;
+mod input;
 mod ocr_geometry;
 mod render;
 
 use super::{
-    actions::{CloseAllPins, ClosePin, CopyPinContent, SavePinImage},
+    CloseAllPins, ClosePin, CopyPinContent, SavePinImage,
     state::{PinManager, PinSession},
 };
-use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
+use crate::platform::clipboard::copy_text_to_clipboard;
+use crate::platform::notify::NotificationType;
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::i18n;
-use crate::services::clipboard::copy_text_to_clipboard;
 use crate::services::ocr::service;
-use crate::services::notify::NotificationType;
+use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
 use std::collections::BTreeSet;
 
 enum PointerMode {
@@ -59,14 +59,14 @@ impl PinView {
         let path = image_path.to_string_lossy().to_string();
         match action.execute(ActionContext::full_image(path)) {
             ActionResult::Copied => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
                 );
             }
             ActionResult::Saved(path) => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,
@@ -84,7 +84,7 @@ impl PinView {
         if let Some(text) = text
             && copy_text_to_clipboard(text)
         {
-            crate::services::notify::show(
+            crate::platform::notify::show(
                 i18n::app::capture_name().as_str(),
                 i18n::notify::copied_text().as_str(),
                 NotificationType::Copy,
@@ -122,5 +122,3 @@ impl PinView {
         }
     }
 }
-
-

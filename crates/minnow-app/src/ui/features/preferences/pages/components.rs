@@ -1,8 +1,10 @@
-﻿use super::{SelectAction, ToggleAction};
+use super::{SelectAction, ToggleAction};
+use crate::services::assets::asset_paths;
+use crate::services::i18n;
 use crate::ui::features::preferences::{
     state::{
+        PreferencesNotice,
         frame::{ActionRowProps, ButtonProps, SelectOption, SelectRowProps, SidebarItemProps, ToggleRowProps},
-        state::PreferencesNotice,
     },
     view::PreferencesView,
 };
@@ -17,8 +19,6 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
-use crate::services::assets::asset_paths;
-use crate::services::i18n;
 
 #[derive(Clone, Copy)]
 pub(crate) enum PreferencesChromeIcon {
@@ -257,5 +257,3 @@ fn setting_row(title: SharedString, description: SharedString, disabled: bool, c
 fn render_divider(cx: &App) -> impl IntoElement {
     div().h(px(1.)).w_full().bg(cx.theme().border.alpha(0.6))
 }
-
-

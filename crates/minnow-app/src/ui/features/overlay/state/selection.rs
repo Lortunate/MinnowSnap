@@ -1,7 +1,7 @@
-﻿use gpui::{Pixels, Point};
+use gpui::{Pixels, Point};
 
-use crate::ui::features::overlay::window_catalog::find_window_at;
 use crate::services::geometry::RectF;
+use crate::ui::features::overlay::window_catalog::find_window_at;
 
 use super::{DragMode, OverlaySession, ResizeCorner};
 
@@ -263,10 +263,7 @@ mod tests {
 
         // Simulate a selection move drag followed by pointer release.
         session.start_move(Point::new(gpui::px(30.0), gpui::px(30.0)));
-        session.update_move(Point::new(
-            gpui::px((30.0 + dx) as f32),
-            gpui::px((30.0 + dy) as f32),
-        ));
+        session.update_move(Point::new(gpui::px((30.0 + dx) as f32), gpui::px((30.0 + dy) as f32)));
         session.apply(OverlayCommand::Lifecycle(LifecycleCommand::PointerReleased));
 
         let after = session.selected_annotation_item().unwrap().bounds();
@@ -342,5 +339,3 @@ mod tests {
         assert_eq!(session.selection(), Some(RectF::new(120.0, 50.0, 80.0, 50.0)));
     }
 }
-
-

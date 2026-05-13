@@ -38,4 +38,3 @@ pub fn open_external_url(app: &mut App, url: &str) {
 pub fn open_in_file_manager(app: &mut App, path: impl AsRef<Path>) {
     app.open_with_system(path.as_ref());
 }
-

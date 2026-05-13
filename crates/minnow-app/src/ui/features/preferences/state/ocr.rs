@@ -1,4 +1,4 @@
-﻿use super::{MutationResult, state::PreferencesState};
+use super::{MutationResult, PreferencesState};
 use crate::services::{i18n, ocr::service, ocr::service::OcrModelStatus};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -35,7 +35,7 @@ pub(crate) fn ocr_status_label(status: &OcrModelStatus) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::features::preferences::state::state::PreferencesNotice;
+    use crate::ui::features::preferences::state::PreferencesNotice;
 
     #[test]
     fn ocr_status_label_maps_failed_status() {
@@ -67,5 +67,3 @@ mod tests {
         assert!(state.notice.as_ref().is_some_and(PreferencesNotice::is_error));
     }
 }
-
-

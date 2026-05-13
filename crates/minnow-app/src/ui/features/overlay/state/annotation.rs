@@ -1,9 +1,9 @@
-﻿use gpui::{Pixels, Point};
+use gpui::{Pixels, Point};
 
+use crate::services::capture::active_monitor_scale;
 #[cfg(test)]
 use crate::ui::features::overlay::annotation::AnnotationItem;
 use crate::ui::features::overlay::annotation::{AnnotationKind, AnnotationTool, AnnotationUiState, MosaicMode};
-use crate::services::capture::active_monitor_scale;
 
 use super::{DragMode, OverlaySession};
 
@@ -156,5 +156,3 @@ impl OverlaySession {
         self.annotation.composed_background_source(self.background_pixels.as_ref(), scale)
     }
 }
-
-

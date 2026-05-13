@@ -1,4 +1,5 @@
-﻿use gpui::{
+use crate::services::assets::asset_paths;
+use gpui::{
     App, Corner, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div,
     px, rgba,
 };
@@ -8,15 +9,14 @@ use gpui_component::{
     color_picker::{ColorPicker, ColorPickerState},
     h_flex, v_flex,
 };
-use crate::services::assets::asset_paths;
 
+use crate::services::i18n;
 use crate::ui::features::overlay::annotation::COLOR_PRESETS;
 use crate::ui::features::overlay::render::OverlayActionHandler;
 use crate::ui::features::overlay::render::layout::OverlayPanelLayout;
 use crate::ui::features::overlay::state::{
     AnnotationCommand, AnnotationKindTag, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, MosaicMode, OverlayCommand,
 };
-use crate::services::i18n;
 
 #[derive(Clone)]
 pub(crate) struct OverlayPropertyState {
@@ -355,5 +355,3 @@ pub(crate) fn overlay_properties_panel(
 
     panel.child(sections)
 }
-
-

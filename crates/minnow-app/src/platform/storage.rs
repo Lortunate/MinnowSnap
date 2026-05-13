@@ -126,4 +126,3 @@ fn save_compressed_png(image: &RgbaImage, path: &PathBuf) -> Option<String> {
         }
     }
 }
-

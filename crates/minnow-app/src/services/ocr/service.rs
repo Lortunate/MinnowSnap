@@ -1,5 +1,5 @@
 use super::{OcrBlock, OcrContext, OcrModelType, build_ocr_blocks};
-use crate::services::settings::SETTINGS;
+use crate::services::settings;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -35,11 +35,11 @@ impl OcrModelStatus {
 }
 
 pub fn is_enabled() -> bool {
-    SETTINGS.lock().unwrap().get().ocr.enabled
+    settings::ocr_settings().enabled
 }
 
 pub fn set_enabled(enabled: bool) {
-    SETTINGS.lock().unwrap().set_ocr_enabled(enabled);
+    settings::set_ocr_enabled(enabled);
 }
 
 pub fn mobile_models_ready() -> bool {
@@ -194,11 +194,11 @@ mod tests {
     fn runtime_bridge_converts_panic_to_error() {
         let err = crate::RUNTIME
             .block_on(run_on_app_runtime::<(), _>("panic task", async move {
-                panic!("panic-marker");
+                panic!("runtime bridge panic");
             }))
             .expect_err("runtime bridge should convert panic to error");
 
         assert!(err.contains("panic task"));
-        assert!(err.contains("panic-marker"));
+        assert!(err.contains("runtime bridge panic"));
     }
 }

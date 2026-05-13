@@ -1,8 +1,9 @@
-﻿use super::{MutationResult, store};
-use crate::services::hotkeys::{HotkeyAction, ShortcutBindings};
-use crate::ui::features::preferences::view::PreferencesView;
+use super::MutationResult;
 use crate::platform::hotkey::HotkeyService;
+use crate::services::hotkeys::{HotkeyAction, ShortcutBindings};
 use crate::services::i18n;
+use crate::services::settings;
+use crate::ui::features::preferences::view::PreferencesView;
 use gpui::{App, BorrowAppContext, Context, SharedString};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -38,10 +39,7 @@ pub(crate) fn persist_shortcut_bindings(bindings: ShortcutBindings, cx: &mut Con
             return Err(SharedString::from(i18n::preferences::shortcuts_conflict()));
         }
     } else {
-        store::with_settings(|settings| {
-            settings.set_capture_shortcut(bindings.capture.clone());
-            settings.set_quick_capture_shortcut(bindings.quick_capture.clone());
-        });
+        settings::set_shortcuts(bindings.capture.clone(), bindings.quick_capture.clone());
     }
 
     Ok(MutationResult::refresh_windows().clear_notice())
@@ -51,8 +49,8 @@ fn current_shortcut_bindings(cx: &App) -> ShortcutBindings {
     if cx.has_global::<HotkeyService>() {
         cx.global::<HotkeyService>().current_bindings()
     } else {
-        let settings = store::snapshot();
-        ShortcutBindings::from_settings(&settings.shortcuts)
+        let settings = settings::shortcut_settings();
+        ShortcutBindings::from_settings(&settings)
     }
 }
 
@@ -98,5 +96,3 @@ mod tests {
         assert_eq!(quick.capture, current.capture);
     }
 }
-
-

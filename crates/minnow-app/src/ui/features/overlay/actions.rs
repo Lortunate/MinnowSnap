@@ -1,4 +1,4 @@
-﻿use gpui::{App, KeyBinding, actions};
+use gpui::{App, KeyBinding, actions};
 
 pub(crate) const OVERLAY_CONTEXT: &str = "MinnowSnapOverlay";
 
@@ -67,4 +67,3 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("escape", CloseOverlay, Some(OVERLAY_CONTEXT)),
     ]);
 }
-

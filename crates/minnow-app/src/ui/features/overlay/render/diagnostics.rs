@@ -1,4 +1,4 @@
-﻿use gpui::{App, IntoElement, ParentElement, Styled, div, px};
+use gpui::{App, IntoElement, ParentElement, Styled, div, px};
 use gpui_component::ActiveTheme as _;
 
 use crate::ui::features::overlay::state::OverlayDiagnosticsSnapshot;
@@ -43,5 +43,3 @@ pub(crate) fn overlay_diagnostics_hud(app_ctx: &App, snapshot: &OverlayDiagnosti
             snapshot.annotation_moving_fast_path_hits
         )))
 }
-
-

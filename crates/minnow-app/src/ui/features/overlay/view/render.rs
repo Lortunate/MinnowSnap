@@ -1,4 +1,5 @@
-﻿use super::{OverlayView, SelectionHudVisibility, should_show_property_panel};
+use super::{OverlayView, SelectionHudVisibility, should_show_property_panel};
+use crate::services::geometry::RectF;
 use crate::ui::features::overlay::actions::OVERLAY_CONTEXT;
 use crate::ui::features::overlay::render::OverlayActionHandler;
 use crate::ui::features::overlay::render::annotation::overlay_annotations_layer;
@@ -18,7 +19,6 @@ use crate::ui::features::overlay::window_catalog::WindowInfo;
 use gpui::InteractiveElement;
 use gpui::{Context, Div, Entity, IntoElement, MouseButton, ParentElement, Stateful, Styled, Window, div, img};
 use gpui_component::{ActiveTheme, color_picker::ColorPickerState};
-use crate::services::geometry::RectF;
 use std::rc::Rc;
 
 impl OverlayView {
@@ -51,10 +51,7 @@ impl OverlayView {
         let Some(selection) = frame.selection.selection else {
             return Self::overlay_layer();
         };
-        let hud_visibility = SelectionHudVisibility::from_selection_state(
-            frame.selection.drag_mode,
-            frame.selection_move_delta.is_some(),
-        );
+        let hud_visibility = SelectionHudVisibility::from_selection_state(frame.selection.drag_mode, frame.selection_move_delta.is_some());
         let selected_is_text = frame
             .annotation
             .selected
@@ -244,5 +241,3 @@ impl gpui::Render for OverlayView {
         root
     }
 }
-
-

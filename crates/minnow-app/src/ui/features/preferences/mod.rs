@@ -1,11 +1,12 @@
-﻿mod pages;
+mod pages;
 mod state;
 mod view;
 
-use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::services::app_meta::APP_ID;
+use crate::ui::support::appearance;
 use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions, px, size};
 use gpui_component::Root;
-use crate::services::app_meta::APP_ID;
 use view::PreferencesView;
 
 fn window_options(cx: &App) -> WindowOptions {
@@ -31,6 +32,7 @@ pub fn open_window(cx: &mut App) {
     let options = window_options(cx);
 
     if let Err(err) = cx.open_window(options, |window, cx| {
+        appearance::apply_saved_preferences(Some(window), cx);
         configure_window(window, cx, true);
         let focus_handle = cx.focus_handle();
         let view = cx.new(move |_| PreferencesView::new(focus_handle));
@@ -39,5 +41,3 @@ pub fn open_window(cx: &mut App) {
         tracing::error!("Failed to open preferences window: {err}");
     }
 }
-
-

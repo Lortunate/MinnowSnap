@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 
 use super::model::AnnotationItem;
 
@@ -186,5 +186,3 @@ mod tests {
         assert_eq!(store.visible_item(2).unwrap().bounds().x, 12.0);
     }
 }
-
-

@@ -1,6 +1,6 @@
-﻿use super::request::PinRequest;
-use gpui::{AnyWindowHandle, App, AppContext, Entity, Global, Pixels, Point, Size, WindowId, px, size};
+use super::request::PinRequest;
 use crate::services::ocr::{OcrBlock, format_selected_blocks};
+use gpui::{AnyWindowHandle, App, AppContext, Entity, Global, Pixels, Point, Size, WindowId, px, size};
 use std::collections::BTreeSet;
 use tracing::{info, warn};
 
@@ -621,5 +621,3 @@ mod tests {
         assert_eq!(session.selected_or_active_text(), Some("hello world second line".to_string()));
     }
 }
-
-

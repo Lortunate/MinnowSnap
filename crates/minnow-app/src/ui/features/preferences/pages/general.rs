@@ -1,4 +1,4 @@
-﻿use super::{GeneralPageActions, components};
+use super::{GeneralPageActions, components};
 use crate::ui::features::preferences::{state::frame::GeneralPageProps, view::PreferencesView};
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, px};
 use gpui_component::v_flex;
@@ -29,5 +29,3 @@ pub(super) fn render(props: &GeneralPageProps, actions: GeneralPageActions, cx: 
         ))
         .into_any_element()
 }
-
-

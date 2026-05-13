@@ -1,4 +1,4 @@
-﻿pub(crate) mod annotation;
+pub(crate) mod annotation;
 pub(crate) mod components;
 #[cfg(feature = "overlay-diagnostics")]
 pub(crate) mod diagnostics;
@@ -15,5 +15,3 @@ use std::rc::Rc;
 use crate::ui::features::overlay::state::OverlayCommand;
 
 pub(crate) type OverlayActionHandler = Rc<dyn Fn(OverlayCommand, &mut Window, &mut App)>;
-
-

@@ -1,21 +1,47 @@
-﻿use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
-use crate::ui::features::long_capture::layout::TOOLBAR_TOP_RESERVED;
-use crate::ui::features::overlay::render::layout::{OverlayPanelLayout, toolbar_size};
-use crate::ui::features::overlay::render::toolbar::{ToolbarIcon, toolbar_icon, toolbar_panel};
-use crate::ui::features::pin::{self, PinRequest};
-use gpui::InteractiveElement;
-use gpui::{ClickEvent, Context, FocusHandle, IntoElement, KeyDownEvent, ParentElement, Render, Styled, Window, div, px};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme as _, Disableable, h_flex};
+use crate::platform::notify::NotificationType;
+use crate::services::assets::asset_paths;
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::capture::service::CaptureService;
 use crate::services::i18n;
-use crate::services::notify::NotificationType;
+use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
+use crate::ui::features::long_capture::layout::{TOOLBAR_TOP_RESERVED, long_capture_toolbar_size};
+use crate::ui::features::pin::{self, PinRequest};
+use gpui::InteractiveElement;
+use gpui::{App, ClickEvent, Context, Div, FocusHandle, IntoElement, KeyDownEvent, ParentElement, Render, Styled, Window, div, px};
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::{ActiveTheme as _, Disableable, Icon, IconNamed, Sizable, h_flex};
 use std::sync::Arc;
 use std::time::Duration;
 
 const WARNING_HEIGHT: f64 = 34.0;
 const CAPTURE_ACTION_TIMEOUT: Duration = Duration::from_millis(260);
+
+#[derive(Clone, Copy)]
+struct ToolbarPanelLayout {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+#[derive(Clone, Copy)]
+enum LongCaptureToolbarIcon {
+    Save,
+    Pin,
+    Copy,
+    Cancel,
+}
+
+impl IconNamed for LongCaptureToolbarIcon {
+    fn path(self) -> gpui::SharedString {
+        match self {
+            Self::Save => asset_paths::icons::SAVE.into(),
+            Self::Pin => asset_paths::icons::KEEP.into(),
+            Self::Copy => asset_paths::icons::FILE_COPY.into(),
+            Self::Cancel => asset_paths::icons::CLOSE.into(),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum LongCaptureToolbarAction {
@@ -37,12 +63,12 @@ impl LongCaptureToolbarAction {
         }
     }
 
-    fn icon(self) -> ToolbarIcon {
+    fn icon(self) -> LongCaptureToolbarIcon {
         match self {
-            Self::Save => ToolbarIcon::Save,
-            Self::Pin => ToolbarIcon::Pin,
-            Self::Copy => ToolbarIcon::Copy,
-            Self::Cancel => ToolbarIcon::Cancel,
+            Self::Save => LongCaptureToolbarIcon::Save,
+            Self::Pin => LongCaptureToolbarIcon::Pin,
+            Self::Copy => LongCaptureToolbarIcon::Copy,
+            Self::Cancel => LongCaptureToolbarIcon::Cancel,
         }
     }
 
@@ -130,7 +156,7 @@ impl ToolbarWindowView {
     fn handle_capture_action_result(&mut self, result: ActionResult, window: &mut Window, cx: &mut Context<Self>) {
         match result {
             ActionResult::Copied => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
@@ -138,7 +164,7 @@ impl ToolbarWindowView {
                 self.close_capture_windows(window, cx);
             }
             ActionResult::Saved(path) => {
-                crate::services::notify::show(
+                crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,
@@ -190,8 +216,8 @@ impl ToolbarWindowView {
 impl Render for ToolbarWindowView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let snapshot = self.coordinator.snapshot();
-        let (toolbar_width, toolbar_height) = toolbar_size(LongCaptureToolbarAction::ORDERED.len());
-        let layout = OverlayPanelLayout {
+        let (toolbar_width, toolbar_height) = long_capture_toolbar_size(LongCaptureToolbarAction::ORDERED.len());
+        let layout = ToolbarPanelLayout {
             x: 0.0,
             y: TOOLBAR_TOP_RESERVED,
             width: toolbar_width,
@@ -235,4 +261,34 @@ impl Render for ToolbarWindowView {
     }
 }
 
+fn toolbar_icon(app_ctx: &App, icon_name: LongCaptureToolbarIcon) -> Icon {
+    let theme = app_ctx.theme();
+    Icon::new(icon_name).small().text_color(theme.popover_foreground)
+}
 
+fn toolbar_panel(app_ctx: &App, layout: ToolbarPanelLayout) -> Div {
+    let theme = app_ctx.theme();
+    let mut panel = div()
+        .absolute()
+        .left(px(layout.x as f32))
+        .top(px(layout.y as f32))
+        .w(px(layout.width as f32))
+        .h(px(layout.height as f32))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(theme.radius_lg)
+        .border_1()
+        .border_color(theme.border.alpha(0.82))
+        .bg(theme.popover.alpha(0.98))
+        .overflow_hidden()
+        .px_2()
+        .py_1()
+        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .on_mouse_down(gpui::MouseButton::Middle, |_, _, cx| cx.stop_propagation())
+        .on_mouse_down(gpui::MouseButton::Right, |_, _, cx| cx.stop_propagation());
+    if theme.shadow {
+        panel = panel.shadow_lg();
+    }
+    panel
+}

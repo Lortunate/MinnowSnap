@@ -1,4 +1,8 @@
-﻿use crate::ui::features::overlay::render::OverlayActionHandler;
+use crate::services::assets::asset_paths;
+use crate::services::capture::action::CaptureAction;
+use crate::services::i18n;
+use crate::services::ocr::service;
+use crate::ui::features::overlay::render::OverlayActionHandler;
 use crate::ui::features::overlay::render::layout::OverlayPanelLayout;
 use crate::ui::features::overlay::state::{AnnotationCommand, AnnotationTool, CaptureCommand, LifecycleCommand, OverlayCommand};
 use gpui::{
@@ -11,10 +15,6 @@ use gpui_component::{
     h_flex,
     popover::Popover,
 };
-use crate::services::capture::action::CaptureAction;
-use crate::services::assets::asset_paths;
-use crate::services::i18n;
-use crate::services::ocr::service;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -607,5 +607,3 @@ pub(crate) fn overlay_toolbar(
 
     toolbar_panel(app_ctx, layout).child(row)
 }
-
-

@@ -1,14 +1,12 @@
+use crate::platform::clipboard::copy_image_to_clipboard;
+use crate::platform::notify;
+use crate::platform::storage::{save_image_to_user_dir, save_temp_image};
 use crate::services::capture::action::CaptureInputMode;
 use crate::services::capture::source::{self, VirtualCaptureSource};
-use crate::services::capture::{
-    active_monitor_scale, capture_active_monitor, get_cached_capture, perform_crop, update_last_capture,
-};
+use crate::services::capture::{active_monitor_scale, capture_active_monitor, get_cached_capture, perform_crop, update_last_capture};
 use crate::services::geometry::Rect;
-use crate::services::settings::SETTINGS;
+use crate::services::settings;
 use image::RgbaImage;
-use crate::services::clipboard::copy_image_to_clipboard;
-use crate::services::notify;
-use crate::services::storage::{save_image_to_user_dir, save_temp_image};
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -143,10 +141,10 @@ impl CaptureService {
     ) -> Result<String, String> {
         let img = Self::resolve_image(path, rect, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
-        let settings = SETTINGS.lock().map_err(|_| "Failed to lock settings".to_string())?.get();
-        let save_path = save_path_override.or(settings.output.save_path);
+        let settings = settings::output_settings();
+        let save_path = save_path_override.or(settings.save_path);
 
-        let result = save_image_to_user_dir(&img, settings.output.oxipng_enabled, save_path);
+        let result = save_image_to_user_dir(&img, settings.oxipng_enabled, save_path);
         if result.is_some() {
             notify::play_shutter();
         }
@@ -178,8 +176,7 @@ impl CaptureService {
         if let Some(cropped) = Self::resolve_image(path, rect, input_mode) {
             let gray = image::imageops::grayscale(&cropped);
             let (w, h) = gray.dimensions();
-            let mut img =
-                rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
+            let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
             let grids = img.detect_grids();
             if let Some(grid) = grids.first()
                 && let Ok((_meta, content)) = grid.decode()

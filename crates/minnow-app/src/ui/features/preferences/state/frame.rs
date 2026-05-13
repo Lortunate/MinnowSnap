@@ -1,12 +1,11 @@
-﻿use super::{
+use super::{
+    PreferencesNotice, PreferencesPage, PreferencesState,
     general::{self, GeneralSnapshot},
-    notifications::{self, NotificationsSnapshot},
     ocr, shortcuts,
-    state::{PreferencesNotice, PreferencesPage, PreferencesState},
 };
 use crate::services::app_meta::APP_NAME;
 use crate::services::hotkeys::HotkeyAction;
-use crate::services::{i18n, ocr::service::OcrModelStatus, paths};
+use crate::services::{i18n, ocr::service::OcrModelStatus, paths, settings};
 use gpui::{App, SharedString};
 use std::path::PathBuf;
 
@@ -214,7 +213,7 @@ pub(crate) fn build(state: &PreferencesState, cx: &App) -> PreferencesFrame {
         notice: state.notice.clone(),
         sidebar_items: build_sidebar_items(state.active_page),
         general: build_general_props(general::snapshot()),
-        notifications: build_notifications_props(notifications::snapshot()),
+        notifications: build_notifications_props(settings::notification_settings()),
         shortcuts: build_shortcuts_props(state, shortcuts::snapshot(cx)),
         ocr: build_ocr_props(ocr::snapshot(state)),
         about: build_about_props(),
@@ -276,7 +275,7 @@ fn build_general_props(snapshot: GeneralSnapshot) -> GeneralPageProps {
     }
 }
 
-fn build_notifications_props(snapshot: NotificationsSnapshot) -> NotificationsPageProps {
+fn build_notifications_props(snapshot: settings::NotificationSettings) -> NotificationsPageProps {
     NotificationsPageProps {
         enabled: ToggleRowProps::new(
             "preferences-notifications-enabled",
@@ -440,7 +439,7 @@ mod tests {
 
     #[test]
     fn notifications_props_disable_children_when_master_toggle_is_off() {
-        let props = build_notifications_props(NotificationsSnapshot {
+        let props = build_notifications_props(settings::NotificationSettings {
             enabled: false,
             save_notification: true,
             copy_notification: true,
@@ -509,5 +508,3 @@ mod tests {
         assert!(failed.model.description.as_ref().contains("network error"));
     }
 }
-
-

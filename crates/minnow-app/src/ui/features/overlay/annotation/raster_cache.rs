@@ -1,4 +1,4 @@
-﻿use gpui::RenderImage;
+use gpui::RenderImage;
 use image::RgbaImage;
 use std::sync::Arc;
 
@@ -87,5 +87,3 @@ impl AnnotationRasterCache {
         }
     }
 }
-
-

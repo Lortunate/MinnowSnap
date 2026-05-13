@@ -79,4 +79,3 @@ pub fn get_system_fonts() -> Vec<String> {
     *cache_guard = Some(filtered.clone());
     filtered
 }
-

@@ -1,4 +1,4 @@
-﻿use crate::services::paths::ensure_dir;
+use crate::services::paths::ensure_dir;
 use std::env;
 use std::io::LineWriter;
 use std::panic;
@@ -175,5 +175,3 @@ fn log_portable_paths() {
 
 #[cfg(not(feature = "portable"))]
 fn log_portable_paths() {}
-
-

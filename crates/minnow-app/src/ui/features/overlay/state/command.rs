@@ -1,12 +1,85 @@
-﻿use super::{
-    AnnotationCommand, AnnotationKind, CaptureCommand, DragMode, LifecycleCommand, OverlayCommand, OverlayEffect, OverlayOutcome, OverlaySession,
-    PickerCommand, SessionTransition,
-};
+use super::{AnnotationKind, DragMode, OverlayEffect, OverlayOutcome, OverlaySession, ResizeCorner};
+use crate::platform::notify::NotificationType;
 use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::capture::active_monitor_scale;
 use crate::services::geometry::RectF;
 use crate::services::i18n;
-use crate::services::notify::NotificationType;
+use crate::ui::features::overlay::annotation::{AnnotationTool, MosaicMode};
+use gpui::{Pixels, Point};
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum CaptureCommand {
+    Execute(CaptureAction),
+    SaveWithPath(String),
+    CopyPickerColor,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PickerCommand {
+    CycleFormat,
+    MoveByPixel { delta_x: i32, delta_y: i32 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum AnnotationCommand {
+    SetTool(AnnotationTool),
+    StartDraw(Point<Pixels>),
+    StartMove { id: u64, point: Point<Pixels> },
+    Select(Option<u64>),
+    DeleteIntent,
+    Undo,
+    Redo,
+    CycleColor,
+    SetColor { color: u32 },
+    ToggleFill,
+    AdjustStroke { delta: f64 },
+    SetMosaicMode(MosaicMode),
+    AdjustMosaicIntensity { delta: f64 },
+    AdjustByWheel { point: Point<Pixels>, delta: f64 },
+    StartTextEdit,
+    StartTextEditAtPoint(Point<Pixels>),
+    AppendText { text: String },
+    InsertTextNewline,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum LifecycleCommand {
+    StartSelection(Point<Pixels>),
+    StartMove(Point<Pixels>),
+    StartResize { corner: ResizeCorner, point: Point<Pixels> },
+    PointerMoved(Point<Pixels>),
+    PointerReleased,
+    ClearSelection,
+    CloseIntent,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum OverlayCommand {
+    Capture(CaptureCommand),
+    Picker(PickerCommand),
+    Annotation(AnnotationCommand),
+    Lifecycle(LifecycleCommand),
+}
+
+enum SessionTransition {
+    NoOp,
+    Refresh,
+    Effect(OverlayEffect),
+}
+
+impl SessionTransition {
+    fn from_changed(changed: bool) -> Self {
+        if changed { Self::Refresh } else { Self::NoOp }
+    }
+
+    fn into_outcome(self) -> OverlayOutcome {
+        match self {
+            Self::NoOp => OverlayOutcome::default(),
+            Self::Refresh => OverlayOutcome::refresh(),
+            Self::Effect(effect) => OverlayOutcome::with_effect(effect),
+        }
+    }
+}
 
 impl OverlaySession {
     pub(super) fn apply(&mut self, command: OverlayCommand) -> OverlayOutcome {
@@ -118,9 +191,7 @@ impl OverlaySession {
                 self.start_resize(corner, point);
                 SessionTransition::Refresh
             }
-            LifecycleCommand::PointerMoved(point) => {
-                SessionTransition::from_changed(self.queue_pointer(point))
-            }
+            LifecycleCommand::PointerMoved(point) => SessionTransition::from_changed(self.queue_pointer(point)),
             LifecycleCommand::PointerReleased => {
                 let _ = self.apply_pending_pointer();
                 if self.has_active_annotation_interaction() {
@@ -172,5 +243,3 @@ impl OverlaySession {
         })
     }
 }
-
-

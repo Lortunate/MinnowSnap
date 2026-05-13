@@ -1,4 +1,4 @@
-﻿use super::{ShutdownTrigger, cancellation_token, request_shutdown};
+use super::{ShutdownTrigger, cancellation_token, request_shutdown};
 use std::sync::Once;
 use thiserror::Error;
 use tracing::{error, warn};
@@ -147,4 +147,3 @@ async fn send_shutdown_request() -> Result<(), ShutdownClientError> {
         String::from_utf8_lossy(&response_buf[..read_len]).trim()
     )))
 }
-

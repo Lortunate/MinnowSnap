@@ -1,9 +1,9 @@
-﻿use crate::platform::async_ui::{app_ready, update_app};
+use crate::platform::async_ui::{app_ready, update_app};
 use crate::services::hotkeys::{HotkeyAction, HotkeyUpdateError, ShortcutBindings};
-use crate::services::settings::SETTINGS;
+use crate::services::settings;
+use crate::services::settings::ShortcutSettings;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
-use crate::services::settings::ShortcutSettings;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_util::sync::CancellationToken;
@@ -204,8 +204,8 @@ impl HotkeyService {
     }
 
     pub fn current_bindings(&self) -> ShortcutBindings {
-        let settings = SETTINGS.lock().unwrap().get();
-        ShortcutBindings::from_settings(&settings.shortcuts)
+        let settings = settings::shortcut_settings();
+        ShortcutBindings::from_settings(&settings)
     }
 
     pub fn register_from_settings(&mut self) {
@@ -229,11 +229,7 @@ impl HotkeyService {
             return Err(HotkeyUpdateError::Conflict);
         }
 
-        {
-            let mut settings = SETTINGS.lock().unwrap();
-            settings.set_capture_shortcut(bindings.capture.clone());
-            settings.set_quick_capture_shortcut(bindings.quick_capture.clone());
-        }
+        settings::set_shortcuts(bindings.capture.clone(), bindings.quick_capture.clone());
 
         if self.manager.manager.is_none() {
             self.register_from_settings();
@@ -337,5 +333,3 @@ mod tests {
         assert_eq!(format_keystroke(&keystroke), Some("Ctrl+Shift+F2".to_string()));
     }
 }
-
-

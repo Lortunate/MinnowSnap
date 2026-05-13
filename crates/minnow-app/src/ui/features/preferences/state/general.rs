@@ -1,10 +1,11 @@
-﻿use super::{MutationResult, frame::SelectOption, store};
+use super::{MutationResult, frame::SelectOption};
+use crate::platform::system::UiSystemActions;
 use crate::ui::features::preferences::view::PreferencesView;
-use crate::ui::support::system::UiSystemActions;
 use crate::ui::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM};
 use crate::ui::support::locale;
 use crate::{
-    services::{fonts::get_system_fonts, i18n, i18n::SYSTEM_LOCALE, settings::AppSettings, storage::get_default_save_path},
+    platform::storage::get_default_save_path,
+    services::{fonts::get_system_fonts, i18n, i18n::SYSTEM_LOCALE, settings, settings::AppSettings},
 };
 use gpui::{App, Context, SharedString, Window};
 use tracing::warn;
@@ -23,7 +24,7 @@ pub(crate) struct GeneralSnapshot {
 }
 
 pub(crate) fn snapshot() -> GeneralSnapshot {
-    let settings = store::snapshot();
+    let settings = settings::snapshot();
 
     GeneralSnapshot {
         language: settings.general.language.clone().into(),
@@ -39,9 +40,7 @@ pub(crate) fn snapshot() -> GeneralSnapshot {
 }
 
 pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -> MutationResult {
-    store::with_settings(|settings| {
-        settings.set_auto_start(enabled);
-    });
+    settings::set_auto_start(enabled);
 
     if cx.has_global::<UiSystemActions>() {
         cx.global::<UiSystemActions>().set_auto_start(enabled);
@@ -54,21 +53,21 @@ pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -
 
 pub(crate) fn set_language(value: SharedString) -> MutationResult {
     let language = value.to_string();
-    store::with_settings(|settings| settings.set_language(language.clone()));
+    settings::set_language(language.clone());
     locale::apply(&language);
     MutationResult::refresh_windows()
 }
 
 pub(crate) fn set_theme(value: SharedString, window: &mut Window, cx: &mut App) -> MutationResult {
     let theme_choice = value.to_string();
-    store::with_settings(|settings| settings.set_theme(theme_choice.clone()));
+    settings::set_theme(theme_choice.clone());
     appearance::apply_theme_choice(&theme_choice, Some(window), cx);
     MutationResult::NONE
 }
 
 pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
     let font_family = value.to_string();
-    store::with_settings(|settings| settings.set_font_family(font_family.clone()));
+    settings::set_font_family(font_family.clone());
 
     let font_ref = if font_family.trim().is_empty() {
         None
@@ -81,12 +80,12 @@ pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
 }
 
 pub(crate) fn set_save_path(save_path: String) -> MutationResult {
-    store::with_settings(|settings| settings.set_save_path(save_path));
+    settings::set_save_path(save_path);
     MutationResult::refresh_windows().clear_notice()
 }
 
 pub(crate) fn set_image_compression(enabled: bool) -> MutationResult {
-    store::with_settings(|settings| settings.set_oxipng_enabled(enabled));
+    settings::set_oxipng_enabled(enabled);
     MutationResult::refresh_windows()
 }
 
@@ -170,5 +169,3 @@ mod tests {
         assert!(description.contains(default_path.as_str()));
     }
 }
-
-

@@ -1,4 +1,4 @@
-﻿use crate::services::geometry::Rect;
+use crate::services::geometry::Rect;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use xcap::{Monitor, Window};
@@ -134,5 +134,3 @@ pub fn find_window_at(windows: &[WindowInfo], x: f64, y: f64) -> Option<usize> {
         .min_by_key(|(_, w)| u64::from(w.width) * u64::from(w.height))
         .map(|(i, _)| i)
 }
-
-

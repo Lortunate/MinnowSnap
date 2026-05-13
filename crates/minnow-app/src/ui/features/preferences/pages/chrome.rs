@@ -1,5 +1,5 @@
-﻿use super::components::window_brand;
-use crate::ui::support::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use super::components::window_brand;
+use crate::platform::window_drag::{PopupDragBehavior, PopupDragRegionExt};
 use gpui::{AnyElement, App, IntoElement, ParentElement, SharedString, Styled, div, px};
 use gpui_component::{ActiveTheme as _, scroll::ScrollableElement, v_flex};
 
@@ -105,5 +105,3 @@ pub(crate) fn content_panel(notice: Option<AnyElement>, page_body: AnyElement, c
         )
         .into_any_element()
 }
-
-

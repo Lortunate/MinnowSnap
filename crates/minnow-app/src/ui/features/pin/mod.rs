@@ -1,24 +1,37 @@
-﻿mod actions;
 mod render;
 mod request;
 mod state;
 mod view;
 
-pub use actions::bind_keys;
 pub use request::PinRequest;
 
-use crate::ui::support::native_window::{Level, with_level};
-use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
-use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions, point, px, size};
-use gpui_component::Root;
+use crate::platform::native_window::{Level, with_level};
+use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
 use crate::services::app_meta::APP_ID;
+use crate::ui::support::appearance;
+use gpui::{App, AppContext, Bounds, KeyBinding, WindowBounds, WindowKind, WindowOptions, actions, point, px, size};
+use gpui_component::Root;
 use state::{PinManager, PinSession};
 use tracing::info;
 use view::PinView;
 
+const PIN_CONTEXT: &str = "MinnowSnapPin";
+
+actions!(pin, [ClosePin, CloseAllPins, CopyPinContent, SavePinImage]);
+
 pub fn install(cx: &mut App) {
     let manager = PinManager::new(cx);
     cx.set_global(manager);
+}
+
+pub fn bind_keys(cx: &mut App) {
+    cx.bind_keys([
+        KeyBinding::new("escape", ClosePin, Some(PIN_CONTEXT)),
+        KeyBinding::new("ctrl-w", ClosePin, Some(PIN_CONTEXT)),
+        KeyBinding::new("ctrl-shift-w", CloseAllPins, Some(PIN_CONTEXT)),
+        KeyBinding::new("ctrl-c", CopyPinContent, Some(PIN_CONTEXT)),
+        KeyBinding::new("ctrl-s", SavePinImage, Some(PIN_CONTEXT)),
+    ]);
 }
 
 pub fn open_window(cx: &mut App, request: PinRequest) {
@@ -28,6 +41,7 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
     if let Err(err) = cx.open_window(
         options,
         with_level(Level::AlwaysOnTop, move |window, cx| {
+            appearance::apply_saved_preferences(Some(window), cx);
             configure_window(window, cx, true);
             let focus_handle = cx.focus_handle();
             manager.register(window.window_handle(), cx);
@@ -72,5 +86,3 @@ fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
         APP_ID,
     )
 }
-
-

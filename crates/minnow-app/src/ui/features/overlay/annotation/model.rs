@@ -1,4 +1,4 @@
-﻿use gpui::RenderImage;
+use gpui::RenderImage;
 use std::sync::Arc;
 
 use crate::services::geometry::RectF;
@@ -148,5 +148,3 @@ pub(crate) struct AnnotationUiState {
     pub can_redo: bool,
     pub text_editing: bool,
 }
-
-

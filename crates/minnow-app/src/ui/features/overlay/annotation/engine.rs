@@ -1,4 +1,4 @@
-﻿use gpui::RenderImage;
+use gpui::RenderImage;
 use image::{GenericImage, RgbaImage};
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -1295,5 +1295,3 @@ mod tests {
         assert_eq!(after.committed_rebuilds, before.committed_rebuilds);
     }
 }
-
-

@@ -1,4 +1,4 @@
-﻿use crate::services::geometry::RectF;
+use crate::services::geometry::RectF;
 
 const VIEWPORT_MARGIN: f64 = 16.0;
 pub(crate) const SELECTION_PANEL_GAP: f64 = 8.0;
@@ -529,5 +529,3 @@ mod tests {
         }
     }
 }
-
-

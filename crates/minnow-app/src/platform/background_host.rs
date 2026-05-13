@@ -1,7 +1,7 @@
-﻿use crate::ui::support::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+use crate::services::app_meta::APP_ID;
 use gpui::{App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBounds, WindowKind, div, point, px, rgba, size};
 use gpui_component::Root;
-use crate::services::app_meta::APP_ID;
 
 /// Windows tray apps that close all visible GPUI windows can still receive late
 /// window updates during teardown. Keeping a single hidden native host window
@@ -52,5 +52,3 @@ pub fn install(cx: &mut App) -> gpui::Result<()> {
 pub fn install(_cx: &mut App) -> gpui::Result<()> {
     Ok(())
 }
-
-

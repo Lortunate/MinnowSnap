@@ -1,4 +1,5 @@
-﻿use super::OverlayView;
+use super::OverlayView;
+use crate::services::capture::action::CaptureAction;
 use crate::ui::features::overlay::actions::{
     CloseOverlay, CopyPixelColor, CopySelection, CycleAnnotationColorAction, CyclePickerFormat, DecreaseAnnotationStroke, DeleteAnnotation,
     IncreaseAnnotationStroke, MovePickerDown, MovePickerLeft, MovePickerRight, MovePickerUp, PickColorSelection, PinSelection, QrSelection,
@@ -7,7 +8,6 @@ use crate::ui::features::overlay::actions::{
 };
 use crate::ui::features::overlay::state::{AnnotationCommand, CaptureCommand, LifecycleCommand, PickerCommand};
 use gpui::{Context, Window};
-use crate::services::capture::action::CaptureAction;
 
 macro_rules! annotation_action_handler {
     ($name:ident, $action:ty, $command:expr) => {
@@ -133,5 +133,3 @@ impl OverlayView {
         self.dispatch_lifecycle(LifecycleCommand::CloseIntent, window, cx);
     }
 }
-
-

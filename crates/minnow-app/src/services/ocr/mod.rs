@@ -162,7 +162,9 @@ pub struct OcrContext {
 
 impl OcrContext {
     pub async fn new<P: AsRef<Path>>(models_dir: Option<P>, model_type: OcrModelType, on_progress: Option<SharedProgressCallback>) -> Result<Self> {
-        let save_dir = models_dir.map(|p| p.as_ref().to_path_buf()).unwrap_or(crate::services::paths::app_paths().ocr_models_dir().to_path_buf());
+        let save_dir = models_dir
+            .map(|p| p.as_ref().to_path_buf())
+            .unwrap_or(crate::services::paths::app_paths().ocr_models_dir().to_path_buf());
         let manager = ModelManager::new(&save_dir);
         let source = model_source(model_type);
 

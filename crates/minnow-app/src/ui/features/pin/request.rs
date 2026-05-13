@@ -1,4 +1,4 @@
-﻿use crate::services::geometry::Rect;
+use crate::services::geometry::Rect;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -49,5 +49,3 @@ impl PinRequest {
         }
     }
 }
-
-

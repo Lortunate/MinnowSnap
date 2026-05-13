@@ -1,9 +1,9 @@
-﻿use super::LongCaptureRequest;
+use super::LongCaptureRequest;
 use super::layout::frame_visibility_after_click_through;
+use crate::services::capture::long_capture::{LongCaptureEvent, LongCaptureRuntime};
 use crate::ui::support::render_image;
 use gpui::{AnyWindowHandle, AppContext, AsyncWindowContext, Context, RenderImage, WeakEntity, Window, WindowId};
 use image::RgbaImage;
-use crate::services::capture::long_capture::{LongCaptureEvent, LongCaptureRuntime};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -288,5 +288,3 @@ impl LongCaptureCoordinator {
         }
     }
 }
-
-

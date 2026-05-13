@@ -1,9 +1,9 @@
-﻿use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::FluentBuilder as _;
 use gpui::{App, IntoElement, ParentElement, Styled, div, img, px, rgba};
 use gpui_component::ActiveTheme as _;
 
-use crate::ui::features::overlay::state::AnnotationLayerState;
 use crate::services::geometry::RectF;
+use crate::ui::features::overlay::state::AnnotationLayerState;
 
 fn color(value: u32) -> gpui::Hsla {
     rgba(value).into()
@@ -46,5 +46,3 @@ pub(crate) fn overlay_annotations_layer(cx: &App, selection: RectF, state: &Anno
     let theme = cx.theme();
     layer.border_1().border_color(theme.selection.alpha(0.25))
 }
-
-

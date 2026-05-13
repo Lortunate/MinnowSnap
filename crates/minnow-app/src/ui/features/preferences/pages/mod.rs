@@ -1,4 +1,4 @@
-﻿mod about;
+mod about;
 pub(super) mod chrome;
 pub(super) mod components;
 mod general;
@@ -6,7 +6,10 @@ mod notifications;
 mod ocr;
 mod shortcuts;
 
-use super::{state::frame::PreferencesFrame, view::PreferencesView};
+use super::{
+    state::{PreferencesPage, frame::PreferencesFrame},
+    view::PreferencesView,
+};
 use gpui::{AnyElement, App, ClickEvent, Context, SharedString, Window};
 
 pub(super) type ToggleAction = fn(&mut PreferencesView, bool, &mut Window, &mut Context<PreferencesView>);
@@ -98,11 +101,10 @@ impl Default for PreferencesRenderActions {
 
 pub(super) fn render_active_page(frame: &PreferencesFrame, actions: &PreferencesRenderActions, cx: &mut Context<PreferencesView>) -> AnyElement {
     match frame.active_page {
-        super::state::state::PreferencesPage::General => general::render(&frame.general, actions.general, cx),
-        super::state::state::PreferencesPage::Notifications => notifications::render(&frame.notifications, actions.notifications, cx),
-        super::state::state::PreferencesPage::Shortcuts => shortcuts::render(&frame.shortcuts, actions.shortcuts, cx),
-        super::state::state::PreferencesPage::Ocr => ocr::render(&frame.ocr, actions.ocr, cx),
-        super::state::state::PreferencesPage::About => about::render(&frame.about, actions.about, cx),
+        PreferencesPage::General => general::render(&frame.general, actions.general, cx),
+        PreferencesPage::Notifications => notifications::render(&frame.notifications, actions.notifications, cx),
+        PreferencesPage::Shortcuts => shortcuts::render(&frame.shortcuts, actions.shortcuts, cx),
+        PreferencesPage::Ocr => ocr::render(&frame.ocr, actions.ocr, cx),
+        PreferencesPage::About => about::render(&frame.about, actions.about, cx),
     }
 }
-

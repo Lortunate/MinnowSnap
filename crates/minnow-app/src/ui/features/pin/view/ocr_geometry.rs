@@ -1,4 +1,4 @@
-﻿use crate::ui::features::pin::state::PinFrame;
+use crate::ui::features::pin::state::PinFrame;
 use gpui::{Bounds, Path, PathBuilder, Pixels, Point, Size, Window, point, px, size};
 
 #[derive(Clone)]
@@ -212,5 +212,3 @@ mod tests {
         assert!(!point_in_bounds(point(px(40.0), px(40.0)), rect));
     }
 }
-
-

@@ -1,4 +1,4 @@
-﻿mod control_plane;
+mod control_plane;
 
 #[cfg(target_os = "windows")]
 mod windows;
@@ -69,4 +69,3 @@ mod tests {
         clear_control_plane();
     }
 }
-
