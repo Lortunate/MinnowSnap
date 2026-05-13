@@ -9,8 +9,6 @@ use std::sync::OnceLock;
 const APP_QUALIFIER: &str = "com";
 #[cfg(not(feature = "portable"))]
 const APP_ORGANIZATION: &str = "lortunate";
-#[cfg(not(feature = "portable"))]
-const APP_NAME: &str = "MinnowSnap";
 const DATA_DIR_NAME: &str = "data";
 const CONFIG_FILE_NAME: &str = "config.toml";
 const LOGS_DIR_NAME: &str = "logs";
@@ -53,7 +51,7 @@ fn resolve_app_paths() -> AppPaths {
     #[cfg(not(feature = "portable"))]
     {
         let current_dir = env::current_dir().unwrap_or_default();
-        let project_dirs = ProjectDirs::from(APP_QUALIFIER, APP_ORGANIZATION, APP_NAME);
+        let project_dirs = ProjectDirs::from(APP_QUALIFIER, APP_ORGANIZATION, super::app_meta::APP_NAME);
         let config_file = project_dirs
             .as_ref()
             .map(|dirs| dirs.config_dir().join(CONFIG_FILE_NAME))

@@ -1,12 +1,12 @@
 #[cfg(target_os = "macos")]
 use super::bootstrap::hide_dock_icon;
-use super::bootstrap::{ensure_single_instance, get_instance_id, init_logger, set_auto_start};
+use super::bootstrap::{ensure_single_instance, get_instance_id, set_auto_start};
 use super::composition::run_application;
-use crate::platform::shutdown;
+use crate::platform::{logging, shutdown};
 use tracing::info;
 
 pub fn run() {
-    let _guard = init_logger();
+    let _guard = logging::init_logger();
     info!("Starting MinnowSnap...");
 
     if !ensure_single_instance(&get_instance_id()) {

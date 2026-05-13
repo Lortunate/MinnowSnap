@@ -1,5 +1,4 @@
 use super::{AboutPageActions, components};
-use crate::platform::system;
 use crate::services::assets::asset_paths;
 use crate::ui::features::preferences::{state::frame::AboutPageProps, view::PreferencesView};
 use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, div, img, px};
@@ -46,7 +45,7 @@ pub(super) fn render(props: &AboutPageProps, actions: AboutPageActions, cx: &mut
                 components::setting_action(
                     &props.open_logs,
                     move |_, _, cx| {
-                        system::open_in_file_manager(cx, &log_directory);
+                        cx.open_with_system(&log_directory);
                     },
                     cx,
                 ),

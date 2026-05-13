@@ -187,89 +187,97 @@ pub fn clamp_rect_resize(x: f64, y: f64, w: f64, h: f64, screen_w: f64, screen_h
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn calculate_toolbar_position(
-    target_x: f64,
-    target_y: f64,
-    target_w: f64,
-    target_h: f64,
-    item_w: f64,
-    item_h: f64,
-    is_above: bool,
-    padding: f64,
-    spacing_above: f64,
-    spacing_below: f64,
-    default_y: f64,
-    screen_w: f64,
-    screen_h: f64,
-) -> (f64, f64) {
-    let desired_x = target_x + target_w - item_w;
-    let max_x = (screen_w - item_w - padding).max(padding);
-    let x = desired_x.clamp(padding, max_x);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToolbarPositionParams {
+    pub target_x: f64,
+    pub target_y: f64,
+    pub target_w: f64,
+    pub target_h: f64,
+    pub item_w: f64,
+    pub item_h: f64,
+    pub is_above: bool,
+    pub padding: f64,
+    pub spacing_above: f64,
+    pub spacing_below: f64,
+    pub default_y: f64,
+    pub screen_w: f64,
+    pub screen_h: f64,
+}
 
-    let y = if is_above {
-        let above_y = target_y - item_h - spacing_above;
-        if above_y >= 0.0 { above_y } else { target_y + target_h + spacing_above }
+pub fn calculate_toolbar_position(params: ToolbarPositionParams) -> (f64, f64) {
+    let desired_x = params.target_x + params.target_w - params.item_w;
+    let max_x = (params.screen_w - params.item_w - params.padding).max(params.padding);
+    let x = desired_x.clamp(params.padding, max_x);
+
+    let y = if params.is_above {
+        let above_y = params.target_y - params.item_h - params.spacing_above;
+        if above_y >= 0.0 {
+            above_y
+        } else {
+            params.target_y + params.target_h + params.spacing_above
+        }
     } else {
-        let below_y = target_y + target_h + spacing_below;
-        let above_y = target_y - item_h - spacing_below;
-        if below_y + item_h <= screen_h {
+        let below_y = params.target_y + params.target_h + params.spacing_below;
+        let above_y = params.target_y - params.item_h - params.spacing_below;
+        if below_y + params.item_h <= params.screen_h {
             below_y
         } else if above_y >= 0.0 {
             above_y
         } else {
-            default_y
+            params.default_y
         }
     };
 
     (x, y)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn calculate_resize(
-    start_x: f64,
-    start_y: f64,
-    start_w: f64,
-    start_h: f64,
-    dx: f64,
-    dy: f64,
-    corner: &str,
-    screen_w: f64,
-    screen_h: f64,
-) -> (f64, f64, f64, f64) {
-    let mut new_x = start_x;
-    let mut new_y = start_y;
-    let mut new_w = start_w;
-    let mut new_h = start_h;
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ResizeParams<'a> {
+    pub start_x: f64,
+    pub start_y: f64,
+    pub start_w: f64,
+    pub start_h: f64,
+    pub dx: f64,
+    pub dy: f64,
+    pub corner: &'a str,
+    pub screen_w: f64,
+    pub screen_h: f64,
+}
 
-    if corner.contains("right") {
-        new_w += dx;
-    } else if corner.contains("left") {
-        new_x += dx;
-        new_w -= dx;
+pub fn calculate_resize(params: ResizeParams<'_>) -> (f64, f64, f64, f64) {
+    let mut new_x = params.start_x;
+    let mut new_y = params.start_y;
+    let mut new_w = params.start_w;
+    let mut new_h = params.start_h;
+
+    if params.corner.contains("right") {
+        new_w += params.dx;
+    } else if params.corner.contains("left") {
+        new_x += params.dx;
+        new_w -= params.dx;
     }
 
-    if corner.contains("bottom") {
-        new_h += dy;
-    } else if corner.contains("top") {
-        new_y += dy;
-        new_h -= dy;
+    if params.corner.contains("bottom") {
+        new_h += params.dy;
+    } else if params.corner.contains("top") {
+        new_y += params.dy;
+        new_h -= params.dy;
     }
 
     if new_w < 10.0 {
-        if corner.contains("left") {
-            new_x = start_x + start_w - 10.0;
+        if params.corner.contains("left") {
+            new_x = params.start_x + params.start_w - 10.0;
         }
         new_w = 10.0;
     }
     if new_h < 10.0 {
-        if corner.contains("top") {
-            new_y = start_y + start_h - 10.0;
+        if params.corner.contains("top") {
+            new_y = params.start_y + params.start_h - 10.0;
         }
         new_h = 10.0;
     }
 
-    clamp_rect_resize(new_x, new_y, new_w, new_h, screen_w, screen_h)
+    clamp_rect_resize(new_x, new_y, new_w, new_h, params.screen_w, params.screen_h)
 }
 
 pub fn normalize_rect(x: f64, y: f64, w: f64, h: f64) -> Rect {

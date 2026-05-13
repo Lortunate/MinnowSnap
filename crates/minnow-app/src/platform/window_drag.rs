@@ -62,7 +62,7 @@ mod platform {
 
         match raw {
             RawWindowHandle::Win32(h) => Ok(HWND(h.hwnd.get() as *mut _)),
-            other => return Err(anyhow!("expected Win32 handle, got {other:?}")),
+            other => Err(anyhow!("expected Win32 handle, got {other:?}")),
         }
     }
 

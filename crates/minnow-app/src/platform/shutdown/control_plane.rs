@@ -1,6 +1,5 @@
 use super::ShutdownTrigger;
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
@@ -10,7 +9,7 @@ struct ShutdownControlPlane {
     token: CancellationToken,
 }
 
-static SHUTDOWN_CONTROL: Lazy<Mutex<Option<ShutdownControlPlane>>> = Lazy::new(|| Mutex::new(None));
+static SHUTDOWN_CONTROL: LazyLock<Mutex<Option<ShutdownControlPlane>>> = LazyLock::new(|| Mutex::new(None));
 
 pub(super) fn init() {
     let (bus, _) = broadcast::channel(8);

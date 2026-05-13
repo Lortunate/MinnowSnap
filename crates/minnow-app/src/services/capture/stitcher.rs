@@ -81,6 +81,43 @@ struct StitchScratch {
     strip_scores: Vec<f32>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct StitchRegion {
+    width: usize,
+    height: usize,
+    fixed_top: usize,
+    fixed_bottom: usize,
+}
+
+impl StitchRegion {
+    fn valid_height(self) -> usize {
+        self.height.saturating_sub(self.fixed_top + self.fixed_bottom)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct FramePairRef<'a> {
+    prev: &'a [f32],
+    next: &'a [f32],
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StitchAppendPlan {
+    trim_amount: u32,
+    append_start_y: u32,
+    append_end_y: u32,
+    fixed_bottom: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ZNCCPatch {
+    x0: usize,
+    x1: usize,
+    y0_prev: usize,
+    y0_next: usize,
+    patch_h: usize,
+}
+
 #[derive(Default)]
 struct ThumbnailCache {
     target_width: u32,
@@ -266,6 +303,12 @@ impl ScrollStitcher {
         let width = prev_analysis.width;
         let height = prev_analysis.height;
         let (fixed_top, fixed_bottom) = self.detect_sticky_regions(&prev_analysis.gray, &next_analysis.gray, width, height);
+        let region = StitchRegion {
+            width,
+            height,
+            fixed_top: fixed_top as usize,
+            fixed_bottom: fixed_bottom as usize,
+        };
         let valid_h = (height as u32).saturating_sub(fixed_top + fixed_bottom);
         if valid_h < self.config.min_overlap {
             self.last_analysis = Some(next_analysis);
@@ -278,16 +321,11 @@ impl ScrollStitcher {
             };
         }
 
-        Self::detect_stable_blocks(
-            self.config,
-            &prev_analysis.gray,
-            &next_analysis.gray,
-            width,
-            height,
-            fixed_top as usize,
-            fixed_bottom as usize,
-            &mut self.scratch.stable_blocks,
-        );
+        let gray_pair = FramePairRef {
+            prev: &prev_analysis.gray,
+            next: &next_analysis.gray,
+        };
+        Self::detect_stable_blocks(self.config, gray_pair, region, &mut self.scratch.stable_blocks);
 
         if self.scratch.stable_blocks.len() < self.config.min_stable_blocks {
             self.last_analysis = Some(next_analysis);
@@ -303,20 +341,14 @@ impl ScrollStitcher {
         Self::row_signature(
             self.config,
             &prev_analysis.edge,
-            width,
-            height,
-            fixed_top as usize,
-            fixed_bottom as usize,
+            region,
             &self.scratch.stable_blocks,
             &mut self.scratch.signature_prev,
         );
         Self::row_signature(
             self.config,
             &next_analysis.edge,
-            width,
-            height,
-            fixed_top as usize,
-            fixed_bottom as usize,
+            region,
             &self.scratch.stable_blocks,
             &mut self.scratch.signature_next,
         );
@@ -334,12 +366,8 @@ impl ScrollStitcher {
 
         let refine = Self::refine_shift_zncc(
             self.config,
-            &prev_analysis.gray,
-            &next_analysis.gray,
-            width,
-            height,
-            fixed_top as usize,
-            fixed_bottom as usize,
+            gray_pair,
+            region,
             coarse_shift,
             &self.scratch.stable_blocks,
             &mut self.scratch.strip_scores,
@@ -416,15 +444,7 @@ impl ScrollStitcher {
             };
         }
 
-        let cut_valid = self.find_smart_seam(
-            &prev_analysis.gray,
-            &next_analysis.gray,
-            width,
-            height,
-            fixed_top as usize,
-            overlap_valid,
-            &self.scratch.stable_blocks,
-        );
+        let cut_valid = self.find_smart_seam(gray_pair, region, overlap_valid, &self.scratch.stable_blocks);
 
         let trim_prev = overlap_valid.saturating_sub(cut_valid);
         let append_start = fixed_top as usize + cut_valid;
@@ -441,7 +461,14 @@ impl ScrollStitcher {
             };
         }
 
-        if self.execute_stitch(&new_image, trim_prev as u32, append_start as u32, append_end as u32, fixed_bottom) {
+        let plan = StitchAppendPlan {
+            trim_amount: trim_prev as u32,
+            append_start_y: append_start as u32,
+            append_end_y: append_end as u32,
+            fixed_bottom,
+        };
+
+        if self.execute_stitch(&new_image, plan) {
             self.last_analysis = Some(next_analysis);
             StitchFrameResult {
                 status: StitchFrameStatus::Appended,
@@ -540,21 +567,11 @@ impl ScrollStitcher {
         (top as u32, bottom as u32)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn detect_stable_blocks(
-        config: StitchConfig,
-        prev: &[f32],
-        next: &[f32],
-        width: usize,
-        height: usize,
-        fixed_top: usize,
-        fixed_bottom: usize,
-        out: &mut Vec<usize>,
-    ) {
+    fn detect_stable_blocks(config: StitchConfig, pair: FramePairRef<'_>, region: StitchRegion, out: &mut Vec<usize>) {
         let block = config.dynamic_block_size.max(8);
-        let block_count = (width / block).max(1);
-        let y_start = fixed_top.min(height);
-        let y_end = height.saturating_sub(fixed_bottom).max(y_start + 1);
+        let block_count = (region.width / block).max(1);
+        let y_start = region.fixed_top.min(region.height);
+        let y_end = region.height.saturating_sub(region.fixed_bottom).max(y_start + 1);
 
         out.clear();
         if out.capacity() < block_count {
@@ -563,7 +580,7 @@ impl ScrollStitcher {
 
         for b in 0..block_count {
             let x0 = b * block;
-            let x1 = ((b + 1) * block).min(width);
+            let x1 = ((b + 1) * block).min(region.width);
             if x1 <= x0 {
                 continue;
             }
@@ -571,10 +588,10 @@ impl ScrollStitcher {
             let mut diff_sum = 0.0f32;
             let mut count = 0usize;
             for y in y_start..y_end {
-                let row = y * width;
+                let row = y * region.width;
                 for x in x0..x1 {
                     let i = row + x;
-                    diff_sum += (prev[i] - next[i]).abs();
+                    diff_sum += (pair.prev[i] - pair.next[i]).abs();
                     count += 1;
                 }
             }
@@ -589,20 +606,10 @@ impl ScrollStitcher {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn row_signature(
-        config: StitchConfig,
-        edge: &[f32],
-        width: usize,
-        height: usize,
-        fixed_top: usize,
-        fixed_bottom: usize,
-        stable_blocks: &[usize],
-        out: &mut Vec<f32>,
-    ) {
+    fn row_signature(config: StitchConfig, edge: &[f32], region: StitchRegion, stable_blocks: &[usize], out: &mut Vec<f32>) {
         let block = config.dynamic_block_size.max(8);
-        let y_start = fixed_top.min(height);
-        let y_end = height.saturating_sub(fixed_bottom).max(y_start + 1);
+        let y_start = region.fixed_top.min(region.height);
+        let y_end = region.height.saturating_sub(region.fixed_bottom).max(y_start + 1);
 
         out.clear();
         let capacity = y_end.saturating_sub(y_start);
@@ -610,12 +617,12 @@ impl ScrollStitcher {
             out.reserve(capacity - out.capacity());
         }
         for y in y_start..y_end {
-            let row = y * width;
+            let row = y * region.width;
             let mut sum = 0.0f32;
             let mut n = 0usize;
             for &b in stable_blocks {
                 let x0 = b * block;
-                let x1 = ((b + 1) * block).min(width);
+                let x1 = ((b + 1) * block).min(region.width);
                 for x in x0..x1 {
                     sum += edge[row + x];
                     n += 1;
@@ -760,20 +767,15 @@ impl ScrollStitcher {
         Self::best_signature_shift(signature_prev, signature_next, min_overlap, start, end)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn refine_shift_zncc(
         config: StitchConfig,
-        prev: &[f32],
-        next: &[f32],
-        width: usize,
-        height: usize,
-        fixed_top: usize,
-        fixed_bottom: usize,
+        pair: FramePairRef<'_>,
+        region: StitchRegion,
         coarse_shift: i32,
         stable_blocks: &[usize],
         strip_scores: &mut Vec<f32>,
     ) -> Option<(i32, f32, f32)> {
-        let valid_h = height.saturating_sub(fixed_top + fixed_bottom) as i32;
+        let valid_h = region.valid_height() as i32;
         if valid_h <= config.min_overlap as i32 {
             return None;
         }
@@ -791,18 +793,7 @@ impl ScrollStitcher {
         let search_end = (coarse_shift + config.zncc_search_radius).min(max_shift);
 
         for shift in search_start..=search_end {
-            let score = Self::zncc_score_for_shift(
-                config,
-                prev,
-                next,
-                width,
-                height,
-                fixed_top,
-                fixed_bottom,
-                shift,
-                stable_blocks,
-                strip_scores,
-            );
+            let score = Self::zncc_score_for_shift(config, pair, region, shift, stable_blocks, strip_scores);
 
             if score > best_score {
                 second_score = best_score;
@@ -824,20 +815,15 @@ impl ScrollStitcher {
         Some((best_shift, best_score, second_score))
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn zncc_score_for_shift(
         config: StitchConfig,
-        prev: &[f32],
-        next: &[f32],
-        width: usize,
-        height: usize,
-        fixed_top: usize,
-        fixed_bottom: usize,
+        pair: FramePairRef<'_>,
+        region: StitchRegion,
         shift: i32,
         stable_blocks: &[usize],
         strip_scores: &mut Vec<f32>,
     ) -> f32 {
-        let valid_h = height.saturating_sub(fixed_top + fixed_bottom) as i32;
+        let valid_h = region.valid_height() as i32;
         let overlap = valid_h - shift.abs();
         if overlap <= config.min_overlap as i32 {
             return -1.0;
@@ -857,30 +843,28 @@ impl ScrollStitcher {
             let overlap_start_prev = if shift >= 0 { shift } else { 0 };
             let center = ((overlap as f32) * ratio) as i32;
 
-            let next_y = fixed_top as i32 + overlap_start_next + center;
-            let prev_y = fixed_top as i32 + overlap_start_prev + center;
+            let next_y = region.fixed_top as i32 + overlap_start_next + center;
+            let prev_y = region.fixed_top as i32 + overlap_start_prev + center;
 
-            let y0_next = (next_y - patch_h / 2).clamp(fixed_top as i32, height as i32 - fixed_bottom as i32 - patch_h - 1);
-            let y0_prev = (prev_y - patch_h / 2).clamp(fixed_top as i32, height as i32 - fixed_bottom as i32 - patch_h - 1);
+            let y0_next = (next_y - patch_h / 2).clamp(region.fixed_top as i32, region.height as i32 - region.fixed_bottom as i32 - patch_h - 1);
+            let y0_prev = (prev_y - patch_h / 2).clamp(region.fixed_top as i32, region.height as i32 - region.fixed_bottom as i32 - patch_h - 1);
 
             let mut score_sum = 0.0f32;
             let mut score_count = 0usize;
             for &b in stable_blocks {
-                let x0 = (b as i32 * block).min(width as i32 - 1);
-                let x1 = ((b as i32 + 1) * block).min(width as i32);
+                let x0 = (b as i32 * block).min(region.width as i32 - 1);
+                let x1 = ((b as i32 + 1) * block).min(region.width as i32);
                 if x1 - x0 < 2 {
                     continue;
                 }
-                let score = Self::zncc_patch(
-                    prev,
-                    next,
-                    width,
-                    x0 as usize,
-                    x1 as usize,
-                    y0_prev as usize,
-                    y0_next as usize,
-                    patch_h as usize,
-                );
+                let patch = ZNCCPatch {
+                    x0: x0 as usize,
+                    x1: x1 as usize,
+                    y0_prev: y0_prev as usize,
+                    y0_next: y0_next as usize,
+                    patch_h: patch_h as usize,
+                };
+                let score = Self::zncc_patch(pair, region.width, patch);
                 if score.is_finite() {
                     score_sum += score;
                     score_count += 1;
@@ -900,18 +884,17 @@ impl ScrollStitcher {
         strip_scores.iter().sum::<f32>() / strip_scores.len() as f32
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn zncc_patch(prev: &[f32], next: &[f32], width: usize, x0: usize, x1: usize, y0_prev: usize, y0_next: usize, patch_h: usize) -> f32 {
+    fn zncc_patch(pair: FramePairRef<'_>, width: usize, patch: ZNCCPatch) -> f32 {
         let mut sum_p = 0.0f32;
         let mut sum_n = 0.0f32;
         let mut count = 0usize;
 
-        for dy in 0..patch_h {
-            let row_p = (y0_prev + dy) * width;
-            let row_n = (y0_next + dy) * width;
-            for x in x0..x1 {
-                sum_p += prev[row_p + x];
-                sum_n += next[row_n + x];
+        for dy in 0..patch.patch_h {
+            let row_p = (patch.y0_prev + dy) * width;
+            let row_n = (patch.y0_next + dy) * width;
+            for x in patch.x0..patch.x1 {
+                sum_p += pair.prev[row_p + x];
+                sum_n += pair.next[row_n + x];
                 count += 1;
             }
         }
@@ -927,12 +910,12 @@ impl ScrollStitcher {
         let mut var_p = 0.0f32;
         let mut var_n = 0.0f32;
 
-        for dy in 0..patch_h {
-            let row_p = (y0_prev + dy) * width;
-            let row_n = (y0_next + dy) * width;
-            for x in x0..x1 {
-                let p = prev[row_p + x] - mean_p;
-                let n = next[row_n + x] - mean_n;
+        for dy in 0..patch.patch_h {
+            let row_p = (patch.y0_prev + dy) * width;
+            let row_n = (patch.y0_next + dy) * width;
+            for x in patch.x0..patch.x1 {
+                let p = pair.prev[row_p + x] - mean_p;
+                let n = pair.next[row_n + x] - mean_n;
                 cov += p * n;
                 var_p += p * p;
                 var_n += n * n;
@@ -943,17 +926,7 @@ impl ScrollStitcher {
         cov / denom
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn find_smart_seam(
-        &self,
-        prev: &[f32],
-        next: &[f32],
-        width: usize,
-        height: usize,
-        fixed_top: usize,
-        overlap_valid: usize,
-        stable_blocks: &[usize],
-    ) -> usize {
+    fn find_smart_seam(&self, pair: FramePairRef<'_>, region: StitchRegion, overlap_valid: usize, stable_blocks: &[usize]) -> usize {
         let block = self.config.dynamic_block_size.max(8);
         let search_start = overlap_valid / self.config.seam_margin_divisor.max(2) as usize;
         let search_end =
@@ -963,9 +936,9 @@ impl ScrollStitcher {
         let mut best_energy = f32::MAX;
 
         for k in search_start..search_end.max(search_start + 1) {
-            let prev_row = fixed_top + k;
+            let prev_row = region.fixed_top + k;
             let next_row = k;
-            if prev_row == 0 || prev_row >= height || next_row == 0 || next_row >= height {
+            if prev_row == 0 || prev_row >= region.height || next_row == 0 || next_row >= region.height {
                 continue;
             }
 
@@ -973,15 +946,15 @@ impl ScrollStitcher {
             let mut n = 0usize;
             for &b in stable_blocks {
                 let x0 = b * block;
-                let x1 = ((b + 1) * block).min(width);
+                let x1 = ((b + 1) * block).min(region.width);
                 for x in x0..x1 {
-                    let p_idx = prev_row * width + x;
-                    let p_up = (prev_row - 1) * width + x;
-                    let n_idx = next_row * width + x;
-                    let n_up = (next_row - 1) * width + x;
+                    let p_idx = prev_row * region.width + x;
+                    let p_up = (prev_row - 1) * region.width + x;
+                    let n_idx = next_row * region.width + x;
+                    let n_up = (next_row - 1) * region.width + x;
 
-                    let p_grad = (prev[p_idx] - prev[p_up]).abs();
-                    let n_grad = (next[n_idx] - next[n_up]).abs();
+                    let p_grad = (pair.prev[p_idx] - pair.prev[p_up]).abs();
+                    let n_grad = (pair.next[n_idx] - pair.next[n_up]).abs();
                     energy += (p_grad - n_grad).abs();
                     n += 1;
                 }
@@ -1000,19 +973,19 @@ impl ScrollStitcher {
         best_k
     }
 
-    fn execute_stitch(&mut self, new_image: &RgbaImage, trim_amount: u32, append_start_y: u32, append_end_y: u32, fixed_bottom: u32) -> bool {
+    fn execute_stitch(&mut self, new_image: &RgbaImage, plan: StitchAppendPlan) -> bool {
         let Some(canvas) = self.canvas.as_mut() else {
             return false;
         };
 
         let previous_valid_height = self.valid_height;
         let content_end = self.valid_height.saturating_sub(self.last_footer_height);
-        if trim_amount > content_end {
+        if plan.trim_amount > content_end {
             return false;
         }
 
-        let keep_h = content_end - trim_amount;
-        let append_h = append_end_y.saturating_sub(append_start_y);
+        let keep_h = content_end - plan.trim_amount;
+        let append_h = plan.append_end_y.saturating_sub(plan.append_start_y);
         let new_total_h = keep_h + append_h;
 
         if new_total_h > canvas.height() {
@@ -1028,11 +1001,11 @@ impl ScrollStitcher {
         };
 
         if append_h > 0 {
-            Self::copy_region(new_image, append_start_y, canvas, keep_h, append_h);
+            Self::copy_region(new_image, plan.append_start_y, canvas, keep_h, append_h);
         }
 
         self.valid_height = new_total_h;
-        self.last_footer_height = fixed_bottom;
+        self.last_footer_height = plan.fixed_bottom;
         self.thumbnail.mark_dirty_from(keep_h.min(previous_valid_height));
         true
     }

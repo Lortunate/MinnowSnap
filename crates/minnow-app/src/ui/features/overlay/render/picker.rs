@@ -3,7 +3,6 @@ use gpui::{App, IntoElement, ParentElement, Styled, div, px, rgba};
 use gpui_component::ActiveTheme as _;
 
 use crate::ui::features::overlay::state::{PickerFormat, PickerNeighborhood, PickerSample};
-use crate::ui::key_unicode::{KeyUnicode, key_symbol};
 
 const PICKER_MARGIN: f64 = 16.0;
 const MAGNIFIER_CELL_SIZE: f32 = 11.0;
@@ -114,7 +113,7 @@ fn picker_info_section(
     let color_value = rgba(u32::from(sample.r) << 24 | u32::from(sample.g) << 16 | u32::from(sample.b) << 8 | 0xff);
     let primary_label = i18n::overlay::picker_value_and_format(&color_text, format_label);
     let coordinates_label = i18n::overlay::picker_coordinates(neighborhood.center_x, neighborhood.center_y);
-    let shortcut_hint = i18n::overlay::picker_shortcuts("C", key_symbol(KeyUnicode::Shift));
+    let shortcut_hint = i18n::overlay::picker_shortcuts("C", "⇧");
 
     div().h(px(PICKER_INFO_HEIGHT as f32)).px_1().py_1().child(
         div()

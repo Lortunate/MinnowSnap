@@ -1,4 +1,5 @@
 use crate::services::paths::ensure_dir;
+use directories::UserDirs;
 use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, ImageEncoder, RgbaImage};
 use std::fs;
@@ -9,9 +10,8 @@ use tracing::{error, info};
 
 #[must_use]
 pub fn get_default_save_path() -> String {
-    if let Some(mut d) = dirs::picture_dir() {
-        d.push("MinnowSnap");
-        let path_str = d.to_string_lossy();
+    if let Some(path) = minnow_picture_dir() {
+        let path_str = path.to_string_lossy();
         return path_str.into();
     }
     String::new()
@@ -38,9 +38,8 @@ pub fn save_temp_image(image: &RgbaImage, compress: bool) -> Option<String> {
 pub fn save_image_to_user_dir(image: &RgbaImage, compress: bool, custom_path: Option<String>) -> Option<String> {
     let mut dir = if let Some(path) = custom_path.filter(|s| !s.is_empty()) {
         PathBuf::from(path)
-    } else if let Some(mut d) = dirs::picture_dir() {
-        d.push("MinnowSnap");
-        d
+    } else if let Some(path) = minnow_picture_dir() {
+        path
     } else {
         error!("Could not determine save directory");
         return None;
@@ -125,4 +124,10 @@ fn save_compressed_png(image: &RgbaImage, path: &PathBuf) -> Option<String> {
             save_uncompressed_png(image, path)
         }
     }
+}
+
+fn minnow_picture_dir() -> Option<PathBuf> {
+    let mut path = UserDirs::new()?.picture_dir()?.to_path_buf();
+    path.push("MinnowSnap");
+    Some(path)
 }

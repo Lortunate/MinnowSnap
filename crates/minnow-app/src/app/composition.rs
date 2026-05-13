@@ -14,20 +14,7 @@ use crate::ui::{
 #[cfg(target_os = "macos")]
 use crate::services::app_meta::APP_ID;
 
-#[derive(Clone, Copy, Debug)]
-pub struct HotkeyCallbackBindings {
-    pub open_capture_overlay: fn(&mut gpui::App),
-    pub run_quick_capture: fn(),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct TrayCallbackBindings {
-    pub open_capture_overlay: fn(&mut gpui::App),
-    pub run_quick_capture: fn(),
-    pub open_preferences: fn(&mut gpui::App),
-}
-
-pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
+pub(super) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
     #[cfg(target_os = "windows")]
     init_windows_notification_app_id();
 
@@ -53,22 +40,13 @@ pub(crate) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         pin::bind_keys(cx);
         pin::install(cx);
         set_auto_start(settings::auto_start_enabled());
-        let hotkey_callbacks = hotkey_callback_bindings();
-        platform::hotkey::install_hotkey_service(
-            cx,
-            HotkeyActionSink::new(hotkey_callbacks.open_capture_overlay, hotkey_callbacks.run_quick_capture),
-        );
+        platform::hotkey::install_hotkey_service(cx, HotkeyActionSink::new(open_capture_overlay, run_quick_capture_with_notification));
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);
 
-        let tray_callbacks = tray_callback_bindings();
         if let Err(err) = platform::tray::SystemTray::install(
             cx,
-            TrayActions::new(
-                tray_callbacks.open_capture_overlay,
-                tray_callbacks.run_quick_capture,
-                tray_callbacks.open_preferences,
-            ),
+            TrayActions::new(open_capture_overlay, run_quick_capture_with_notification, open_preferences_window),
         ) {
             tracing::error!("Failed to install system tray: {err}");
             cx.quit();
@@ -120,33 +98,17 @@ fn request_app_quit(cx: &mut gpui::AsyncApp) {
     });
 }
 
-pub fn hotkey_callback_bindings() -> HotkeyCallbackBindings {
-    HotkeyCallbackBindings {
-        open_capture_overlay,
-        run_quick_capture: run_quick_capture_with_notification,
-    }
-}
-
-pub fn tray_callback_bindings() -> TrayCallbackBindings {
-    let hotkey = hotkey_callback_bindings();
-    TrayCallbackBindings {
-        open_capture_overlay: hotkey.open_capture_overlay,
-        run_quick_capture: hotkey.run_quick_capture,
-        open_preferences: open_preferences_window,
-    }
-}
-
-pub fn prepare_overlay_session(cx: &mut gpui::App) {
+fn prepare_overlay_session(cx: &mut gpui::App) {
     let overlay_handle = cx.global::<overlay::OverlayHandle>().clone();
     overlay_handle.prepare(cx);
 }
 
-pub fn open_capture_overlay(cx: &mut gpui::App) {
+fn open_capture_overlay(cx: &mut gpui::App) {
     prepare_overlay_session(cx);
     overlay::open_window(cx);
 }
 
-pub fn run_quick_capture_with_notification() {
+fn run_quick_capture_with_notification() {
     let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
     if ok {
         notify::show(
@@ -163,6 +125,6 @@ pub fn run_quick_capture_with_notification() {
     }
 }
 
-pub fn open_preferences_window(cx: &mut gpui::App) {
+fn open_preferences_window(cx: &mut gpui::App) {
     preferences::open_window(cx);
 }

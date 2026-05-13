@@ -51,8 +51,3 @@ pub fn copy_text_to_clipboard(text: String) -> bool {
         true
     }
 }
-
-pub fn read_text_from_clipboard() -> Option<String> {
-    let mut clipboard = Clipboard::new().ok()?;
-    clipboard.get_text().ok()
-}

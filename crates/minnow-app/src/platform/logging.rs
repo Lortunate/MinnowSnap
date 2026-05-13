@@ -46,7 +46,7 @@ fn should_suppress_gpui_window_not_found(metadata: &tracing::Metadata<'_>) -> bo
     }
 }
 
-pub fn init_logger() -> Option<WorkerGuard> {
+pub(crate) fn init_logger() -> Option<WorkerGuard> {
     let log_dir = prepare_log_dir()?;
     let (non_blocking, guard) = build_file_writer(&log_dir)?;
     let env_filter = || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL));
@@ -72,7 +72,7 @@ pub fn init_logger() -> Option<WorkerGuard> {
     Some(guard)
 }
 
-pub fn log_dir() -> PathBuf {
+pub(crate) fn log_dir() -> PathBuf {
     crate::services::paths::app_paths().logs_dir().to_path_buf()
 }
 

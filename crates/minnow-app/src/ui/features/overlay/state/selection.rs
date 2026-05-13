@@ -111,17 +111,17 @@ impl OverlaySession {
         let (current_x, current_y) = self.clamp_point_to_viewport(point);
         let dx = current_x - start.x.to_f64();
         let dy = current_y - start.y.to_f64();
-        let (x, y, width, height) = crate::services::geometry::calculate_resize(
-            start_rect.x,
-            start_rect.y,
-            start_rect.width,
-            start_rect.height,
+        let (x, y, width, height) = crate::services::geometry::calculate_resize(crate::services::geometry::ResizeParams {
+            start_x: start_rect.x,
+            start_y: start_rect.y,
+            start_w: start_rect.width,
+            start_h: start_rect.height,
             dx,
             dy,
-            corner.geometry_key(),
-            self.viewport.viewport_w,
-            self.viewport.viewport_h,
-        );
+            corner: corner.geometry_key(),
+            screen_w: self.viewport.viewport_w,
+            screen_h: self.viewport.viewport_h,
+        });
 
         self.viewport.selection = Some(self.clamp_rect_to_viewport(RectF::new(x, y, width, height)));
     }

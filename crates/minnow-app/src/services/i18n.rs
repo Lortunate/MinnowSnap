@@ -1,13 +1,12 @@
-pub const SYSTEM_LOCALE: &str = "System";
-pub const SUPPORTED_LOCALES: [&str; 3] = [SYSTEM_LOCALE, "en-US", "zh-CN"];
+pub(crate) const SYSTEM_LOCALE: &str = "System";
 
-pub fn init(language: &str) -> String {
+pub(crate) fn init(language: &str) -> String {
     let locale = resolve_locale(language);
     rust_i18n::set_locale(&locale);
     locale
 }
 
-pub fn resolve_locale(language: &str) -> String {
+pub(crate) fn resolve_locale(language: &str) -> String {
     if language.trim().is_empty() || language == SYSTEM_LOCALE {
         return detect_system_locale();
     }
@@ -15,7 +14,7 @@ pub fn resolve_locale(language: &str) -> String {
     normalize_locale_tag(language)
 }
 
-pub fn normalize_locale_tag(locale: &str) -> String {
+fn normalize_locale_tag(locale: &str) -> String {
     match locale.trim() {
         "" | "System" => detect_system_locale(),
         "zh_CN" | "zh-CN" | "zh" => "zh-CN".to_string(),
@@ -24,21 +23,13 @@ pub fn normalize_locale_tag(locale: &str) -> String {
     }
 }
 
-pub fn detect_system_locale() -> String {
+pub(crate) fn detect_system_locale() -> String {
     let system = sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string());
     match system.to_ascii_lowercase().as_str() {
         value if value.starts_with("zh") => "zh-CN".to_string(),
         value if value.starts_with("en") => "en".to_string(),
         _ => "en".to_string(),
     }
-}
-
-pub fn bool_label(value: bool) -> String {
-    if value { common::enabled() } else { common::disabled() }
-}
-
-pub fn default_path_label() -> String {
-    preferences::default_path()
 }
 
 pub mod app {
@@ -671,5 +662,23 @@ pub mod tray {
 
     pub fn exit() -> String {
         t!("tray.actions.exit").into_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_locale_tag;
+
+    #[test]
+    fn normalize_locale_tag_maps_supported_aliases() {
+        assert_eq!(normalize_locale_tag("zh_CN"), "zh-CN");
+        assert_eq!(normalize_locale_tag("zh"), "zh-CN");
+        assert_eq!(normalize_locale_tag("en-US"), "en");
+        assert_eq!(normalize_locale_tag("en"), "en");
+    }
+
+    #[test]
+    fn normalize_locale_tag_replaces_underscores_for_other_locales() {
+        assert_eq!(normalize_locale_tag("pt_BR"), "pt-BR");
     }
 }

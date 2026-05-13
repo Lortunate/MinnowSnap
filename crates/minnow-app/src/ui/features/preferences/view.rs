@@ -2,7 +2,6 @@ use super::{
     pages::{self, PreferencesRenderActions},
     state::{self, MutationResult, PreferencesNotice, PreferencesPage, PreferencesState, frame::PreferencesFrame},
 };
-use crate::platform::system;
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings, format_keystroke};
 use crate::services::{i18n, ocr::service, settings};
 use gpui::{
@@ -45,11 +44,11 @@ impl PreferencesView {
     }
 
     pub(super) fn on_open_repository(_: &ClickEvent, _: &mut Window, cx: &mut App) {
-        system::open_external_url(cx, "https://github.com/Lortunate/MinnowSnap");
+        cx.open_url("https://github.com/Lortunate/MinnowSnap");
     }
 
     pub(super) fn on_report_issue(_: &ClickEvent, _: &mut Window, cx: &mut App) {
-        system::open_external_url(cx, "https://github.com/Lortunate/MinnowSnap/issues");
+        cx.open_url("https://github.com/Lortunate/MinnowSnap/issues");
     }
 
     pub(super) fn select_page(&mut self, page: PreferencesPage, cx: &mut Context<Self>) {
