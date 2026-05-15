@@ -3,7 +3,7 @@ use super::{
     state::{self, MutationResult, PreferencesNotice, PreferencesPage, PreferencesState, frame::PreferencesFrame},
 };
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings, format_keystroke};
-use crate::services::{i18n, ocr::service, settings};
+use crate::services::{i18n, ocr::service, settings, settings::SettingsAction};
 use gpui::{
     AnyElement, App, AsyncWindowContext, ClickEvent, Context, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent, ParentElement,
     PathPromptOptions, SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
@@ -82,27 +82,27 @@ impl PreferencesView {
     }
 
     pub(super) fn on_notifications_enabled_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::set_notification_enabled(checked);
+        settings::apply(SettingsAction::SetNotificationEnabled(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_save_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::set_save_notification(checked);
+        settings::apply(SettingsAction::SetSaveNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_copy_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::set_copy_notification(checked);
+        settings::apply(SettingsAction::SetCopyNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_qr_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::set_qr_code_notification(checked);
+        settings::apply(SettingsAction::SetQrCodeNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_shutter_sound_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::set_shutter_sound(checked);
+        settings::apply(SettingsAction::SetShutterSound(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 

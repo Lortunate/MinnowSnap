@@ -1,7 +1,6 @@
 use crate::platform::async_ui::{app_ready, update_app};
 use crate::services::hotkeys::{HotkeyAction, HotkeyUpdateError, ShortcutBindings};
-use crate::services::settings;
-use crate::services::settings::ShortcutSettings;
+use crate::services::settings::{self, SettingsAction, ShortcutSettings};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
 use std::sync::{Arc, Mutex};
@@ -229,7 +228,10 @@ impl HotkeyService {
             return Err(HotkeyUpdateError::Conflict);
         }
 
-        settings::set_shortcuts(bindings.capture.clone(), bindings.quick_capture.clone());
+        settings::apply(SettingsAction::SetShortcuts {
+            capture: bindings.capture.clone(),
+            quick_capture: bindings.quick_capture.clone(),
+        });
 
         if self.manager.manager.is_none() {
             self.register_from_settings();

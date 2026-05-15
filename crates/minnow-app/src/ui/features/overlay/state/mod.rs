@@ -1,3 +1,4 @@
+// Overlay session boundary: command routing, transient state, and UI-facing view models.
 mod annotation;
 mod command;
 mod diagnostics;

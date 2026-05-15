@@ -11,9 +11,54 @@ use std::sync::{Arc, LazyLock, Mutex};
 use tracing::{debug, error, info};
 use xcap::Monitor;
 
-pub static LAST_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
-pub static SCROLL_CAPTURE: LazyLock<Mutex<Option<Arc<RgbaImage>>>> = LazyLock::new(|| Mutex::new(None));
-pub static ACTIVE_MONITOR_TARGET: LazyLock<Mutex<Option<CaptureMonitorTarget>>> = LazyLock::new(|| Mutex::new(None));
+static CAPTURE_REPOSITORY: LazyLock<CaptureRepository> = LazyLock::new(CaptureRepository::default);
+
+#[derive(Default)]
+pub struct CaptureRepository {
+    last_capture: Mutex<Option<Arc<RgbaImage>>>,
+    scroll_capture: Mutex<Option<Arc<RgbaImage>>>,
+    active_monitor_target: Mutex<Option<CaptureMonitorTarget>>,
+}
+
+impl CaptureRepository {
+    #[must_use]
+    pub fn get_cached_capture(&self, source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
+        self.cache_cell(source).lock().ok().and_then(|cache| cache.as_ref().cloned())
+    }
+
+    pub fn set_cached_capture(&self, source: VirtualCaptureSource, image: RgbaImage) {
+        if let Ok(mut cache) = self.cache_cell(source).lock() {
+            *cache = Some(Arc::new(image));
+        }
+    }
+
+    pub fn clear_cached_captures(&self) {
+        if let Ok(mut cache) = self.last_capture.lock() {
+            *cache = None;
+        }
+        if let Ok(mut cache) = self.scroll_capture.lock() {
+            *cache = None;
+        }
+    }
+
+    #[must_use]
+    pub fn active_monitor_target(&self) -> Option<CaptureMonitorTarget> {
+        self.active_monitor_target.lock().ok().and_then(|cell| *cell)
+    }
+
+    fn set_active_monitor_target(&self, target: Option<CaptureMonitorTarget>) {
+        if let Ok(mut cell) = self.active_monitor_target.lock() {
+            *cell = target;
+        }
+    }
+
+    fn cache_cell(&self, source: VirtualCaptureSource) -> &Mutex<Option<Arc<RgbaImage>>> {
+        match source {
+            VirtualCaptureSource::Preview => &self.last_capture,
+            VirtualCaptureSource::Scroll => &self.scroll_capture,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CaptureMonitorTarget {
@@ -67,30 +112,16 @@ impl CaptureMonitorTarget {
     }
 }
 
-fn cache_cell(source: VirtualCaptureSource) -> &'static Mutex<Option<Arc<RgbaImage>>> {
-    match source {
-        VirtualCaptureSource::Preview => &LAST_CAPTURE,
-        VirtualCaptureSource::Scroll => &SCROLL_CAPTURE,
-    }
-}
-
 pub fn get_cached_capture(source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
-    cache_cell(source).lock().ok().and_then(|cache| cache.as_ref().cloned())
+    CAPTURE_REPOSITORY.get_cached_capture(source)
 }
 
 pub fn set_cached_capture(source: VirtualCaptureSource, image: RgbaImage) {
-    if let Ok(mut cache) = cache_cell(source).lock() {
-        *cache = Some(Arc::new(image));
-    }
+    CAPTURE_REPOSITORY.set_cached_capture(source, image);
 }
 
 pub fn clear_cached_captures() {
-    if let Ok(mut cache) = LAST_CAPTURE.lock() {
-        *cache = None;
-    }
-    if let Ok(mut cache) = SCROLL_CAPTURE.lock() {
-        *cache = None;
-    }
+    CAPTURE_REPOSITORY.clear_cached_captures();
 }
 
 pub fn update_last_capture(image: RgbaImage) {
@@ -163,14 +194,12 @@ pub fn active_monitor() -> Option<Monitor> {
 }
 
 fn set_active_monitor_target(target: Option<CaptureMonitorTarget>) {
-    if let Ok(mut cell) = ACTIVE_MONITOR_TARGET.lock() {
-        *cell = target;
-    }
+    CAPTURE_REPOSITORY.set_active_monitor_target(target);
 }
 
 #[must_use]
 pub fn active_monitor_target() -> Option<CaptureMonitorTarget> {
-    ACTIVE_MONITOR_TARGET.lock().ok().and_then(|cell| *cell)
+    CAPTURE_REPOSITORY.active_monitor_target()
 }
 
 fn primary_monitor_target() -> Option<CaptureMonitorTarget> {
@@ -266,4 +295,82 @@ fn resolve_active_monitor() -> Option<Monitor> {
         set_active_monitor_target(None);
     }
     Monitor::all().ok()?.into_iter().next()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_image(width: u32, height: u32, value: u8) -> RgbaImage {
+        RgbaImage::from_pixel(width, height, image::Rgba([value, value, value, 255]))
+    }
+
+    fn test_target(scale_factor: f32) -> CaptureMonitorTarget {
+        CaptureMonitorTarget {
+            id: 7,
+            x: 10,
+            y: 20,
+            width: 300,
+            height: 200,
+            scale_factor,
+        }
+    }
+
+    #[test]
+    fn repository_updates_preview_and_scroll_caches_independently() {
+        let repository = CaptureRepository::default();
+
+        repository.set_cached_capture(VirtualCaptureSource::Preview, test_image(2, 3, 10));
+        repository.set_cached_capture(VirtualCaptureSource::Scroll, test_image(4, 5, 20));
+
+        assert_eq!(repository.get_cached_capture(VirtualCaptureSource::Preview).unwrap().dimensions(), (2, 3));
+        assert_eq!(repository.get_cached_capture(VirtualCaptureSource::Scroll).unwrap().dimensions(), (4, 5));
+    }
+
+    #[test]
+    fn repository_clear_drops_cached_captures() {
+        let repository = CaptureRepository::default();
+        repository.set_cached_capture(VirtualCaptureSource::Preview, test_image(1, 1, 10));
+        repository.set_cached_capture(VirtualCaptureSource::Scroll, test_image(1, 1, 20));
+
+        repository.clear_cached_captures();
+
+        assert!(repository.get_cached_capture(VirtualCaptureSource::Preview).is_none());
+        assert!(repository.get_cached_capture(VirtualCaptureSource::Scroll).is_none());
+    }
+
+    #[test]
+    fn repository_tracks_active_monitor_target() {
+        let repository = CaptureRepository::default();
+        let target = test_target(1.5);
+
+        repository.set_active_monitor_target(Some(target));
+        assert_eq!(repository.active_monitor_target(), Some(target));
+
+        repository.set_active_monitor_target(None);
+        assert_eq!(repository.active_monitor_target(), None);
+    }
+
+    #[test]
+    fn monitor_target_sanitizes_invalid_scale() {
+        assert_eq!(test_target(0.0).effective_scale(), 1.0);
+        assert_eq!(test_target(-2.0).effective_scale(), 1.0);
+        assert_eq!(test_target(2.0).effective_scale(), 2.0);
+    }
+
+    #[test]
+    fn perform_crop_clamps_to_image_bounds() {
+        let image = test_image(10, 10, 10);
+        let crop = perform_crop(&image, Rect::new(8, 8, 5, 5), 1.0).unwrap();
+
+        assert_eq!(crop.dimensions(), (2, 2));
+    }
+
+    #[test]
+    fn perform_crop_rejects_empty_or_out_of_bounds_rects() {
+        let image = test_image(10, 10, 10);
+
+        assert!(perform_crop(&image, Rect::new(20, 0, 5, 5), 1.0).is_none());
+        assert!(perform_crop(&image, Rect::new(0, 0, 0, 5), 1.0).is_none());
+    }
 }

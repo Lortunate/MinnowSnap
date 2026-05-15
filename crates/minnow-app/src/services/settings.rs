@@ -1,4 +1,4 @@
-use crate::services::paths::ensure_parent_dir;
+use crate::services::{hotkeys, paths::ensure_parent_dir};
 use config::{Config, File};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use tracing::{error, info};
 
-static SETTINGS: LazyLock<Mutex<SettingsManager>> = LazyLock::new(|| Mutex::new(SettingsManager::new()));
+static SETTINGS: LazyLock<Mutex<SettingsStore>> = LazyLock::new(|| Mutex::new(SettingsStore::new()));
 
 pub fn snapshot() -> AppSettings {
     SETTINGS.lock().map(|guard| guard.get()).unwrap_or_default()
@@ -41,55 +41,76 @@ pub fn auto_start_enabled() -> bool {
 }
 
 pub fn set_save_path(path: String) {
-    SETTINGS.lock().unwrap().set_save_path(path);
+    apply(SettingsAction::SetSavePath(path));
 }
 
 pub fn set_oxipng_enabled(enabled: bool) {
-    SETTINGS.lock().unwrap().set_oxipng_enabled(enabled);
+    apply(SettingsAction::SetOxipngEnabled(enabled));
 }
 
 pub fn set_font_family(font_family: String) {
-    SETTINGS.lock().unwrap().set_font_family(font_family);
+    apply(SettingsAction::SetFontFamily(font_family));
 }
 
 pub fn set_theme(theme: String) {
-    SETTINGS.lock().unwrap().set_theme(theme);
+    apply(SettingsAction::SetTheme(theme));
 }
 
 pub fn set_language(language: String) {
-    SETTINGS.lock().unwrap().set_language(language);
+    apply(SettingsAction::SetLanguage(language));
 }
 
 pub fn set_auto_start(enabled: bool) {
-    SETTINGS.lock().unwrap().set_auto_start(enabled);
+    apply(SettingsAction::SetAutoStart(enabled));
 }
 
 pub fn set_shortcuts(capture: String, quick_capture: String) {
-    SETTINGS.lock().unwrap().set_shortcuts(capture, quick_capture);
+    apply(SettingsAction::SetShortcuts { capture, quick_capture });
 }
 
 pub fn set_ocr_enabled(enabled: bool) {
-    SETTINGS.lock().unwrap().set_ocr_enabled(enabled);
+    apply(SettingsAction::SetOcrEnabled(enabled));
 }
 
 pub fn set_notification_enabled(enabled: bool) {
-    SETTINGS.lock().unwrap().set_notification_enabled(enabled);
+    apply(SettingsAction::SetNotificationEnabled(enabled));
 }
 
 pub fn set_save_notification(enabled: bool) {
-    SETTINGS.lock().unwrap().set_save_notification(enabled);
+    apply(SettingsAction::SetSaveNotification(enabled));
 }
 
 pub fn set_copy_notification(enabled: bool) {
-    SETTINGS.lock().unwrap().set_copy_notification(enabled);
+    apply(SettingsAction::SetCopyNotification(enabled));
 }
 
 pub fn set_qr_code_notification(enabled: bool) {
-    SETTINGS.lock().unwrap().set_qr_code_notification(enabled);
+    apply(SettingsAction::SetQrCodeNotification(enabled));
 }
 
 pub fn set_shutter_sound(enabled: bool) {
-    SETTINGS.lock().unwrap().set_shutter_sound(enabled);
+    apply(SettingsAction::SetShutterSound(enabled));
+}
+
+pub fn apply(action: SettingsAction) {
+    SETTINGS.lock().unwrap().apply(action);
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum SettingsAction {
+    SetSavePath(String),
+    SetOxipngEnabled(bool),
+    SetFontFamily(String),
+    SetTheme(String),
+    SetLanguage(String),
+    SetAutoStart(bool),
+    SetShortcuts { capture: String, quick_capture: String },
+    SetOcrEnabled(bool),
+    SetNotificationEnabled(bool),
+    SetSaveNotification(bool),
+    SetCopyNotification(bool),
+    SetQrCodeNotification(bool),
+    SetShutterSound(bool),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -122,8 +143,8 @@ pub struct ShortcutSettings {
 impl Default for ShortcutSettings {
     fn default() -> Self {
         Self {
-            capture: "F1".to_string(),
-            quick_capture: "F2".to_string(),
+            capture: hotkeys::DEFAULT_CAPTURE_SHORTCUT.to_string(),
+            quick_capture: hotkeys::DEFAULT_QUICK_CAPTURE_SHORTCUT.to_string(),
         }
     }
 }
@@ -192,20 +213,20 @@ pub struct AppSettings {
     pub notification: NotificationSettings,
 }
 
-struct SettingsManager {
+pub struct SettingsStore {
     config: AppSettings,
     config_path: PathBuf,
     #[cfg(test)]
     save_count: usize,
 }
 
-impl Default for SettingsManager {
+impl Default for SettingsStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SettingsManager {
+impl SettingsStore {
     fn new() -> Self {
         let (config, config_path) = Self::load_config();
         Self {
@@ -257,6 +278,24 @@ impl SettingsManager {
     fn update<F: FnOnce(&mut AppSettings)>(&mut self, f: F) {
         f(&mut self.config);
         self.save();
+    }
+
+    pub fn apply(&mut self, action: SettingsAction) {
+        match action {
+            SettingsAction::SetSavePath(path) => self.set_save_path(path),
+            SettingsAction::SetOxipngEnabled(enabled) => self.set_oxipng_enabled(enabled),
+            SettingsAction::SetFontFamily(font_family) => self.set_font_family(font_family),
+            SettingsAction::SetTheme(theme) => self.set_theme(theme),
+            SettingsAction::SetLanguage(language) => self.set_language(language),
+            SettingsAction::SetAutoStart(enabled) => self.set_auto_start(enabled),
+            SettingsAction::SetShortcuts { capture, quick_capture } => self.set_shortcuts(capture, quick_capture),
+            SettingsAction::SetOcrEnabled(enabled) => self.set_ocr_enabled(enabled),
+            SettingsAction::SetNotificationEnabled(enabled) => self.set_notification_enabled(enabled),
+            SettingsAction::SetSaveNotification(enabled) => self.set_save_notification(enabled),
+            SettingsAction::SetCopyNotification(enabled) => self.set_copy_notification(enabled),
+            SettingsAction::SetQrCodeNotification(enabled) => self.set_qr_code_notification(enabled),
+            SettingsAction::SetShutterSound(enabled) => self.set_shutter_sound(enabled),
+        }
     }
 
     fn set_save_path(&mut self, path: String) {
@@ -344,8 +383,8 @@ impl SettingsManager {
 mod tests {
     use super::*;
 
-    fn test_manager() -> SettingsManager {
-        SettingsManager {
+    fn test_store() -> SettingsStore {
+        SettingsStore {
             config: AppSettings::default(),
             config_path: std::env::temp_dir().join("minnowsnap-settings-test.toml"),
             save_count: 0,
@@ -354,13 +393,55 @@ mod tests {
 
     #[test]
     fn set_shortcuts_updates_both_bindings_with_one_save() {
-        let mut manager = test_manager();
+        let mut store = test_store();
 
-        manager.set_shortcuts("Ctrl+Shift+1".to_string(), "Ctrl+Shift+2".to_string());
+        store.apply(SettingsAction::SetShortcuts {
+            capture: "Ctrl+Shift+1".to_string(),
+            quick_capture: "Ctrl+Shift+2".to_string(),
+        });
 
-        let settings = manager.get();
+        let settings = store.get();
         assert_eq!(settings.shortcuts.capture, "Ctrl+Shift+1");
         assert_eq!(settings.shortcuts.quick_capture, "Ctrl+Shift+2");
-        assert_eq!(manager.save_count, 1);
+        assert_eq!(store.save_count, 1);
+    }
+
+    #[test]
+    fn settings_action_updates_general_and_output_settings() {
+        let mut store = test_store();
+
+        store.apply(SettingsAction::SetTheme("Dark".to_string()));
+        store.apply(SettingsAction::SetLanguage("en_US".to_string()));
+        store.apply(SettingsAction::SetFontFamily("JetBrains Mono".to_string()));
+        store.apply(SettingsAction::SetSavePath("D:/captures".to_string()));
+        store.apply(SettingsAction::SetOxipngEnabled(false));
+
+        let settings = store.get();
+        assert_eq!(settings.general.theme, "Dark");
+        assert_eq!(settings.general.language, "en_US");
+        assert_eq!(settings.general.font_family.as_deref(), Some("JetBrains Mono"));
+        assert_eq!(settings.output.save_path.as_deref(), Some("D:/captures"));
+        assert!(!settings.output.oxipng_enabled);
+        assert_eq!(store.save_count, 5);
+    }
+
+    #[test]
+    fn settings_action_reset_empty_optional_values() {
+        let mut store = test_store();
+
+        store.apply(SettingsAction::SetFontFamily(String::new()));
+        store.apply(SettingsAction::SetSavePath(String::new()));
+
+        let settings = store.get();
+        assert_eq!(settings.general.font_family, None);
+        assert_eq!(settings.output.save_path, None);
+    }
+
+    #[test]
+    fn default_shortcuts_stay_aligned_with_hotkeys_constants() {
+        let settings = ShortcutSettings::default();
+
+        assert_eq!(settings.capture, hotkeys::DEFAULT_CAPTURE_SHORTCUT);
+        assert_eq!(settings.quick_capture, hotkeys::DEFAULT_QUICK_CAPTURE_SHORTCUT);
     }
 }

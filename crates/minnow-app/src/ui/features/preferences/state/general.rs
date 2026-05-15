@@ -5,7 +5,13 @@ use crate::ui::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 use crate::ui::support::locale;
 use crate::{
     platform::storage::get_default_save_path,
-    services::{fonts::get_system_fonts, i18n, i18n::SYSTEM_LOCALE, settings, settings::AppSettings},
+    services::{
+        fonts::get_system_fonts,
+        i18n,
+        i18n::SYSTEM_LOCALE,
+        settings,
+        settings::{AppSettings, SettingsAction},
+    },
 };
 use gpui::{App, Context, SharedString, Window};
 use tracing::warn;
@@ -40,7 +46,7 @@ pub(crate) fn snapshot() -> GeneralSnapshot {
 }
 
 pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -> MutationResult {
-    settings::set_auto_start(enabled);
+    settings::apply(SettingsAction::SetAutoStart(enabled));
 
     if cx.has_global::<UiSystemActions>() {
         cx.global::<UiSystemActions>().set_auto_start(enabled);
@@ -53,21 +59,21 @@ pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -
 
 pub(crate) fn set_language(value: SharedString) -> MutationResult {
     let language = value.to_string();
-    settings::set_language(language.clone());
+    settings::apply(SettingsAction::SetLanguage(language.clone()));
     locale::apply(&language);
     MutationResult::refresh_windows()
 }
 
 pub(crate) fn set_theme(value: SharedString, window: &mut Window, cx: &mut App) -> MutationResult {
     let theme_choice = value.to_string();
-    settings::set_theme(theme_choice.clone());
+    settings::apply(SettingsAction::SetTheme(theme_choice.clone()));
     appearance::apply_theme_choice(&theme_choice, Some(window), cx);
     MutationResult::NONE
 }
 
 pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
     let font_family = value.to_string();
-    settings::set_font_family(font_family.clone());
+    settings::apply(SettingsAction::SetFontFamily(font_family.clone()));
 
     let font_ref = if font_family.trim().is_empty() {
         None
@@ -80,12 +86,12 @@ pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
 }
 
 pub(crate) fn set_save_path(save_path: String) -> MutationResult {
-    settings::set_save_path(save_path);
+    settings::apply(SettingsAction::SetSavePath(save_path));
     MutationResult::refresh_windows().clear_notice()
 }
 
 pub(crate) fn set_image_compression(enabled: bool) -> MutationResult {
-    settings::set_oxipng_enabled(enabled);
+    settings::apply(SettingsAction::SetOxipngEnabled(enabled));
     MutationResult::refresh_windows()
 }
 

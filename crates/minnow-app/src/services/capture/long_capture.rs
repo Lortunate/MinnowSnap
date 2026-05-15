@@ -10,6 +10,23 @@ const SCALE_EPSILON: f32 = 0.01;
 const CAPTURE_LOOP_INTERVAL: Duration = Duration::from_millis(16);
 const PREVIEW_EVENT_INTERVAL: Duration = Duration::from_millis(33);
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct CaptureFrameTarget {
+    rect: Rect,
+    viewport_rect: RectF,
+    scale_hint: f32,
+}
+
+impl CaptureFrameTarget {
+    const fn new(rect: Rect, viewport_rect: RectF, scale_hint: f32) -> Self {
+        Self {
+            rect,
+            viewport_rect,
+            scale_hint,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum LongCaptureEvent {
     Started,
@@ -58,6 +75,7 @@ impl LongCaptureRuntime {
         let active = self.active.clone();
         let tx = self.events_tx.clone();
         let final_image = self.final_image.clone();
+        let target = CaptureFrameTarget::new(rect, viewport_rect, scale_hint);
 
         crate::RUNTIME.spawn_blocking(move || {
             let _ = tx.send(LongCaptureEvent::Started);
@@ -79,7 +97,7 @@ impl LongCaptureRuntime {
             while active.load(Ordering::SeqCst) {
                 match monitor.capture_image() {
                     Ok(full_screen) => {
-                        if let Some(cropped) = crop_frame_with_scale_candidates(&full_screen, rect, &viewport_rect, scale_hint) {
+                        if let Some(cropped) = crop_frame_with_scale_candidates(&full_screen, target) {
                             let result = stitcher.process_frame_detailed(cropped);
                             match result.status {
                                 StitchFrameStatus::Appended => {
@@ -209,10 +227,10 @@ impl LongCaptureRuntime {
     }
 }
 
-fn crop_frame_with_scale_candidates(full_screen: &RgbaImage, rect: Rect, viewport_rect: &RectF, scale_hint: f32) -> Option<RgbaImage> {
-    let candidates = build_scale_candidates(full_screen.width(), full_screen.height(), viewport_rect, scale_hint);
+fn crop_frame_with_scale_candidates(full_screen: &RgbaImage, target: CaptureFrameTarget) -> Option<RgbaImage> {
+    let candidates = build_scale_candidates(full_screen.width(), full_screen.height(), &target.viewport_rect, target.scale_hint);
     for scale in candidates {
-        if let Some(mut cropped) = perform_crop(full_screen, rect, scale) {
+        if let Some(mut cropped) = perform_crop(full_screen, target.rect, scale) {
             normalize_alpha_opaque(&mut cropped);
             return Some(cropped);
         }
@@ -297,7 +315,7 @@ mod tests {
         };
         let viewport = RectF::new(0.0, 0.0, 960.0, 540.0);
 
-        let cropped = crop_frame_with_scale_candidates(&source, rect, &viewport, 1.0).expect("crop should succeed");
+        let cropped = crop_frame_with_scale_candidates(&source, CaptureFrameTarget::new(rect, viewport, 1.0)).expect("crop should succeed");
 
         assert_eq!(cropped.width(), 400);
         assert_eq!(cropped.height(), 200);
@@ -314,7 +332,16 @@ mod tests {
         };
         let viewport = RectF::new(0.0, 0.0, 400.0, 300.0);
 
-        let cropped = crop_frame_with_scale_candidates(&source, rect, &viewport, 1.0).expect("crop should succeed");
+        let cropped = crop_frame_with_scale_candidates(&source, CaptureFrameTarget::new(rect, viewport, 1.0)).expect("crop should succeed");
         assert!(cropped.pixels().all(|pixel| pixel[3] == 255));
+    }
+
+    #[test]
+    fn capture_frame_target_keeps_rect_and_viewport_together() {
+        let target = CaptureFrameTarget::new(Rect::new(1, 2, 3, 4), RectF::new(5.0, 6.0, 7.0, 8.0), 2.5);
+
+        assert_eq!(target.rect, Rect::new(1, 2, 3, 4));
+        assert_eq!(target.viewport_rect, RectF::new(5.0, 6.0, 7.0, 8.0));
+        assert_eq!(target.scale_hint, 2.5);
     }
 }

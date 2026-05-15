@@ -1,3 +1,4 @@
+// Annotation domain: document, tool behavior, hit testing, and raster/cache logic.
 mod engine;
 mod hit_test;
 mod model;

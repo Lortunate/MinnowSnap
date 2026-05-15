@@ -3,16 +3,6 @@ use anyhow::{Result, anyhow};
 use gpui::WindowControlArea;
 use gpui::{Div, InteractiveElement, MouseButton, Window};
 
-pub trait WindowDragExt {
-    fn start_system_drag(&mut self) -> Result<()>;
-}
-
-impl WindowDragExt for Window {
-    fn start_system_drag(&mut self) -> Result<()> {
-        platform::start_system_drag(self)
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PopupDragBehavior {
     // Use GPUI's native drag support when we can; fallback to hit-test on Windows.
@@ -32,7 +22,7 @@ impl PopupDragRegionExt for Div {
                 #[cfg(target_os = "windows")]
                 {
                     self.on_mouse_down(MouseButton::Left, |_, window, _| {
-                        if let Err(err) = window.start_system_drag() {
+                        if let Err(err) = platform::start_system_drag(window) {
                             tracing::debug!("failed to start popup drag: {err}");
                         }
                     })

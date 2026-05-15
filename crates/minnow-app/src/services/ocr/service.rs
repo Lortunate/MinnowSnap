@@ -1,5 +1,5 @@
 use super::{OcrBlock, OcrContext, OcrModelType, build_ocr_blocks};
-use crate::services::settings;
+use crate::services::settings::{self, SettingsAction};
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -39,7 +39,7 @@ pub fn is_enabled() -> bool {
 }
 
 pub fn set_enabled(enabled: bool) {
-    settings::set_ocr_enabled(enabled);
+    settings::apply(SettingsAction::SetOcrEnabled(enabled));
 }
 
 pub fn mobile_models_ready() -> bool {

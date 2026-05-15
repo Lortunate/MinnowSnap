@@ -2,7 +2,7 @@ use super::MutationResult;
 use crate::platform::hotkey::HotkeyService;
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings};
 use crate::services::i18n;
-use crate::services::settings;
+use crate::services::settings::{self, SettingsAction};
 use crate::ui::features::preferences::view::PreferencesView;
 use gpui::{App, BorrowAppContext, Context, SharedString};
 
@@ -39,7 +39,10 @@ pub(crate) fn persist_shortcut_bindings(bindings: ShortcutBindings, cx: &mut Con
             return Err(SharedString::from(i18n::preferences::shortcuts_conflict()));
         }
     } else {
-        settings::set_shortcuts(bindings.capture.clone(), bindings.quick_capture.clone());
+        settings::apply(SettingsAction::SetShortcuts {
+            capture: bindings.capture.clone(),
+            quick_capture: bindings.quick_capture.clone(),
+        });
     }
 
     Ok(MutationResult::refresh_windows().clear_notice())
