@@ -1,7 +1,7 @@
 use super::{MutationResult, frame::SelectOption};
 use crate::platform::system::UiSystemActions;
 use crate::ui::features::preferences::view::PreferencesView;
-use crate::ui::support::appearance::{self, THEME_DARK, THEME_LIGHT, THEME_SYSTEM};
+use crate::ui::support::appearance;
 use crate::ui::support::locale;
 use crate::{
     platform::storage::get_default_save_path,
@@ -10,7 +10,7 @@ use crate::{
         i18n,
         i18n::SYSTEM_LOCALE,
         settings,
-        settings::{AppSettings, SettingsAction},
+        settings::{AppSettings, SettingsAction, THEME_DARK, THEME_LIGHT, THEME_SYSTEM},
     },
 };
 use gpui::{App, Context, SharedString, Window};

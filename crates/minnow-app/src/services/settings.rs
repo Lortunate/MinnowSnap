@@ -8,6 +8,10 @@ use tracing::{error, info};
 
 static SETTINGS: LazyLock<Mutex<SettingsStore>> = LazyLock::new(|| Mutex::new(SettingsStore::new()));
 
+pub const THEME_SYSTEM: &str = "System";
+pub const THEME_LIGHT: &str = "Light";
+pub const THEME_DARK: &str = "Dark";
+
 pub fn snapshot() -> AppSettings {
     SETTINGS.lock().map(|guard| guard.get()).unwrap_or_default()
 }
@@ -38,58 +42,6 @@ pub fn language() -> String {
 
 pub fn auto_start_enabled() -> bool {
     general_settings().auto_start
-}
-
-pub fn set_save_path(path: String) {
-    apply(SettingsAction::SetSavePath(path));
-}
-
-pub fn set_oxipng_enabled(enabled: bool) {
-    apply(SettingsAction::SetOxipngEnabled(enabled));
-}
-
-pub fn set_font_family(font_family: String) {
-    apply(SettingsAction::SetFontFamily(font_family));
-}
-
-pub fn set_theme(theme: String) {
-    apply(SettingsAction::SetTheme(theme));
-}
-
-pub fn set_language(language: String) {
-    apply(SettingsAction::SetLanguage(language));
-}
-
-pub fn set_auto_start(enabled: bool) {
-    apply(SettingsAction::SetAutoStart(enabled));
-}
-
-pub fn set_shortcuts(capture: String, quick_capture: String) {
-    apply(SettingsAction::SetShortcuts { capture, quick_capture });
-}
-
-pub fn set_ocr_enabled(enabled: bool) {
-    apply(SettingsAction::SetOcrEnabled(enabled));
-}
-
-pub fn set_notification_enabled(enabled: bool) {
-    apply(SettingsAction::SetNotificationEnabled(enabled));
-}
-
-pub fn set_save_notification(enabled: bool) {
-    apply(SettingsAction::SetSaveNotification(enabled));
-}
-
-pub fn set_copy_notification(enabled: bool) {
-    apply(SettingsAction::SetCopyNotification(enabled));
-}
-
-pub fn set_qr_code_notification(enabled: bool) {
-    apply(SettingsAction::SetQrCodeNotification(enabled));
-}
-
-pub fn set_shutter_sound(enabled: bool) {
-    apply(SettingsAction::SetShutterSound(enabled));
 }
 
 pub fn apply(action: SettingsAction) {
@@ -125,7 +77,7 @@ pub struct GeneralSettings {
 impl Default for GeneralSettings {
     fn default() -> Self {
         Self {
-            theme: "System".to_string(),
+            theme: THEME_SYSTEM.to_string(),
             language: "System".to_string(),
             font_family: None,
             auto_start: false,

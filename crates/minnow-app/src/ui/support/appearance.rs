@@ -2,9 +2,6 @@ use crate::services::settings;
 use gpui::{App, Window};
 use gpui_component::{Theme, ThemeMode};
 
-pub const THEME_SYSTEM: &str = "System";
-pub const THEME_LIGHT: &str = "Light";
-pub const THEME_DARK: &str = "Dark";
 const DEFAULT_FONT_FAMILY: &str = ".SystemUIFont";
 
 pub fn apply_saved_preferences(window: Option<&mut Window>, cx: &mut App) {
@@ -26,8 +23,8 @@ pub fn apply_font_family(font_family: Option<&str>, cx: &mut App) {
 
 fn apply_theme_choice_inner(theme: &str, window: Option<&mut Window>, cx: &mut App) {
     match theme.trim() {
-        THEME_LIGHT => Theme::change(ThemeMode::Light, window, cx),
-        THEME_DARK => Theme::change(ThemeMode::Dark, window, cx),
+        settings::THEME_LIGHT => Theme::change(ThemeMode::Light, window, cx),
+        settings::THEME_DARK => Theme::change(ThemeMode::Dark, window, cx),
         _ => Theme::sync_system_appearance(window, cx),
     }
 }
