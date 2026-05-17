@@ -1,6 +1,5 @@
 mod actions;
 mod annotation;
-mod interaction;
 pub(crate) mod render;
 mod state;
 mod view;

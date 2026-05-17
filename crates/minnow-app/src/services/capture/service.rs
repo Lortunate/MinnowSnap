@@ -2,13 +2,16 @@ use crate::platform::clipboard::copy_image_to_clipboard;
 use crate::platform::notify;
 use crate::platform::storage::{save_image_to_user_dir, save_temp_image};
 use crate::services::capture::action::CaptureInputMode;
-use crate::services::capture::source::{self, VirtualCaptureSource};
-use crate::services::capture::{active_monitor_scale, capture_active_monitor, get_cached_capture, perform_crop, update_last_capture};
 use crate::services::geometry::Rect;
 use crate::services::settings;
 use image::RgbaImage;
 use std::sync::Arc;
 use tracing::{error, info};
+
+use super::{
+    VirtualCaptureSource, active_monitor_scale, capture_active_monitor, get_cached_capture,
+    normalize_virtual_source, parse_virtual_source, perform_crop, update_last_capture,
+};
 
 pub struct CaptureService;
 
@@ -23,7 +26,7 @@ impl CaptureService {
     }
 
     fn parse_cached_source(path_str: &str) -> Option<VirtualCaptureSource> {
-        source::parse_virtual_source(path_str)
+        parse_virtual_source(path_str)
     }
 
     fn get_cached_source_image(path_str: &str) -> Option<Arc<RgbaImage>> {
@@ -32,7 +35,7 @@ impl CaptureService {
     }
 
     fn resolve_image_from_path(path_str: &str) -> Option<RgbaImage> {
-        match image::open(source::normalize_virtual_source(path_str)) {
+        match image::open(normalize_virtual_source(path_str)) {
             Ok(img) => Some(img.to_rgba8()),
             Err(e) => {
                 error!("Failed to load source image '{path_str}': {e}");

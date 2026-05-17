@@ -1,4 +1,4 @@
-use crate::platform::async_ui::{app_ready, update_app};
+use crate::platform::{app_ready, update_app};
 use crate::services::hotkeys::{HotkeyAction, HotkeyUpdateError, ShortcutBindings};
 use crate::services::settings::{self, SettingsAction, ShortcutSettings};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};

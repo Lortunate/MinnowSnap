@@ -1,20 +1,102 @@
 pub mod action;
 pub mod long_capture;
-mod repository;
 pub mod service;
-pub mod source;
 pub mod stitcher;
 mod target;
 
 pub use target::CaptureMonitorTarget;
 
-use self::repository::CaptureRepository;
-use crate::services::capture::source::VirtualCaptureSource;
 use crate::services::geometry::Rect;
 use image::RgbaImage;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Mutex};
 use tracing::{debug, error, info};
 use xcap::Monitor;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VirtualCaptureSource {
+    Preview,
+    Scroll,
+}
+
+pub const PREVIEW_SOURCE: &str = "image://minnow/preview";
+pub const SCROLL_SOURCE: &str = "image://minnow/scroll";
+pub const PROVIDER_ID_PREVIEW: &str = "preview";
+pub const PROVIDER_ID_SCROLL: &str = "scroll";
+
+fn strip_query_fragment(input: &str) -> &str {
+    input.split(['?', '#']).next().unwrap_or(input)
+}
+
+pub fn normalize_provider_id(id: &str) -> &str {
+    strip_query_fragment(id).trim_matches('/')
+}
+
+pub fn normalize_virtual_source(source: &str) -> &str {
+    strip_query_fragment(source)
+}
+
+pub fn parse_provider_source(id: &str) -> Option<VirtualCaptureSource> {
+    match normalize_provider_id(id) {
+        PROVIDER_ID_PREVIEW => Some(VirtualCaptureSource::Preview),
+        PROVIDER_ID_SCROLL => Some(VirtualCaptureSource::Scroll),
+        _ => None,
+    }
+}
+
+pub fn parse_virtual_source(source: &str) -> Option<VirtualCaptureSource> {
+    match normalize_virtual_source(source) {
+        PREVIEW_SOURCE => Some(VirtualCaptureSource::Preview),
+        SCROLL_SOURCE => Some(VirtualCaptureSource::Scroll),
+        _ => None,
+    }
+}
+
+#[derive(Default)]
+struct CaptureRepository {
+    last_capture: Mutex<Option<Arc<RgbaImage>>>,
+    scroll_capture: Mutex<Option<Arc<RgbaImage>>>,
+    active_monitor_target: Mutex<Option<CaptureMonitorTarget>>,
+}
+
+impl CaptureRepository {
+    #[must_use]
+    fn get_cached_capture(&self, source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
+        self.cache_cell(source).lock().ok().and_then(|cache| cache.as_ref().cloned())
+    }
+
+    fn set_cached_capture(&self, source: VirtualCaptureSource, image: RgbaImage) {
+        if let Ok(mut cache) = self.cache_cell(source).lock() {
+            *cache = Some(Arc::new(image));
+        }
+    }
+
+    fn clear_cached_captures(&self) {
+        if let Ok(mut cache) = self.last_capture.lock() {
+            *cache = None;
+        }
+        if let Ok(mut cache) = self.scroll_capture.lock() {
+            *cache = None;
+        }
+    }
+
+    #[must_use]
+    fn active_monitor_target(&self) -> Option<CaptureMonitorTarget> {
+        self.active_monitor_target.lock().ok().and_then(|cell| *cell)
+    }
+
+    fn set_active_monitor_target(&self, target: Option<CaptureMonitorTarget>) {
+        if let Ok(mut cell) = self.active_monitor_target.lock() {
+            *cell = target;
+        }
+    }
+
+    fn cache_cell(&self, source: VirtualCaptureSource) -> &Mutex<Option<Arc<RgbaImage>>> {
+        match source {
+            VirtualCaptureSource::Preview => &self.last_capture,
+            VirtualCaptureSource::Scroll => &self.scroll_capture,
+        }
+    }
+}
 
 static CAPTURE_REPOSITORY: LazyLock<CaptureRepository> = LazyLock::new(CaptureRepository::default);
 

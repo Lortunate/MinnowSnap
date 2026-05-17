@@ -4,10 +4,13 @@ use std::sync::Arc;
 
 #[cfg(feature = "overlay-diagnostics")]
 use super::diagnostics::{OverlayDiagnostics, OverlayDiagnosticsSnapshot};
-use super::{OverlaySurface, PickerFormat, PickerNeighborhood, PickerSample};
+use super::{PickerFormat, PickerNeighborhood, PickerSample};
+use crate::services::capture::service::CaptureService;
+use crate::services::capture::update_last_capture;
 use crate::services::geometry::{RectF, clamp_point, normalize_rect};
 use crate::ui::features::overlay::annotation::{AnnotationEngine, AnnotationUiState};
-use crate::ui::features::overlay::window_catalog::{WindowInfo, find_window_at};
+use crate::ui::features::overlay::window_catalog::{WindowInfo, fetch_windows_data, find_window_at};
+use crate::ui::support::render_image;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResizeCorner {
@@ -349,5 +352,57 @@ impl OverlaySession {
     #[cfg(feature = "overlay-diagnostics")]
     pub(super) fn diagnostics_snapshot(&mut self) -> OverlayDiagnosticsSnapshot {
         self.diagnostics.snapshot(self.annotation.raster_diagnostics())
+    }
+}
+
+impl OverlaySession {
+    pub(super) fn frame(&mut self) -> OverlayFrame {
+        OverlayFrame {
+            background_image: self.background_image.clone(),
+            selection: SelectionVm {
+                selection: self.viewport.selection,
+                target: self.viewport.target,
+                drag_mode: self.viewport.mode,
+            },
+            selection_move_delta: self.viewport.selection_move_delta,
+            picker: self.picker_visible().then(|| PickerVm {
+                cursor: self.picker_cursor,
+                sample: self.picker_sample.clone(),
+                neighborhood: self.picker_neighborhood.clone(),
+                format: self.picker_format,
+            }),
+            annotation: self.annotation_ui_state(),
+            hud: HudVm {
+                hovered_window: self.hovered_window.clone(),
+            },
+            #[cfg(feature = "overlay-diagnostics")]
+            diagnostics: self.diagnostics_snapshot(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct OverlaySurface {
+    pub background_image: Option<Arc<RenderImage>>,
+    pub background_pixels: Option<Arc<RgbaImage>>,
+    pub windows: Vec<WindowInfo>,
+}
+
+impl OverlaySurface {
+    pub fn capture() -> Self {
+        let windows = fetch_windows_data();
+        match CaptureService::capture_region(crate::services::geometry::Rect::empty()) {
+            Some(image) => {
+                update_last_capture(image.clone());
+                let background_image = Some(render_image::from_rgba(image.clone()));
+                let background_pixels = Some(Arc::new(image));
+                Self {
+                    background_image,
+                    background_pixels,
+                    windows,
+                }
+            }
+            None => Self { windows, ..Self::default() },
+        }
     }
 }

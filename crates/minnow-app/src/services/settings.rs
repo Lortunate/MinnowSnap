@@ -234,75 +234,55 @@ impl SettingsStore {
 
     pub fn apply(&mut self, action: SettingsAction) {
         match action {
-            SettingsAction::SetSavePath(path) => self.set_save_path(path),
-            SettingsAction::SetOxipngEnabled(enabled) => self.set_oxipng_enabled(enabled),
-            SettingsAction::SetFontFamily(font_family) => self.set_font_family(font_family),
-            SettingsAction::SetTheme(theme) => self.set_theme(theme),
-            SettingsAction::SetLanguage(language) => self.set_language(language),
-            SettingsAction::SetAutoStart(enabled) => self.set_auto_start(enabled),
-            SettingsAction::SetShortcuts { capture, quick_capture } => self.set_shortcuts(capture, quick_capture),
-            SettingsAction::SetOcrEnabled(enabled) => self.set_ocr_enabled(enabled),
-            SettingsAction::SetNotificationEnabled(enabled) => self.set_notification_enabled(enabled),
-            SettingsAction::SetSaveNotification(enabled) => self.set_save_notification(enabled),
-            SettingsAction::SetCopyNotification(enabled) => self.set_copy_notification(enabled),
-            SettingsAction::SetQrCodeNotification(enabled) => self.set_qr_code_notification(enabled),
-            SettingsAction::SetShutterSound(enabled) => self.set_shutter_sound(enabled),
+            SettingsAction::SetSavePath(path) => {
+                self.update(|c| c.output.save_path = if path.is_empty() { None } else { Some(path) });
+            }
+            SettingsAction::SetOxipngEnabled(enabled) => {
+                self.update(|c| c.output.oxipng_enabled = enabled);
+            }
+            SettingsAction::SetFontFamily(font_family) => {
+                self.update(|c| {
+                    c.general.font_family = if font_family.is_empty() {
+                        None
+                    } else {
+                        Some(font_family)
+                    };
+                });
+            }
+            SettingsAction::SetTheme(theme) => {
+                self.update(|c| c.general.theme = theme);
+            }
+            SettingsAction::SetLanguage(language) => {
+                self.update(|c| c.general.language = language);
+            }
+            SettingsAction::SetAutoStart(enabled) => {
+                self.update(|c| c.general.auto_start = enabled);
+            }
+            SettingsAction::SetShortcuts { capture, quick_capture } => {
+                self.update(|c| {
+                    c.shortcuts.capture = capture;
+                    c.shortcuts.quick_capture = quick_capture;
+                });
+            }
+            SettingsAction::SetOcrEnabled(enabled) => {
+                self.update(|c| c.ocr.enabled = enabled);
+            }
+            SettingsAction::SetNotificationEnabled(enabled) => {
+                self.update(|c| c.notification.enabled = enabled);
+            }
+            SettingsAction::SetSaveNotification(enabled) => {
+                self.update(|c| c.notification.save_notification = enabled);
+            }
+            SettingsAction::SetCopyNotification(enabled) => {
+                self.update(|c| c.notification.copy_notification = enabled);
+            }
+            SettingsAction::SetQrCodeNotification(enabled) => {
+                self.update(|c| c.notification.qr_code_notification = enabled);
+            }
+            SettingsAction::SetShutterSound(enabled) => {
+                self.update(|c| c.notification.shutter_sound = enabled);
+            }
         }
-    }
-
-    fn set_save_path(&mut self, path: String) {
-        self.update(|c| c.output.save_path = if path.is_empty() { None } else { Some(path) });
-    }
-
-    fn set_oxipng_enabled(&mut self, enabled: bool) {
-        self.update(|c| c.output.oxipng_enabled = enabled);
-    }
-
-    fn set_font_family(&mut self, font_family: String) {
-        self.update(|c| c.general.font_family = if font_family.is_empty() { None } else { Some(font_family) });
-    }
-
-    fn set_theme(&mut self, theme: String) {
-        self.update(|c| c.general.theme = theme);
-    }
-
-    fn set_language(&mut self, language: String) {
-        self.update(|c| c.general.language = language);
-    }
-
-    fn set_auto_start(&mut self, enabled: bool) {
-        self.update(|c| c.general.auto_start = enabled);
-    }
-
-    fn set_shortcuts(&mut self, capture: String, quick_capture: String) {
-        self.update(|c| {
-            c.shortcuts.capture = capture;
-            c.shortcuts.quick_capture = quick_capture;
-        });
-    }
-
-    fn set_ocr_enabled(&mut self, enabled: bool) {
-        self.update(|c| c.ocr.enabled = enabled);
-    }
-
-    fn set_notification_enabled(&mut self, enabled: bool) {
-        self.update(|c| c.notification.enabled = enabled);
-    }
-
-    fn set_save_notification(&mut self, enabled: bool) {
-        self.update(|c| c.notification.save_notification = enabled);
-    }
-
-    fn set_copy_notification(&mut self, enabled: bool) {
-        self.update(|c| c.notification.copy_notification = enabled);
-    }
-
-    fn set_qr_code_notification(&mut self, enabled: bool) {
-        self.update(|c| c.notification.qr_code_notification = enabled);
-    }
-
-    fn set_shutter_sound(&mut self, enabled: bool) {
-        self.update(|c| c.notification.shutter_sound = enabled);
     }
 
     fn save(&mut self) {

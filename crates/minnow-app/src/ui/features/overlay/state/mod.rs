@@ -3,11 +3,9 @@ mod annotation;
 mod command;
 mod diagnostics;
 mod effects;
-mod frame;
 mod picker;
 mod selection;
 mod session;
-mod surface;
 
 pub(crate) use crate::ui::features::overlay::annotation::{
     AnnotationKind, AnnotationKindTag, AnnotationLayerState, AnnotationSelectionInfo, AnnotationStyleState, AnnotationTool, MosaicMode,
@@ -18,12 +16,12 @@ pub(crate) use diagnostics::OverlayDiagnosticsSnapshot;
 pub(crate) use effects::{OverlayEffect, OverlayOutcome};
 pub(crate) use picker::{PickerFormat, PickerNeighborhood, PickerSample};
 pub use session::OverlayHandle;
-pub(crate) use session::{DragMode, HudVm, OverlayFrame, OverlaySession, PickerVm, ResizeCorner, SelectionVm};
-pub(crate) use surface::OverlaySurface;
+pub(crate) use session::{DragMode, OverlayFrame, OverlaySession, PickerVm, ResizeCorner};
 
 #[cfg(test)]
 mod tests {
     use super::session::OverlaySession as SessionUnderTest;
+    use super::session::OverlaySurface;
     use super::*;
     use crate::ui::features::overlay::window_catalog::WindowInfo;
     use gpui::{Point, RenderImage, px};

@@ -2,8 +2,8 @@ use gpui::RenderImage;
 use image::{GenericImage, RgbaImage};
 use std::sync::Arc;
 
+use crate::services::capture::PREVIEW_SOURCE;
 use crate::services::capture::service::CaptureService;
-use crate::services::capture::source::PREVIEW_SOURCE;
 use crate::services::geometry::RectF;
 use crate::ui::support::render_image;
 
