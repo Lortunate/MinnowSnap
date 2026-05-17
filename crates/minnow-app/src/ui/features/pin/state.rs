@@ -1,5 +1,6 @@
 use super::request::PinRequest;
-use crate::services::ocr::{OcrBlock, format_selected_blocks};
+use super::selection_text::format_selected_blocks;
+use crate::services::ocr::OcrBlock;
 use gpui::{AnyWindowHandle, App, AppContext, Entity, Global, Pixels, Point, Size, WindowId, px, size};
 use std::collections::BTreeSet;
 use tracing::{info, warn};

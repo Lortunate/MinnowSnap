@@ -15,11 +15,7 @@ pub(crate) fn set_enabled(enabled: bool) -> MutationResult {
 pub(crate) fn snapshot(state: &PreferencesState) -> OcrSnapshot {
     OcrSnapshot {
         enabled: service::is_enabled(),
-        status: service::current_status(
-            state.ocr_download.in_progress,
-            state.ocr_download.progress_percent,
-            state.ocr_download.last_error.clone(),
-        ),
+        status: service::current_status(&state.ocr_download),
     }
 }
 

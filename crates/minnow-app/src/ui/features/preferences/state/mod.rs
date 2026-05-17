@@ -1,5 +1,6 @@
 use crate::services::hotkeys::HotkeyAction;
 use crate::services::i18n;
+use crate::services::ocr::service::OcrDownloadState;
 use gpui::SharedString;
 
 pub(super) mod frame;
@@ -70,44 +71,6 @@ impl PreferencesNotice {
 
     pub(crate) fn is_error(&self) -> bool {
         self.tone == NoticeTone::Error
-    }
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub(crate) struct OcrDownloadState {
-    pub(crate) in_progress: bool,
-    pub(crate) progress_percent: u8,
-    pub(crate) last_error: Option<String>,
-}
-
-impl OcrDownloadState {
-    pub(crate) fn begin(&mut self) {
-        self.in_progress = true;
-        self.progress_percent = 0;
-        self.last_error = None;
-    }
-
-    pub(crate) fn update_progress(&mut self, progress_percent: u8) -> bool {
-        if !self.in_progress || progress_percent < self.progress_percent {
-            return false;
-        }
-
-        self.progress_percent = progress_percent;
-        true
-    }
-
-    pub(crate) fn finish(&mut self, result: &Result<(), String>) {
-        self.in_progress = false;
-        match result {
-            Ok(()) => {
-                self.progress_percent = 100;
-                self.last_error = None;
-            }
-            Err(err) => {
-                self.progress_percent = 0;
-                self.last_error = Some(err.clone());
-            }
-        }
     }
 }
 

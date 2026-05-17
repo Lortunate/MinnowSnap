@@ -1,5 +1,6 @@
 mod render;
 mod request;
+mod selection_text;
 mod state;
 mod view;
 

@@ -13,6 +13,44 @@ pub enum OcrModelStatus {
     Failed { message: String },
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct OcrDownloadState {
+    pub(crate) in_progress: bool,
+    pub(crate) progress_percent: u8,
+    pub(crate) last_error: Option<String>,
+}
+
+impl OcrDownloadState {
+    pub(crate) fn begin(&mut self) {
+        self.in_progress = true;
+        self.progress_percent = 0;
+        self.last_error = None;
+    }
+
+    pub(crate) fn update_progress(&mut self, progress_percent: u8) -> bool {
+        if !self.in_progress || progress_percent < self.progress_percent {
+            return false;
+        }
+
+        self.progress_percent = progress_percent;
+        true
+    }
+
+    pub(crate) fn finish(&mut self, result: &Result<(), String>) {
+        self.in_progress = false;
+        match result {
+            Ok(()) => {
+                self.progress_percent = 100;
+                self.last_error = None;
+            }
+            Err(err) => {
+                self.progress_percent = 0;
+                self.last_error = Some(err.clone());
+            }
+        }
+    }
+}
+
 impl OcrModelStatus {
     pub fn is_downloading(&self) -> bool {
         matches!(self, Self::Downloading { .. })
@@ -69,8 +107,13 @@ pub fn model_status_from(ready: bool, is_downloading: bool, progress_percent: u8
     OcrModelStatus::Missing
 }
 
-pub fn current_status(is_downloading: bool, progress_percent: u8, last_error: Option<String>) -> OcrModelStatus {
-    model_status_from(mobile_models_ready(), is_downloading, progress_percent, last_error)
+pub fn current_status(download: &OcrDownloadState) -> OcrModelStatus {
+    model_status_from(
+        mobile_models_ready(),
+        download.in_progress,
+        download.progress_percent,
+        download.last_error.clone(),
+    )
 }
 
 fn join_error_message(task_name: &str, err: JoinError) -> String {
