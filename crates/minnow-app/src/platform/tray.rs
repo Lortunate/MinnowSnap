@@ -1,5 +1,5 @@
-use crate::platform::{app_ready, update_app};
 use crate::platform::shutdown::{self, ShutdownTrigger};
+use crate::platform::{app_ready, update_app};
 use crate::services::app_meta::APP_NAME;
 use crate::services::assets::asset_bytes;
 use crate::services::i18n;

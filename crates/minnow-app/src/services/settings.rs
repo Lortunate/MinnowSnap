@@ -242,11 +242,7 @@ impl SettingsStore {
             }
             SettingsAction::SetFontFamily(font_family) => {
                 self.update(|c| {
-                    c.general.font_family = if font_family.is_empty() {
-                        None
-                    } else {
-                        Some(font_family)
-                    };
+                    c.general.font_family = if font_family.is_empty() { None } else { Some(font_family) };
                 });
             }
             SettingsAction::SetTheme(theme) => {

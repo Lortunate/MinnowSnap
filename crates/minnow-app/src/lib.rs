@@ -18,11 +18,11 @@ fn build_runtime() -> Runtime {
         .expect("Failed to create Tokio runtime")
 }
 
-pub static RUNTIME: LazyLock<Runtime> = LazyLock::new(build_runtime);
+pub(crate) static RUNTIME: LazyLock<Runtime> = LazyLock::new(build_runtime);
 
 rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod app;
-pub mod platform;
-pub mod services;
-pub mod ui;
+pub(crate) mod platform;
+pub(crate) mod services;
+pub(crate) mod ui;

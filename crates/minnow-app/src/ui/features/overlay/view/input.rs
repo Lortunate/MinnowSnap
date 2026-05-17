@@ -1,12 +1,7 @@
 use super::OverlayView;
 use crate::services::geometry::RectF;
-use crate::ui::features::overlay::state::{
-    AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner,
-};
-use gpui::{
-    Context, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point, ScrollWheelEvent, Window,
-    px,
-};
+use crate::ui::features::overlay::state::{AnnotationCommand, DragMode, LifecycleCommand, OverlayCommand, OverlaySession, ResizeCorner};
+use gpui::{Context, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point, ScrollWheelEvent, Window, px};
 
 impl OverlayView {
     pub(super) fn on_mouse_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -99,11 +94,7 @@ fn resolve_right_click_command(session: &OverlaySession) -> OverlayCommand {
     }
 }
 
-fn resolve_left_click_command(
-    session: &OverlaySession,
-    point: Point<Pixels>,
-    click_count: usize,
-) -> Option<OverlayCommand> {
+fn resolve_left_click_command(session: &OverlaySession, point: Point<Pixels>, click_count: usize) -> Option<OverlayCommand> {
     if let Some(selection) = session.selection() {
         if let Some(corner) = hit_resize_corner(selection, point) {
             return Some(OverlayCommand::Lifecycle(LifecycleCommand::StartResize { corner, point }));

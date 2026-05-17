@@ -9,8 +9,8 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 use super::{
-    VirtualCaptureSource, active_monitor_scale, capture_active_monitor, get_cached_capture,
-    normalize_virtual_source, parse_virtual_source, perform_crop, update_last_capture,
+    VirtualCaptureSource, active_monitor_scale, capture_active_monitor, get_cached_capture, normalize_virtual_source, parse_virtual_source,
+    perform_crop, update_last_capture,
 };
 
 pub struct CaptureService;

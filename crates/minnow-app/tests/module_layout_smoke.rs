@@ -318,7 +318,21 @@ fn app_composition_is_the_top_composition_root() {
     let runtime_rs = read_repo_file("crates/minnow-app/src/app/runtime.rs");
     let composition_rs = read_repo_file("crates/minnow-app/src/app/composition.rs");
 
-    assert!(app_mod.contains("pub mod composition;"), "app module should expose the composition root");
+    for internal_module in ["bootstrap", "composition", "runtime"] {
+        assert!(
+            app_mod.contains(&format!("mod {internal_module};")),
+            "app should keep {internal_module} as an internal module"
+        );
+        assert!(
+            !app_mod.contains(&format!("pub mod {internal_module};")),
+            "app should not expose {internal_module}; the binary should use only command APIs"
+        );
+    }
+
+    assert!(
+        app_mod.contains("pub use commands::{Command, parse_command, parse_command_from, run_command};"),
+        "app should expose only the command API needed by the binary and tests"
+    );
     assert!(
         runtime_rs.contains("use super::composition::run_application;"),
         "runtime should enter the app through composition"
@@ -326,6 +340,27 @@ fn app_composition_is_the_top_composition_root() {
     assert!(
         composition_rs.contains("use crate::platform") && composition_rs.contains("use crate::services") && composition_rs.contains("use crate::ui"),
         "composition root should be the place where top-level owners are wired together"
+    );
+}
+
+#[test]
+fn crate_root_exposes_only_app_api() {
+    let lib_rs = read_repo_file("crates/minnow-app/src/lib.rs");
+
+    assert!(lib_rs.contains("pub mod app;"), "crate root should expose the app command facade");
+    for internal_module in ["platform", "services", "ui"] {
+        assert!(
+            lib_rs.contains(&format!("pub(crate) mod {internal_module};")),
+            "crate root should keep {internal_module} crate-private"
+        );
+        assert!(
+            !lib_rs.contains(&format!("pub mod {internal_module};")),
+            "crate root should not expose internal {internal_module} modules"
+        );
+    }
+    assert!(
+        lib_rs.contains("pub(crate) static RUNTIME"),
+        "runtime handle should be internal infrastructure, not public API"
     );
 }
 
