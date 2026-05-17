@@ -286,7 +286,8 @@ impl OverlaySession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::features::overlay::state::{OverlaySession, OverlaySurface};
+    use crate::ui::features::overlay::state::OverlaySession;
+    use crate::ui::features::overlay::state::session::OverlaySurface;
 
     fn session_with_pixels() -> OverlaySession {
         let mut session = OverlaySession::default();
