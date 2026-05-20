@@ -22,7 +22,6 @@ pub(crate) struct LongCaptureSnapshot {
     pub(crate) preview_height_px: i32,
     pub(crate) warning_text: String,
     pub(crate) busy: bool,
-    final_image: Option<RgbaImage>,
     pub(crate) frame_visible: bool,
 }
 
@@ -33,7 +32,6 @@ impl Default for LongCaptureSnapshot {
             preview_height_px: 0,
             warning_text: String::new(),
             busy: false,
-            final_image: None,
             frame_visible: true,
         }
     }
@@ -49,6 +47,7 @@ struct LongCaptureWindowHandles {
 #[derive(Default)]
 struct LongCaptureCoordinatorState {
     snapshot: LongCaptureSnapshot,
+    capture_image: Option<RgbaImage>,
     handles: LongCaptureWindowHandles,
     revision: u64,
     poller_running: bool,
@@ -108,9 +107,9 @@ impl LongCaptureCoordinator {
                         state.snapshot.warning_text = text;
                         changed = true;
                     }
-                    LongCaptureEvent::Finished { final_image } => {
-                        if let Some(image) = final_image {
-                            state.snapshot.final_image = Some(image);
+                    LongCaptureEvent::Finished => {
+                        if let Some(image) = self.runtime.take_result() {
+                            state.capture_image = Some(image);
                         }
                         state.snapshot.busy = false;
                         changed = true;
@@ -257,7 +256,7 @@ impl LongCaptureCoordinator {
 
     pub(crate) fn take_capture_image(&self, timeout: Duration) -> Option<RgbaImage> {
         if let Ok(mut state) = self.state.lock()
-            && let Some(image) = state.snapshot.final_image.take()
+            && let Some(image) = state.capture_image.take()
         {
             state.revision = state.revision.saturating_add(1);
             return Some(image);

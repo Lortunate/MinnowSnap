@@ -32,7 +32,7 @@ pub enum LongCaptureEvent {
     Started,
     Progress { height: i32, preview_image: RgbaImage },
     Warning { text: String },
-    Finished { final_image: Option<RgbaImage> },
+    Finished,
 }
 
 #[derive(Clone)]
@@ -80,7 +80,7 @@ impl LongCaptureRuntime {
                 let _ = tx.send(LongCaptureEvent::Warning {
                     text: "No active monitor found for long capture".to_string(),
                 });
-                let _ = tx.send(LongCaptureEvent::Finished { final_image: None });
+                let _ = tx.send(LongCaptureEvent::Finished);
                 return;
             };
 
@@ -143,9 +143,9 @@ impl LongCaptureRuntime {
 
             let final_img = stitcher.get_final_image();
             if let Ok(mut slot) = final_image.lock() {
-                *slot = final_img.clone();
+                *slot = final_img;
             }
-            let _ = tx.send(LongCaptureEvent::Finished { final_image: final_img });
+            let _ = tx.send(LongCaptureEvent::Finished);
         });
     }
 
@@ -180,11 +180,8 @@ impl LongCaptureRuntime {
             };
 
             match recv_result {
-                Ok(LongCaptureEvent::Finished { final_image }) => {
-                    if let Some(image) = final_image {
-                        if let Ok(mut slot) = self.final_image.lock() {
-                            *slot = Some(image.clone());
-                        }
+                Ok(LongCaptureEvent::Finished) => {
+                    if let Some(image) = self.take_result() {
                         return Some(image);
                     }
                 }

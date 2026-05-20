@@ -113,13 +113,13 @@ impl CaptureAction {
     }
 
     fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(cropped) = CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode)
-            && let Some(temp_path) = CaptureService::save_temp(&cropped)
+        if let Some(cropped) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode)
+            && let Some(temp_path) = CaptureService::save_temp(cropped.as_rgba())
         {
             let source_rect = if ctx.rect.has_area() {
                 ctx.rect
             } else {
-                Rect::new(0, 0, cropped.width() as i32, cropped.height() as i32)
+                Rect::new(0, 0, cropped.as_rgba().width() as i32, cropped.as_rgba().height() as i32)
             };
             return ActionResult::PinRequested(temp_path, source_rect, auto_ocr);
         }
@@ -135,9 +135,10 @@ impl CaptureAction {
     }
 
     fn handle_pick_color(ctx: ActionContext) -> ActionResult {
-        let Some(img) = CaptureService::resolve_image(&ctx.path, ctx.rect, ctx.input_mode) else {
+        let Some(img) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode) else {
             return ActionResult::Error(i18n::capture::copy_failed());
         };
+        let img = img.as_rgba();
         if img.width() == 0 || img.height() == 0 {
             return ActionResult::NoOp;
         }

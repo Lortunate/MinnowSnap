@@ -12,9 +12,18 @@ use super::{VirtualCaptureSource, active_monitor_scale, capture_active_monitor, 
 
 pub struct CaptureService;
 
-enum SourceImage {
+pub(crate) enum ResolvedCaptureImage {
     Shared(Arc<RgbaImage>),
     Owned(RgbaImage),
+}
+
+impl ResolvedCaptureImage {
+    pub(crate) fn as_rgba(&self) -> &RgbaImage {
+        match self {
+            Self::Shared(image) => image.as_ref(),
+            Self::Owned(image) => image,
+        }
+    }
 }
 
 impl CaptureService {
@@ -45,11 +54,11 @@ impl CaptureService {
         }
     }
 
-    fn resolve_source_image(path_str: &str) -> Option<SourceImage> {
+    fn resolve_source_image(path_str: &str) -> Option<ResolvedCaptureImage> {
         if let Some(shared) = Self::get_cached_source_image(path_str) {
-            return Some(SourceImage::Shared(shared));
+            return Some(ResolvedCaptureImage::Shared(shared));
         }
-        Self::resolve_image_from_path(path_str).map(SourceImage::Owned)
+        Self::resolve_image_from_path(path_str).map(ResolvedCaptureImage::Owned)
     }
 
     fn crop_selection(img: &RgbaImage, rect: Rect) -> Option<RgbaImage> {
@@ -76,20 +85,6 @@ impl CaptureService {
         perform_crop(img, rect, scale_factor)
     }
 
-    fn resolve_from_shared_image(img: Arc<RgbaImage>, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
-        if Self::is_full_request(rect, input_mode) {
-            return Some(img.as_ref().clone());
-        }
-        Self::crop_selection(img.as_ref(), rect)
-    }
-
-    fn resolve_from_owned_image(img: RgbaImage, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
-        if Self::is_full_request(rect, input_mode) {
-            return Some(img);
-        }
-        Self::crop_selection(&img, rect)
-    }
-
     pub fn capture_region(rect: Rect) -> Option<RgbaImage> {
         info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
         let scale_factor = active_monitor_scale();
@@ -105,22 +100,28 @@ impl CaptureService {
         }
     }
 
-    pub fn resolve_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<RgbaImage> {
+    pub(crate) fn resolve_capture_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<ResolvedCaptureImage> {
         match Self::resolve_source_image(path)? {
-            SourceImage::Shared(img) => Self::resolve_from_shared_image(img, rect, input_mode),
-            SourceImage::Owned(img) => Self::resolve_from_owned_image(img, rect, input_mode),
+            ResolvedCaptureImage::Shared(img) => {
+                if Self::is_full_request(rect, input_mode) {
+                    Some(ResolvedCaptureImage::Shared(img))
+                } else {
+                    Self::crop_selection(img.as_ref(), rect).map(ResolvedCaptureImage::Owned)
+                }
+            }
+            ResolvedCaptureImage::Owned(img) => {
+                if Self::is_full_request(rect, input_mode) {
+                    Some(ResolvedCaptureImage::Owned(img))
+                } else {
+                    Self::crop_selection(&img, rect).map(ResolvedCaptureImage::Owned)
+                }
+            }
         }
     }
 
     pub fn copy_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> bool {
-        if Self::is_full_request(rect, input_mode)
-            && let Some(shared) = Self::get_cached_source_image(path)
-        {
-            return copy_image_to_clipboard(shared.as_ref());
-        }
-
-        if let Some(img) = Self::resolve_image(path, rect, input_mode) {
-            return copy_image_to_clipboard(&img);
+        if let Some(img) = Self::resolve_capture_image(path, rect, input_mode) {
+            return copy_image_to_clipboard(img.as_rgba());
         }
         false
     }
@@ -131,12 +132,12 @@ impl CaptureService {
         input_mode: CaptureInputMode,
         save_path_override: Option<String>,
     ) -> Result<String, String> {
-        let img = Self::resolve_image(path, rect, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
+        let img = Self::resolve_capture_image(path, rect, input_mode).ok_or_else(|| "Failed to resolve or crop image for saving".to_string())?;
 
         let settings = settings::output_settings();
         let save_path = save_path_override.or(settings.save_path);
 
-        let result = save_image_to_user_dir(&img, settings.oxipng_enabled, save_path);
+        let result = save_image_to_user_dir(img.as_rgba(), settings.oxipng_enabled, save_path);
         if result.is_some() {
             notify::play_shutter();
         }
@@ -165,8 +166,8 @@ impl CaptureService {
     }
 
     pub fn detect_qrcode(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<String> {
-        if let Some(cropped) = Self::resolve_image(path, rect, input_mode) {
-            let gray = image::imageops::grayscale(&cropped);
+        if let Some(cropped) = Self::resolve_capture_image(path, rect, input_mode) {
+            let gray = image::imageops::grayscale(cropped.as_rgba());
             let (w, h) = gray.dimensions();
             let mut img = rqrr::PreparedImage::prepare_from_greyscale(w as usize, h as usize, |x, y| gray.get_pixel(x as u32, y as u32)[0]);
             let grids = img.detect_grids();
