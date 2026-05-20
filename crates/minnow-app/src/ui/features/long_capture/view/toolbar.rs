@@ -4,7 +4,6 @@ pub(crate) use actions::LongCaptureToolbarAction;
 
 use crate::platform::notify::NotificationType;
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
-use crate::services::capture::service::CaptureService;
 use crate::services::i18n;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
 use crate::ui::features::long_capture::layout::{TOOLBAR_TOP_RESERVED, long_capture_toolbar_size};
@@ -145,13 +144,7 @@ impl ToolbarWindowView {
             return;
         };
 
-        let Some(temp_path) = CaptureService::save_temp(&image) else {
-            self.coordinator.finish_capture_action_with_warning(i18n::capture::copy_failed());
-            cx.notify();
-            return;
-        };
-
-        self.handle_capture_action_result(action.execute(ActionContext::full_image(temp_path)), window, cx);
+        self.handle_capture_action_result(action.execute(ActionContext::full_image_data(Arc::new(image))), window, cx);
     }
 }
 

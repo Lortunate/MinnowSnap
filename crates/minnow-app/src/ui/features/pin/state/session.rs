@@ -1,5 +1,6 @@
 use super::super::request::PinRequest;
 use super::super::selection_text::format_selected_blocks;
+use crate::services::capture::action::ActionContext;
 use crate::services::ocr::{OcrBlock, service::OcrImageInput};
 use gpui::{App, AppContext, Entity, Pixels, Point, Size, px, size};
 use image::RgbaImage;
@@ -186,6 +187,13 @@ impl PinSession {
             Some(image) => OcrImageInput::Rgba(image.clone()),
             None => OcrImageInput::Path(self.image_path.clone()),
         })
+    }
+
+    pub(in crate::ui::features::pin) fn capture_action_context(&self) -> ActionContext {
+        match &self.ocr_image {
+            Some(image) => ActionContext::full_image_data(image.clone()),
+            None => ActionContext::full_image(self.image_path.to_string_lossy().to_string()),
+        }
     }
 
     pub(in crate::ui::features::pin) fn finish_ocr(&mut self, result: Result<Vec<OcrBlock>, String>) {

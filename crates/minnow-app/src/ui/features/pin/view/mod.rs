@@ -8,7 +8,7 @@ use super::{
 };
 use crate::platform::clipboard::copy_text_to_clipboard;
 use crate::platform::notify::NotificationType;
-use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
+use crate::services::capture::action::{ActionResult, CaptureAction};
 use crate::services::i18n;
 use crate::services::ocr::service;
 use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
@@ -55,9 +55,8 @@ impl PinView {
     }
 
     fn run_capture_action(session: &Entity<PinSession>, action: CaptureAction, cx: &mut App) {
-        let image_path = session.read(cx).frame().image_path;
-        let path = image_path.to_string_lossy().to_string();
-        match action.execute(ActionContext::full_image(path)) {
+        let context = session.read(cx).capture_action_context();
+        match action.execute(context) {
             ActionResult::Copied => {
                 crate::platform::notify::show(
                     i18n::app::capture_name().as_str(),

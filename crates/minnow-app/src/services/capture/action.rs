@@ -1,4 +1,4 @@
-use crate::services::capture::service::CaptureService;
+use crate::services::capture::service::{CaptureService, ResolvedCaptureImage};
 use crate::services::geometry::Rect;
 use crate::services::i18n;
 use image::RgbaImage;
@@ -61,16 +61,30 @@ pub enum CaptureInputMode {
 }
 
 pub struct ActionContext {
-    pub path: String,
+    source: ActionImageSource,
     pub rect: Rect,
     pub input_mode: CaptureInputMode,
     pub save_path_override: Option<String>,
 }
 
+enum ActionImageSource {
+    Path(String),
+    Rgba(Arc<RgbaImage>),
+}
+
+impl ActionImageSource {
+    fn label(&self) -> &str {
+        match self {
+            Self::Path(path) => path,
+            Self::Rgba(_) => "in-memory image",
+        }
+    }
+}
+
 impl ActionContext {
     pub fn crop_selection(path: String, rect: Rect) -> Self {
         Self {
-            path,
+            source: ActionImageSource::Path(path),
             rect,
             input_mode: CaptureInputMode::CropSelection,
             save_path_override: None,
@@ -79,7 +93,16 @@ impl ActionContext {
 
     pub fn full_image(path: String) -> Self {
         Self {
-            path,
+            source: ActionImageSource::Path(path),
+            rect: Rect::empty(),
+            input_mode: CaptureInputMode::FullImage,
+            save_path_override: None,
+        }
+    }
+
+    pub(crate) fn full_image_data(image: Arc<RgbaImage>) -> Self {
+        Self {
+            source: ActionImageSource::Rgba(image),
             rect: Rect::empty(),
             input_mode: CaptureInputMode::FullImage,
             save_path_override: None,
@@ -94,7 +117,7 @@ impl ActionContext {
 
 impl CaptureAction {
     pub fn execute(&self, ctx: ActionContext) -> ActionResult {
-        info!("Executing action: {:?} for path: {}", self, ctx.path);
+        info!("Executing action: {:?} for source: {}", self, ctx.source.label());
 
         match self {
             CaptureAction::Copy => Self::handle_copy(ctx),
@@ -107,8 +130,17 @@ impl CaptureAction {
         }
     }
 
+    fn resolve_image(ctx: &ActionContext) -> Option<ResolvedCaptureImage> {
+        match &ctx.source {
+            ActionImageSource::Path(path) => CaptureService::resolve_capture_image(path, ctx.rect, ctx.input_mode),
+            ActionImageSource::Rgba(image) => CaptureService::resolve_rgba_image(image.clone(), ctx.rect, ctx.input_mode),
+        }
+    }
+
     fn handle_copy(ctx: ActionContext) -> ActionResult {
-        if CaptureService::copy_image(&ctx.path, ctx.rect, ctx.input_mode) {
+        if let Some(image) = Self::resolve_image(&ctx)
+            && CaptureService::copy_rgba(image.as_rgba())
+        {
             ActionResult::Copied
         } else {
             ActionResult::Error(i18n::capture::copy_failed())
@@ -116,14 +148,18 @@ impl CaptureAction {
     }
 
     fn handle_save(ctx: ActionContext) -> ActionResult {
-        match CaptureService::save_region_to_user_dir(&ctx.path, ctx.rect, ctx.input_mode, ctx.save_path_override) {
+        let Some(image) = Self::resolve_image(&ctx) else {
+            return ActionResult::Error("Failed to resolve or crop image for saving".to_string());
+        };
+
+        match CaptureService::save_rgba_to_user_dir(image.as_rgba(), ctx.save_path_override) {
             Ok(path) => ActionResult::Saved(path),
             Err(e) => ActionResult::Error(e),
         }
     }
 
     fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(image) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode)
+        if let Some(image) = Self::resolve_image(&ctx)
             && let Some(temp_path) = CaptureService::save_temp(image.as_rgba())
         {
             let source_rect = if ctx.rect.has_area() {
@@ -142,7 +178,9 @@ impl CaptureAction {
     }
 
     fn handle_qrcode(ctx: ActionContext) -> ActionResult {
-        if let Some(content) = CaptureService::detect_qrcode(&ctx.path, ctx.rect, ctx.input_mode) {
+        if let Some(image) = Self::resolve_image(&ctx)
+            && let Some(content) = CaptureService::decode_qrcode(image.as_rgba())
+        {
             ActionResult::OcrResult(content)
         } else {
             ActionResult::Error(i18n::overlay::qr_not_found())
@@ -150,7 +188,7 @@ impl CaptureAction {
     }
 
     fn handle_pick_color(ctx: ActionContext) -> ActionResult {
-        let Some(img) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode) else {
+        let Some(img) = Self::resolve_image(&ctx) else {
             return ActionResult::Error(i18n::capture::copy_failed());
         };
         let img = img.as_rgba();
@@ -161,5 +199,24 @@ impl CaptureAction {
         let center_y = img.height() / 2;
         let pixel = img.get_pixel(center_x, center_y);
         ActionResult::ColorPicked(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    #[test]
+    fn pin_action_preserves_in_memory_image_for_ocr() {
+        let image = Arc::new(RgbaImage::from_pixel(8, 6, Rgba([255, 0, 0, 255])));
+
+        let ActionResult::PinRequested(request) = CaptureAction::Pin.execute(ActionContext::full_image_data(image.clone())) else {
+            panic!("pin action should request a pin window");
+        };
+
+        assert!(Arc::ptr_eq(&request.ocr_image, &image));
+        assert_eq!(request.source_bounds, Rect::new(0, 0, 8, 6));
+        let _ = std::fs::remove_file(request.image_path);
     }
 }
