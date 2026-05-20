@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use futures_util::StreamExt;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -17,10 +17,6 @@ impl ModelManager {
         Self {
             save_dir: save_dir.as_ref().to_path_buf(),
         }
-    }
-
-    pub fn default_dir() -> Result<PathBuf> {
-        Some(crate::services::paths::app_paths().ocr_models_dir().to_path_buf()).context("Could not resolve OCR models directory")
     }
 
     pub fn check_models_existence(&self, filenames: &[&str]) -> bool {

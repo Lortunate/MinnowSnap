@@ -33,8 +33,6 @@ pub const MOBILE_MODELS: ModelSource = ModelSource {
 
 #[derive(Clone, Debug)]
 pub struct OcrConfig {
-    pub model_type: OcrModelType,
-
     pub det_model_path: PathBuf,
     pub rec_model_path: PathBuf,
     pub keys_path: PathBuf,
@@ -51,7 +49,6 @@ pub struct OcrConfig {
 impl Default for OcrConfig {
     fn default() -> Self {
         Self {
-            model_type: OcrModelType::default(),
             det_model_path: PathBuf::default(),
             rec_model_path: PathBuf::default(),
             keys_path: PathBuf::default(),

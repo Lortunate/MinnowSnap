@@ -20,10 +20,9 @@ pub struct WindowInfo {
 pub fn fetch_windows_data() -> Vec<WindowInfo> {
     let windows = Window::all().unwrap_or_default();
     let monitors = Monitor::all().unwrap_or_default();
-    let active_target = crate::services::capture::active_monitor_target();
-    let scale_factor = active_target
-        .map(|target| target.effective_scale())
-        .or_else(|| monitors.first().and_then(|m| m.scale_factor().ok()))
+    let scale_factor = monitors
+        .first()
+        .and_then(|monitor| monitor.scale_factor().ok())
         .filter(|scale| *scale > 0.0)
         .unwrap_or(1.0);
     info!(
@@ -32,9 +31,7 @@ pub fn fetch_windows_data() -> Vec<WindowInfo> {
         scale_factor
     );
 
-    let (screen_rect, offset_x, offset_y) = if let Some(target) = active_target {
-        (target.rect(), target.x, target.y)
-    } else if monitors.is_empty() {
+    let (screen_rect, offset_x, offset_y) = if monitors.is_empty() {
         (
             Rect {
                 x: 0,

@@ -7,7 +7,6 @@ pub enum Level {
     #[default]
     Normal,
     AlwaysOnTop,
-    AlwaysOnBottom,
 }
 
 pub trait WindowLevelExt {
@@ -49,8 +48,8 @@ mod platform {
     use super::*;
     use windows::Win32::Foundation::{GetLastError, HWND, SetLastError, WIN32_ERROR};
     use windows::Win32::UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GetWindowLongPtrW, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
-        SetWindowLongPtrW, SetWindowPos, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+        GWL_EXSTYLE, GetWindowLongPtrW, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SetWindowLongPtrW,
+        SetWindowPos, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     };
 
     fn hwnd(window: &Window) -> Result<HWND> {
@@ -72,7 +71,6 @@ mod platform {
             let desired_style = match level {
                 Level::Normal => ex_style & !WS_EX_LAYERED.0 & !WS_EX_TRANSPARENT.0,
                 Level::AlwaysOnTop => ex_style | WS_EX_LAYERED.0 | WS_EX_TRANSPARENT.0,
-                Level::AlwaysOnBottom => ex_style | WS_EX_LAYERED.0,
             };
 
             if desired_style != ex_style {
@@ -87,7 +85,6 @@ mod platform {
             let (insert_after, flags) = match level {
                 Level::Normal => (HWND_NOTOPMOST, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW),
                 Level::AlwaysOnTop => (HWND_TOPMOST, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW),
-                Level::AlwaysOnBottom => (HWND_BOTTOM, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW),
             };
 
             SetWindowPos(hwnd, Some(insert_after), 0, 0, 0, 0, flags).map_err(|e| anyhow!("SetWindowPos failed: {e}"))?;

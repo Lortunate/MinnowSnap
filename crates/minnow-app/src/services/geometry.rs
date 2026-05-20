@@ -160,16 +160,6 @@ pub fn clamp_point(x: f64, y: f64, screen_w: f64, screen_h: f64) -> (f64, f64) {
     }
 }
 
-pub fn clamp_rect_move(x: f64, y: f64, w: f64, h: f64, screen_w: f64, screen_h: f64) -> (f64, f64) {
-    if screen_w <= 0.0 || screen_h <= 0.0 {
-        (x, y)
-    } else {
-        let max_x = (screen_w - w).max(0.0);
-        let max_y = (screen_h - h).max(0.0);
-        (x.clamp(0.0, max_x), y.clamp(0.0, max_y))
-    }
-}
-
 pub fn clamp_rect_resize(x: f64, y: f64, w: f64, h: f64, screen_w: f64, screen_h: f64) -> (f64, f64, f64, f64) {
     if screen_w <= 0.0 || screen_h <= 0.0 {
         (x, y, w, h)
@@ -185,50 +175,6 @@ pub fn clamp_rect_resize(x: f64, y: f64, w: f64, h: f64, screen_w: f64, screen_h
         let new_h = (bottom - top).max(0.0);
         (new_x, new_y, new_w, new_h)
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ToolbarPositionParams {
-    pub target_x: f64,
-    pub target_y: f64,
-    pub target_w: f64,
-    pub target_h: f64,
-    pub item_w: f64,
-    pub item_h: f64,
-    pub is_above: bool,
-    pub padding: f64,
-    pub spacing_above: f64,
-    pub spacing_below: f64,
-    pub default_y: f64,
-    pub screen_w: f64,
-    pub screen_h: f64,
-}
-
-pub fn calculate_toolbar_position(params: ToolbarPositionParams) -> (f64, f64) {
-    let desired_x = params.target_x + params.target_w - params.item_w;
-    let max_x = (params.screen_w - params.item_w - params.padding).max(params.padding);
-    let x = desired_x.clamp(params.padding, max_x);
-
-    let y = if params.is_above {
-        let above_y = params.target_y - params.item_h - params.spacing_above;
-        if above_y >= 0.0 {
-            above_y
-        } else {
-            params.target_y + params.target_h + params.spacing_above
-        }
-    } else {
-        let below_y = params.target_y + params.target_h + params.spacing_below;
-        let above_y = params.target_y - params.item_h - params.spacing_below;
-        if below_y + params.item_h <= params.screen_h {
-            below_y
-        } else if above_y >= 0.0 {
-            above_y
-        } else {
-            params.default_y
-        }
-    };
-
-    (x, y)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

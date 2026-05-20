@@ -50,7 +50,7 @@ pub fn request_shutdown(trigger: ShutdownTrigger) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-pub use windows::{CONTROL_PIPE_NAME, ShutdownClientError, install_ctrl_c_handler, shutdown_running_instance, start_control_pipe_server};
+pub use windows::{ShutdownClientError, install_ctrl_c_handler, shutdown_running_instance, start_control_pipe_server};
 
 #[cfg(test)]
 mod tests {

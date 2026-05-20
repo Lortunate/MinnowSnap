@@ -60,10 +60,6 @@ impl LongCaptureRuntime {
         }
     }
 
-    pub fn start(&self, rect: Rect, scale: f32) {
-        self.start_with_viewport(rect, RectF::new(0.0, 0.0, 0.0, 0.0), scale);
-    }
-
     pub fn start_with_viewport(&self, rect: Rect, viewport_rect: RectF, scale_hint: f32) {
         self.stop();
         self.clear_pending_events();

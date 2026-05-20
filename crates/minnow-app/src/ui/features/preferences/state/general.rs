@@ -46,7 +46,7 @@ pub(crate) fn snapshot() -> GeneralSnapshot {
 }
 
 pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -> MutationResult {
-    settings::apply(SettingsAction::SetAutoStart(enabled));
+    settings::apply(SettingsAction::AutoStart(enabled));
 
     if cx.has_global::<UiSystemActions>() {
         cx.global::<UiSystemActions>().set_auto_start(enabled);
@@ -59,21 +59,21 @@ pub(crate) fn set_auto_start(enabled: bool, cx: &mut Context<PreferencesView>) -
 
 pub(crate) fn set_language(value: SharedString) -> MutationResult {
     let language = value.to_string();
-    settings::apply(SettingsAction::SetLanguage(language.clone()));
+    settings::apply(SettingsAction::Language(language.clone()));
     locale::apply(&language);
     MutationResult::refresh_windows()
 }
 
 pub(crate) fn set_theme(value: SharedString, window: &mut Window, cx: &mut App) -> MutationResult {
     let theme_choice = value.to_string();
-    settings::apply(SettingsAction::SetTheme(theme_choice.clone()));
+    settings::apply(SettingsAction::Theme(theme_choice.clone()));
     appearance::apply_theme_choice(&theme_choice, Some(window), cx);
     MutationResult::NONE
 }
 
 pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
     let font_family = value.to_string();
-    settings::apply(SettingsAction::SetFontFamily(font_family.clone()));
+    settings::apply(SettingsAction::FontFamily(font_family.clone()));
 
     let font_ref = if font_family.trim().is_empty() {
         None
@@ -86,12 +86,12 @@ pub(crate) fn set_font(value: SharedString, cx: &mut App) -> MutationResult {
 }
 
 pub(crate) fn set_save_path(save_path: String) -> MutationResult {
-    settings::apply(SettingsAction::SetSavePath(save_path));
+    settings::apply(SettingsAction::SavePath(save_path));
     MutationResult::refresh_windows().clear_notice()
 }
 
 pub(crate) fn set_image_compression(enabled: bool) -> MutationResult {
-    settings::apply(SettingsAction::SetOxipngEnabled(enabled));
+    settings::apply(SettingsAction::OxipngEnabled(enabled));
     MutationResult::refresh_windows()
 }
 
@@ -171,7 +171,6 @@ mod tests {
         let description = save_directory_description(&settings);
         let default_path = get_default_save_path();
 
-        assert!(description.starts_with(i18n::preferences::default_path().as_str()));
-        assert!(description.contains(default_path.as_str()));
+        assert_eq!(description, i18n::preferences::default_path_with_value(default_path));
     }
 }

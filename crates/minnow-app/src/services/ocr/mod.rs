@@ -5,7 +5,6 @@ pub mod model_manager;
 pub mod preprocess;
 pub mod recognizer;
 pub mod service;
-pub mod visualization;
 
 pub use config::{OcrConfig, OcrModelType};
 pub use engine::{OcrEngine, OcrResult};
@@ -107,7 +106,6 @@ impl OcrContext {
         let (det_path, rec_path, keys_path) = ensure_required_models(&manager, source, false, on_progress).await?;
 
         let config = OcrConfig {
-            model_type,
             det_model_path: det_path,
             rec_model_path: rec_path,
             keys_path,

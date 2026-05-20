@@ -36,7 +36,7 @@ pub(super) fn ensure_single_instance(uniq_id: &str) -> bool {
 pub(super) fn get_instance_id() -> String {
     #[cfg(target_os = "macos")]
     {
-        let path = paths::lock_file();
+        let path = paths::app_paths().temp_file(APP_LOCK_ID);
         if let Err(err) = paths::ensure_parent_dir(&path) {
             error!("Failed to create single-instance lock directory for {:?}: {}", path, err);
         }

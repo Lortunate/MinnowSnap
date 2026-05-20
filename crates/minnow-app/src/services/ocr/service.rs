@@ -55,21 +55,6 @@ impl OcrModelStatus {
     pub fn is_downloading(&self) -> bool {
         matches!(self, Self::Downloading { .. })
     }
-
-    pub fn progress_percent(&self) -> u8 {
-        match self {
-            Self::Downloading { progress_percent } => *progress_percent,
-            Self::Ready => 100,
-            _ => 0,
-        }
-    }
-
-    pub fn error_message(&self) -> Option<&str> {
-        match self {
-            Self::Failed { message } => Some(message.as_str()),
-            _ => None,
-        }
-    }
 }
 
 pub fn is_enabled() -> bool {
@@ -77,7 +62,7 @@ pub fn is_enabled() -> bool {
 }
 
 pub fn set_enabled(enabled: bool) {
-    settings::apply(SettingsAction::SetOcrEnabled(enabled));
+    settings::apply(SettingsAction::OcrEnabled(enabled));
 }
 
 pub fn mobile_models_ready() -> bool {
@@ -198,23 +183,17 @@ mod tests {
     }
 
     #[test]
-    fn status_helpers_report_progress_and_errors() {
+    fn status_is_downloading_check() {
         let downloading = OcrModelStatus::Downloading { progress_percent: 42 };
         assert!(downloading.is_downloading());
-        assert_eq!(downloading.progress_percent(), 42);
-        assert_eq!(downloading.error_message(), None);
 
         let ready = OcrModelStatus::Ready;
         assert!(!ready.is_downloading());
-        assert_eq!(ready.progress_percent(), 100);
-        assert_eq!(ready.error_message(), None);
 
         let failed = OcrModelStatus::Failed {
             message: "network".to_string(),
         };
         assert!(!failed.is_downloading());
-        assert_eq!(failed.progress_percent(), 0);
-        assert_eq!(failed.error_message(), Some("network"));
     }
 
     #[test]

@@ -164,7 +164,6 @@ fn install_panic_hook() {
 fn log_portable_paths() {
     let paths = crate::services::paths::app_paths();
     tracing::info!(
-        data_dir = %paths.data_dir().display(),
         config_file = %paths.config_file().display(),
         logs_dir = %paths.logs_dir().display(),
         temp_dir = %paths.temp_dir().display(),

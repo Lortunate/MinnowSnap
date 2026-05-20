@@ -228,7 +228,7 @@ impl HotkeyService {
             return Err(HotkeyUpdateError::Conflict);
         }
 
-        settings::apply(SettingsAction::SetShortcuts {
+        settings::apply(SettingsAction::Shortcuts {
             capture: bindings.capture.clone(),
             quick_capture: bindings.quick_capture.clone(),
         });

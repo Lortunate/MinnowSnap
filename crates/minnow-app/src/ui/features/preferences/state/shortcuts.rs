@@ -39,7 +39,7 @@ pub(crate) fn persist_shortcut_bindings(bindings: ShortcutBindings, cx: &mut Con
             return Err(SharedString::from(i18n::preferences::shortcuts_conflict()));
         }
     } else {
-        settings::apply(SettingsAction::SetShortcuts {
+        settings::apply(SettingsAction::Shortcuts {
             capture: bindings.capture.clone(),
             quick_capture: bindings.quick_capture.clone(),
         });

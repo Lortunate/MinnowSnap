@@ -14,7 +14,6 @@ pub enum StitchFrameStatus {
 pub struct StitchFrameResult {
     pub status: StitchFrameStatus,
     pub height: i32,
-    pub confidence: f32,
     pub warning: Option<String>,
 }
 
@@ -273,7 +272,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::Appended,
                 height: self.valid_height as i32,
-                confidence: 1.0,
                 warning: None,
             };
         }
@@ -283,7 +281,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::Appended,
                 height: self.valid_height as i32,
-                confidence: 1.0,
                 warning: None,
             };
         };
@@ -295,7 +292,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: 0.0,
                 warning: Some("Frame geometry changed while scrolling".to_string()),
             };
         }
@@ -316,7 +312,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: 0.0,
                 warning: Some("Insufficient scrollable content in selection".to_string()),
             };
         }
@@ -333,7 +328,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: 0.0,
                 warning: Some("Dynamic content dominates viewport; wait for a stable frame".to_string()),
             };
         }
@@ -379,7 +373,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: 0.0,
                 warning: Some("Unable to estimate reliable overlap".to_string()),
             };
         };
@@ -390,7 +383,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::Reverse,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("Detected reverse scrolling; capture paused".to_string()),
             };
         }
@@ -402,7 +394,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::Stationary,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: None,
             };
         }
@@ -414,7 +405,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("Low confidence overlap match; keep scrolling smoothly".to_string()),
             };
         }
@@ -427,7 +417,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("Overlap collapsed due to unstable motion".to_string()),
             };
         }
@@ -439,7 +428,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("Overlap too small; scroll slower".to_string()),
             };
         }
@@ -456,7 +444,6 @@ impl ScrollStitcher {
             return StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("No appendable content after sticky region filtering".to_string()),
             };
         }
@@ -473,7 +460,6 @@ impl ScrollStitcher {
             StitchFrameResult {
                 status: StitchFrameStatus::Appended,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: None,
             }
         } else {
@@ -482,7 +468,6 @@ impl ScrollStitcher {
             StitchFrameResult {
                 status: StitchFrameStatus::LowConfidence,
                 height: self.valid_height as i32,
-                confidence: best_score,
                 warning: Some("Failed to append frame into scroll canvas".to_string()),
             }
         }

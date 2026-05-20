@@ -18,7 +18,6 @@ const OCR_MODELS_DIR_NAME: &str = "ocr_models";
 
 #[derive(Debug)]
 pub struct AppPaths {
-    data_dir: PathBuf,
     config_file: PathBuf,
     logs_dir: PathBuf,
     temp_dir: PathBuf,
@@ -44,7 +43,6 @@ fn resolve_app_paths() -> AppPaths {
             logs_dir: data_dir.join(LOGS_DIR_NAME),
             temp_dir: data_dir.join(TEMP_DIR_NAME),
             ocr_models_dir: data_dir.join(OCR_MODELS_DIR_NAME),
-            data_dir,
         };
     }
 
@@ -64,7 +62,6 @@ fn resolve_app_paths() -> AppPaths {
         AppPaths {
             logs_dir: data_dir.join(LOGS_DIR_NAME),
             ocr_models_dir: data_dir.join(OCR_MODELS_DIR_NAME),
-            data_dir,
             config_file,
             temp_dir: env::temp_dir(),
         }
@@ -73,10 +70,6 @@ fn resolve_app_paths() -> AppPaths {
 
 pub fn app_paths() -> &'static AppPaths {
     APP_PATHS.get_or_init(resolve_app_paths)
-}
-
-pub fn lock_file() -> PathBuf {
-    app_paths().temp_file(super::app_meta::APP_LOCK_ID)
 }
 
 pub fn ensure_dir(path: &Path) -> io::Result<()> {
@@ -91,10 +84,6 @@ pub fn ensure_parent_dir(path: &Path) -> io::Result<()> {
 }
 
 impl AppPaths {
-    pub fn data_dir(&self) -> &Path {
-        &self.data_dir
-    }
-
     pub fn config_file(&self) -> &Path {
         &self.config_file
     }

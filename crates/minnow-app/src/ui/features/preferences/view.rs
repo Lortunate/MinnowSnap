@@ -82,27 +82,27 @@ impl PreferencesView {
     }
 
     pub(super) fn on_notifications_enabled_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::apply(SettingsAction::SetNotificationEnabled(checked));
+        settings::apply(SettingsAction::NotificationEnabled(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_save_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::apply(SettingsAction::SetSaveNotification(checked));
+        settings::apply(SettingsAction::SaveNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_copy_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::apply(SettingsAction::SetCopyNotification(checked));
+        settings::apply(SettingsAction::CopyNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_qr_notification_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::apply(SettingsAction::SetQrCodeNotification(checked));
+        settings::apply(SettingsAction::QrCodeNotification(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 
     pub(super) fn on_shutter_sound_changed(&mut self, checked: bool, _: &mut Window, cx: &mut Context<Self>) {
-        settings::apply(SettingsAction::SetShutterSound(checked));
+        settings::apply(SettingsAction::ShutterSound(checked));
         self.apply_mutation(MutationResult::refresh_windows(), cx);
     }
 

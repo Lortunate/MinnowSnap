@@ -24,7 +24,6 @@ const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
 pub enum NotificationType {
     Save,
     Copy,
-    QrCode,
     Info,
 }
 
@@ -112,7 +111,6 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
     let allowed = match type_ {
         NotificationType::Copy => settings.copy_notification,
         NotificationType::Save => settings.save_notification,
-        NotificationType::QrCode => settings.qr_code_notification,
         _ => true,
     };
     if !allowed {

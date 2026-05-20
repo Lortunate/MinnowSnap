@@ -73,8 +73,6 @@ pub mod common {
         ocr => "common.actions.ocr",
         scan_qr => "common.actions.scan_qr",
         scroll => "common.actions.scroll",
-        enabled => "common.states.enabled",
-        disabled => "common.states.disabled",
     }
 }
 
@@ -82,17 +80,7 @@ pub mod overlay {
     use rust_i18n::t;
 
     i18n_fns! {
-        preparing_surface => "overlay.status.preparing_surface",
-        ready_to_select => "overlay.status.ready_to_select",
-        selecting_area => "overlay.status.selecting_area",
-        moving_selection => "overlay.status.moving_selection",
-        resizing_selection => "overlay.status.resizing_selection",
-        missing_surface => "overlay.status.missing_surface",
-        missing_selection => "overlay.status.missing_selection",
-        copied_selection => "overlay.status.copied_selection",
-        saved_selection => "overlay.status.saved_selection",
         action_unavailable => "overlay.status.action_unavailable",
-        qr_copy_failed => "overlay.status.qr_copy_failed",
         annotation_tool_arrow => "overlay.annotation.tool.arrow",
         annotation_tool_rectangle => "overlay.annotation.tool.rectangle",
         annotation_tool_circle => "overlay.annotation.tool.circle",
@@ -101,9 +89,6 @@ pub mod overlay {
         annotation_tool_mosaic => "overlay.annotation.tool.mosaic",
         annotation_undo => "overlay.annotation.actions.undo",
         annotation_redo => "overlay.annotation.actions.redo",
-        annotation_cycle_color => "overlay.annotation.actions.cycle_color",
-        annotation_set_color => "overlay.annotation.actions.set_color",
-        annotation_custom_color => "overlay.annotation.actions.custom_color",
         annotation_toggle_fill => "overlay.annotation.actions.toggle_fill",
         annotation_stroke_up => "overlay.annotation.actions.stroke_up",
         annotation_stroke_down => "overlay.annotation.actions.stroke_down",
@@ -119,10 +104,6 @@ pub mod overlay {
     }
 
     i18n_fns_with_args! {
-        selection_size(width, height) => "overlay.status.selection_size",
-        selection_locked(width, height) => "overlay.status.selection_locked",
-        pin_ready(path, auto_ocr) => "overlay.status.pin_ready",
-        qr_ready(content) => "overlay.status.qr_ready",
         picker_value_and_format(value, format) => "overlay.picker.value_and_format",
         picker_coordinates(x, y) => "overlay.picker.coordinates",
         picker_shortcuts(copy_key, cycle_key) => "overlay.picker.shortcuts",
@@ -142,7 +123,6 @@ pub mod notify {
 
     i18n_fns_with_args! {
         saved_image(path) => "notify.capture.saved_image",
-        pin_reissued(auto_ocr) => "notify.capture.pin_reissued",
     }
 }
 
@@ -160,17 +140,11 @@ pub mod preferences {
 
     i18n_fns! {
         title => "preferences.window.title",
-        subtitle => "preferences.window.subtitle",
         page_general => "preferences.pages.general.title",
-        page_general_description => "preferences.pages.general.description",
         page_shortcuts => "preferences.pages.shortcuts.title",
-        page_shortcuts_description => "preferences.pages.shortcuts.description",
         page_notifications => "preferences.pages.notifications.title",
-        page_notifications_description => "preferences.pages.notifications.description",
         page_ocr => "preferences.pages.ocr.title",
-        page_ocr_description => "preferences.pages.ocr.description",
         page_about => "preferences.pages.about.title",
-        page_about_description => "preferences.pages.about.description",
         auto_start => "preferences.fields.auto_start",
         auto_start_description => "preferences.fields.auto_start_description",
         language => "preferences.fields.language",
@@ -181,7 +155,6 @@ pub mod preferences {
         font_family_description => "preferences.fields.font_family_description",
         ocr => "preferences.fields.ocr",
         ocr_model => "preferences.fields.ocr_model",
-        notifications => "preferences.fields.notifications",
         notifications_enabled => "preferences.fields.notifications_enabled",
         notifications_enabled_description => "preferences.fields.notifications_enabled_description",
         save_notification => "preferences.fields.save_notification",
@@ -192,7 +165,6 @@ pub mod preferences {
         qr_code_notification_description => "preferences.fields.qr_code_notification_description",
         shutter_sound => "preferences.fields.shutter_sound",
         shutter_sound_description => "preferences.fields.shutter_sound_description",
-        save_path => "preferences.fields.save_path",
         save_directory => "preferences.fields.save_directory",
         image_compression => "preferences.fields.image_compression",
         image_compression_description => "preferences.fields.image_compression_description",
@@ -201,17 +173,12 @@ pub mod preferences {
         capture_shortcut_description => "preferences.fields.capture_shortcut_description",
         quick_capture_shortcut_description => "preferences.fields.quick_capture_shortcut_description",
         ocr_enabled_description => "preferences.fields.ocr_enabled_description",
-        ocr_model_type => "preferences.fields.ocr_model_type",
-        ocr_model_type_mobile => "preferences.fields.ocr_model_type_mobile",
-        default_path => "preferences.fields.default_path",
-        intro => "preferences.description.intro",
         select_save_directory => "preferences.actions.select_save_directory",
         browse => "preferences.actions.browse",
         open => "preferences.actions.open",
         shortcuts_recording => "preferences.actions.shortcuts_recording",
         shortcuts_recording_hint => "preferences.actions.shortcuts_recording_hint",
         shortcuts_restore_defaults => "preferences.actions.shortcuts_restore_defaults",
-        shortcuts_restore_defaults_description => "preferences.actions.shortcuts_restore_defaults_description",
         ocr_download_action => "preferences.actions.ocr_download",
         ocr_redownload_action => "preferences.actions.ocr_redownload",
         ocr_download_in_progress => "preferences.actions.ocr_download_in_progress",
@@ -227,7 +194,6 @@ pub mod preferences {
         report_issue => "preferences.about.report_issue",
         report_issue_description => "preferences.about.report_issue_description",
         open_log_folder => "preferences.about.open_log_folder",
-        shortcuts_title => "preferences.shortcuts.title",
         shortcuts_conflict => "preferences.shortcuts.conflict",
         ocr_status_missing => "preferences.ocr.status_missing",
         ocr_status_ready => "preferences.ocr.status_ready",
@@ -248,9 +214,6 @@ pub mod pin {
     use rust_i18n::t;
 
     i18n_fns! {
-        badge_auto_ocr => "pin.badge.auto_ocr",
-        badge_pinned_image => "pin.badge.pinned_image",
-        shortcuts_hint => "pin.hint.shortcuts",
         close_all => "pin.menu.close_all",
     }
 }

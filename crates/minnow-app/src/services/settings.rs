@@ -50,19 +50,19 @@ pub fn apply(action: SettingsAction) {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SettingsAction {
-    SetSavePath(String),
-    SetOxipngEnabled(bool),
-    SetFontFamily(String),
-    SetTheme(String),
-    SetLanguage(String),
-    SetAutoStart(bool),
-    SetShortcuts { capture: String, quick_capture: String },
-    SetOcrEnabled(bool),
-    SetNotificationEnabled(bool),
-    SetSaveNotification(bool),
-    SetCopyNotification(bool),
-    SetQrCodeNotification(bool),
-    SetShutterSound(bool),
+    SavePath(String),
+    OxipngEnabled(bool),
+    FontFamily(String),
+    Theme(String),
+    Language(String),
+    AutoStart(bool),
+    Shortcuts { capture: String, quick_capture: String },
+    OcrEnabled(bool),
+    NotificationEnabled(bool),
+    SaveNotification(bool),
+    CopyNotification(bool),
+    QrCodeNotification(bool),
+    ShutterSound(bool),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -234,48 +234,48 @@ impl SettingsStore {
 
     pub fn apply(&mut self, action: SettingsAction) {
         match action {
-            SettingsAction::SetSavePath(path) => {
+            SettingsAction::SavePath(path) => {
                 self.update(|c| c.output.save_path = if path.is_empty() { None } else { Some(path) });
             }
-            SettingsAction::SetOxipngEnabled(enabled) => {
+            SettingsAction::OxipngEnabled(enabled) => {
                 self.update(|c| c.output.oxipng_enabled = enabled);
             }
-            SettingsAction::SetFontFamily(font_family) => {
+            SettingsAction::FontFamily(font_family) => {
                 self.update(|c| {
                     c.general.font_family = if font_family.is_empty() { None } else { Some(font_family) };
                 });
             }
-            SettingsAction::SetTheme(theme) => {
+            SettingsAction::Theme(theme) => {
                 self.update(|c| c.general.theme = theme);
             }
-            SettingsAction::SetLanguage(language) => {
+            SettingsAction::Language(language) => {
                 self.update(|c| c.general.language = language);
             }
-            SettingsAction::SetAutoStart(enabled) => {
+            SettingsAction::AutoStart(enabled) => {
                 self.update(|c| c.general.auto_start = enabled);
             }
-            SettingsAction::SetShortcuts { capture, quick_capture } => {
+            SettingsAction::Shortcuts { capture, quick_capture } => {
                 self.update(|c| {
                     c.shortcuts.capture = capture;
                     c.shortcuts.quick_capture = quick_capture;
                 });
             }
-            SettingsAction::SetOcrEnabled(enabled) => {
+            SettingsAction::OcrEnabled(enabled) => {
                 self.update(|c| c.ocr.enabled = enabled);
             }
-            SettingsAction::SetNotificationEnabled(enabled) => {
+            SettingsAction::NotificationEnabled(enabled) => {
                 self.update(|c| c.notification.enabled = enabled);
             }
-            SettingsAction::SetSaveNotification(enabled) => {
+            SettingsAction::SaveNotification(enabled) => {
                 self.update(|c| c.notification.save_notification = enabled);
             }
-            SettingsAction::SetCopyNotification(enabled) => {
+            SettingsAction::CopyNotification(enabled) => {
                 self.update(|c| c.notification.copy_notification = enabled);
             }
-            SettingsAction::SetQrCodeNotification(enabled) => {
+            SettingsAction::QrCodeNotification(enabled) => {
                 self.update(|c| c.notification.qr_code_notification = enabled);
             }
-            SettingsAction::SetShutterSound(enabled) => {
+            SettingsAction::ShutterSound(enabled) => {
                 self.update(|c| c.notification.shutter_sound = enabled);
             }
         }
@@ -323,7 +323,7 @@ mod tests {
     fn set_shortcuts_updates_both_bindings_with_one_save() {
         let mut store = test_store();
 
-        store.apply(SettingsAction::SetShortcuts {
+        store.apply(SettingsAction::Shortcuts {
             capture: "Ctrl+Shift+1".to_string(),
             quick_capture: "Ctrl+Shift+2".to_string(),
         });
@@ -338,11 +338,11 @@ mod tests {
     fn settings_action_updates_general_and_output_settings() {
         let mut store = test_store();
 
-        store.apply(SettingsAction::SetTheme("Dark".to_string()));
-        store.apply(SettingsAction::SetLanguage("en_US".to_string()));
-        store.apply(SettingsAction::SetFontFamily("JetBrains Mono".to_string()));
-        store.apply(SettingsAction::SetSavePath("D:/captures".to_string()));
-        store.apply(SettingsAction::SetOxipngEnabled(false));
+        store.apply(SettingsAction::Theme("Dark".to_string()));
+        store.apply(SettingsAction::Language("en_US".to_string()));
+        store.apply(SettingsAction::FontFamily("JetBrains Mono".to_string()));
+        store.apply(SettingsAction::SavePath("D:/captures".to_string()));
+        store.apply(SettingsAction::OxipngEnabled(false));
 
         let settings = store.get();
         assert_eq!(settings.general.theme, "Dark");
@@ -357,8 +357,8 @@ mod tests {
     fn settings_action_reset_empty_optional_values() {
         let mut store = test_store();
 
-        store.apply(SettingsAction::SetFontFamily(String::new()));
-        store.apply(SettingsAction::SetSavePath(String::new()));
+        store.apply(SettingsAction::FontFamily(String::new()));
+        store.apply(SettingsAction::SavePath(String::new()));
 
         let settings = store.get();
         assert_eq!(settings.general.font_family, None);
