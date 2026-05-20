@@ -24,6 +24,13 @@ impl ResolvedCaptureImage {
             Self::Owned(image) => image,
         }
     }
+
+    pub(crate) fn into_arc(self) -> Arc<RgbaImage> {
+        match self {
+            Self::Shared(image) => image,
+            Self::Owned(image) => Arc::new(image),
+        }
+    }
 }
 
 impl CaptureService {

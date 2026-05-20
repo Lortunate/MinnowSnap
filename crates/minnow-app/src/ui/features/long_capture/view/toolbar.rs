@@ -113,8 +113,8 @@ impl ToolbarWindowView {
                 );
                 self.close_capture_windows(window, cx);
             }
-            ActionResult::PinRequested(path, source_bounds, auto_ocr) => {
-                let request = PinRequest::new(path, Some(source_bounds), auto_ocr);
+            ActionResult::PinRequested(request) => {
+                let request = PinRequest::from_capture(request);
                 cx.defer(move |cx| {
                     pin::open_window(cx, request);
                 });

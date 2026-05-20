@@ -1,7 +1,9 @@
 use crate::services::capture::service::CaptureService;
 use crate::services::geometry::Rect;
 use crate::services::i18n;
+use image::RgbaImage;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::info;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -38,10 +40,18 @@ pub enum ActionResult {
     Copied,
     ColorPicked(String),
     Saved(String),
-    PinRequested(String, Rect, bool),
+    PinRequested(PinCaptureRequest),
     OcrResult(String),
     NoOp,
     Error(String),
+}
+
+#[derive(Debug)]
+pub struct PinCaptureRequest {
+    pub image_path: String,
+    pub source_bounds: Rect,
+    pub auto_ocr: bool,
+    pub ocr_image: Arc<RgbaImage>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -113,15 +123,20 @@ impl CaptureAction {
     }
 
     fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(cropped) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode)
-            && let Some(temp_path) = CaptureService::save_temp(cropped.as_rgba())
+        if let Some(image) = CaptureService::resolve_capture_image(&ctx.path, ctx.rect, ctx.input_mode)
+            && let Some(temp_path) = CaptureService::save_temp(image.as_rgba())
         {
             let source_rect = if ctx.rect.has_area() {
                 ctx.rect
             } else {
-                Rect::new(0, 0, cropped.as_rgba().width() as i32, cropped.as_rgba().height() as i32)
+                Rect::new(0, 0, image.as_rgba().width() as i32, image.as_rgba().height() as i32)
             };
-            return ActionResult::PinRequested(temp_path, source_rect, auto_ocr);
+            return ActionResult::PinRequested(PinCaptureRequest {
+                image_path: temp_path,
+                source_bounds: source_rect,
+                auto_ocr,
+                ocr_image: image.into_arc(),
+            });
         }
         ActionResult::Error(i18n::capture::pin_failed())
     }

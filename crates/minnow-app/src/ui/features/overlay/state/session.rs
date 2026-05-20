@@ -394,7 +394,7 @@ impl OverlaySurface {
         match CaptureService::capture_region(crate::services::geometry::Rect::empty()) {
             Some(image) => {
                 update_last_capture(image.clone());
-                let background_image = Some(render_image::from_rgba(image.clone()));
+                let background_image = Some(render_image::from_rgba_copy(&image));
                 let background_pixels = Some(Arc::new(image));
                 Self {
                     background_image,

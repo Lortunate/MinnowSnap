@@ -95,19 +95,14 @@ impl PinView {
     }
 
     fn start_ocr(session: &Entity<PinSession>, cx: &mut App) {
-        let image_path = session.update(cx, |session, _| {
-            if !session.begin_ocr() {
-                return None;
-            }
-            Some(session.frame().image_path)
-        });
-        let Some(image_path) = image_path else {
+        let image_input = session.update(cx, |session, _| session.begin_ocr_source());
+        let Some(image_input) = image_input else {
             return;
         };
 
         let weak_session = session.downgrade();
         cx.spawn(async move |cx| {
-            let result = service::recognize_image_blocks(&image_path).await;
+            let result = service::recognize_image_blocks(image_input).await;
             let _ = weak_session.update(cx, |session, _| {
                 session.finish_ocr(result);
             });

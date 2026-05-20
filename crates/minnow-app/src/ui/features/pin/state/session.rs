@@ -1,9 +1,11 @@
 use super::super::request::PinRequest;
 use super::super::selection_text::format_selected_blocks;
-use crate::services::ocr::OcrBlock;
+use crate::services::ocr::{OcrBlock, service::OcrImageInput};
 use gpui::{App, AppContext, Entity, Pixels, Point, Size, px, size};
+use image::RgbaImage;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::ui::features::pin) struct PinWindowGeometry {
@@ -29,6 +31,7 @@ impl PinWindowGeometry {
 #[derive(Clone, Debug)]
 pub(in crate::ui::features::pin) struct PinSession {
     image_path: PathBuf,
+    ocr_image: Option<Arc<RgbaImage>>,
     base_size: (f32, f32),
     zoom: f32,
     opacity: f32,
@@ -98,8 +101,10 @@ impl PinSession {
 
     fn from_request(request: PinRequest) -> Self {
         let base_size = request.base_size();
+        let ocr_image = request.ocr_image();
         Self {
             image_path: request.image_path().to_path_buf(),
+            ocr_image,
             base_size,
             zoom: Self::initial_zoom(base_size),
             opacity: Self::MAX_OPACITY,
@@ -170,6 +175,17 @@ impl PinSession {
         self.ocr.selected_indices.clear();
         self.ocr.selection_rect = None;
         true
+    }
+
+    pub(in crate::ui::features::pin) fn begin_ocr_source(&mut self) -> Option<OcrImageInput> {
+        if !self.begin_ocr() {
+            return None;
+        }
+
+        Some(match &self.ocr_image {
+            Some(image) => OcrImageInput::Rgba(image.clone()),
+            None => OcrImageInput::Path(self.image_path.clone()),
+        })
     }
 
     pub(in crate::ui::features::pin) fn finish_ocr(&mut self, result: Result<Vec<OcrBlock>, String>) {
@@ -380,6 +396,7 @@ mod tests {
     fn pin_zoom_steps_clamp_between_min_and_max_bounds() {
         let mut session = PinSession {
             image_path: PathBuf::from("pin.png"),
+            ocr_image: None,
             base_size: (480.0, 320.0),
             zoom: 1.0,
             opacity: 1.0,
@@ -402,6 +419,7 @@ mod tests {
     fn pin_opacity_steps_clamp_between_min_and_max_bounds() {
         let mut session = PinSession {
             image_path: PathBuf::from("pin.png"),
+            ocr_image: None,
             base_size: (480.0, 320.0),
             zoom: 1.0,
             opacity: 1.0,
@@ -424,6 +442,7 @@ mod tests {
     fn pin_window_size_tracks_zoomed_dimensions() {
         let mut session = PinSession {
             image_path: PathBuf::from("pin.png"),
+            ocr_image: None,
             base_size: (320.0, 200.0),
             zoom: 1.0,
             opacity: 1.0,
@@ -450,9 +469,27 @@ mod tests {
     }
 
     #[test]
+    fn pin_ocr_source_prefers_capture_image_over_temp_path() {
+        let image = Arc::new(image::RgbaImage::from_pixel(12, 6, image::Rgba([255, 0, 0, 255])));
+        let request = PinRequest::from_capture(crate::services::capture::action::PinCaptureRequest {
+            image_path: temp_image_path("capture-source").to_string_lossy().into_owned(),
+            source_bounds: Rect::new(0, 0, 12, 6),
+            auto_ocr: false,
+            ocr_image: image.clone(),
+        });
+        let mut session = PinSession::from_request(request);
+
+        let OcrImageInput::Rgba(source) = session.begin_ocr_source().expect("OCR should start") else {
+            panic!("pin OCR should use the capture image carried by the request");
+        };
+        assert!(Arc::ptr_eq(&source, &image));
+    }
+
+    #[test]
     fn selected_or_active_text_prefers_active_text_selection() {
         let mut session = PinSession {
             image_path: PathBuf::from("pin.png"),
+            ocr_image: None,
             base_size: (320.0, 200.0),
             zoom: 1.0,
             opacity: 1.0,

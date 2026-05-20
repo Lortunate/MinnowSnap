@@ -1,9 +1,16 @@
 use super::{OcrBlock, OcrContext, OcrModelType, build_ocr_blocks};
 use crate::services::settings::{self, SettingsAction};
+use image::{DynamicImage, RgbaImage};
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::task::JoinError;
+
+#[derive(Clone, Debug)]
+pub enum OcrImageInput {
+    Path(PathBuf),
+    Rgba(Arc<RgbaImage>),
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OcrModelStatus {
@@ -142,13 +149,18 @@ pub async fn download_mobile_models(force: bool, on_progress: Option<Arc<dyn Fn(
     .await
 }
 
-pub async fn recognize_image_blocks(path: impl AsRef<Path>) -> Result<Vec<OcrBlock>, String> {
-    let image_path: PathBuf = path.as_ref().to_path_buf();
+fn load_ocr_image(input: OcrImageInput) -> Result<DynamicImage, String> {
+    match input {
+        OcrImageInput::Path(image_path) => image::open(&image_path).map_err(|err| err.to_string()),
+        OcrImageInput::Rgba(image) => Ok(DynamicImage::ImageRgba8(image.as_ref().clone())),
+    }
+}
 
+pub async fn recognize_image_blocks(input: OcrImageInput) -> Result<Vec<OcrBlock>, String> {
     run_on_app_runtime("recognize image OCR blocks", async move {
-        let image = tokio::task::spawn_blocking(move || image::open(&image_path).map_err(|err| err.to_string()))
+        let image = tokio::task::spawn_blocking(move || load_ocr_image(input))
             .await
-            .map_err(|err| join_error_message("open OCR image", err))??;
+            .map_err(|err| join_error_message("load OCR image", err))??;
 
         let (img_w, img_h) = (image.width() as f64, image.height() as f64);
         let mut context = OcrContext::new(None::<PathBuf>, OcrModelType::Mobile, None)

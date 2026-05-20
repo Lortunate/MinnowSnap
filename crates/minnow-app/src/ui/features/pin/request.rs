@@ -1,6 +1,9 @@
+use crate::services::capture::action::PinCaptureRequest;
 use crate::services::geometry::Rect;
+use image::RgbaImage;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct PinRequest {
@@ -8,10 +11,12 @@ pub struct PinRequest {
     image_size: Option<(u32, u32)>,
     source_bounds: Option<Rect>,
     auto_ocr: bool,
+    ocr_image: Option<Arc<RgbaImage>>,
 }
 
 impl PinRequest {
-    pub fn new(image_path: impl Into<PathBuf>, source_bounds: Option<Rect>, auto_ocr: bool) -> Self {
+    #[cfg(test)]
+    pub(crate) fn new(image_path: impl Into<PathBuf>, source_bounds: Option<Rect>, auto_ocr: bool) -> Self {
         let image_path = image_path.into();
         let image_size = image::image_dimensions(&image_path).ok();
         Self {
@@ -19,6 +24,18 @@ impl PinRequest {
             image_size,
             source_bounds,
             auto_ocr,
+            ocr_image: None,
+        }
+    }
+
+    pub(crate) fn from_capture(request: PinCaptureRequest) -> Self {
+        let image_size = Some((request.ocr_image.width(), request.ocr_image.height()));
+        Self {
+            image_path: request.image_path.into(),
+            image_size,
+            source_bounds: Some(request.source_bounds),
+            auto_ocr: request.auto_ocr,
+            ocr_image: Some(request.ocr_image),
         }
     }
 
@@ -36,6 +53,10 @@ impl PinRequest {
 
     pub(crate) fn auto_ocr(&self) -> bool {
         self.auto_ocr
+    }
+
+    pub(crate) fn ocr_image(&self) -> Option<Arc<RgbaImage>> {
+        self.ocr_image.clone()
     }
 
     pub(crate) fn base_size(&self) -> (f32, f32) {

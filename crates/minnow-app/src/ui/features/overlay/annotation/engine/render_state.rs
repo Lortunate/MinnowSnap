@@ -235,7 +235,7 @@ impl AnnotationEngine {
         let background_rgba = compose_selection_background(background.as_ref(), selection, scale)?;
         let mut layer = background_rgba.clone();
         draw_items_on_selection(&mut layer, selection, self.store.visible_items(), scale);
-        let image = render_image::from_rgba(layer.clone());
+        let image = render_image::from_rgba_copy(&layer);
         self.raster_cache.committed_rebuilds = self.raster_cache.committed_rebuilds.saturating_add(1);
         self.raster_cache.committed = Some(CommittedLayerCache {
             selection,
@@ -288,13 +288,13 @@ impl AnnotationEngine {
     fn render_transient_on_base(&mut self, base: &RgbaImage, selection: RectF, scale: f64, transient: &AnnotationItem) -> Arc<RenderImage> {
         let scratch = self.prepare_scratch_layer(base);
         draw_items_on_selection(scratch, selection, std::slice::from_ref(transient), scale);
-        render_image::from_rgba(scratch.clone())
+        render_image::from_rgba_copy(scratch)
     }
 
     fn render_items_on_base(&mut self, base: &RgbaImage, selection: RectF, scale: f64, items: &[AnnotationItem]) -> Arc<RenderImage> {
         let scratch = self.prepare_scratch_layer(base);
         draw_items_on_selection(scratch, selection, items, scale);
-        render_image::from_rgba(scratch.clone())
+        render_image::from_rgba_copy(scratch)
     }
 
     fn cache_composed(&mut self, selection: RectF, scale: f64, preview_translate: Option<(f64, f64)>, image: Arc<RenderImage>) {
