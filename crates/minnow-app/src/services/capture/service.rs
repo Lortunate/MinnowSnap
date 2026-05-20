@@ -8,9 +8,9 @@ use image::RgbaImage;
 use std::sync::Arc;
 use tracing::{error, info};
 
-use super::{VirtualCaptureSource, active_monitor_scale, capture_active_monitor, get_cached_capture, normalize_virtual_source, perform_crop};
+use super::{active_monitor_scale, capture_active_monitor, get_preview_capture, normalize_virtual_source, perform_crop, set_preview_capture};
 
-pub struct CaptureService;
+pub(crate) struct CaptureService;
 
 pub(crate) enum ResolvedCaptureImage {
     Shared(Arc<RgbaImage>),
@@ -38,17 +38,10 @@ impl CaptureService {
         input_mode == CaptureInputMode::FullImage || !rect.has_area()
     }
 
-    fn parse_cached_source(path_str: &str) -> Option<VirtualCaptureSource> {
-        match normalize_virtual_source(path_str) {
-            super::PREVIEW_SOURCE => Some(VirtualCaptureSource::Preview),
-            super::SCROLL_SOURCE => Some(VirtualCaptureSource::Scroll),
-            _ => None,
-        }
-    }
-
     fn get_cached_source_image(path_str: &str) -> Option<Arc<RgbaImage>> {
-        let source = Self::parse_cached_source(path_str)?;
-        get_cached_capture(source)
+        (normalize_virtual_source(path_str) == super::PREVIEW_SOURCE)
+            .then(get_preview_capture)
+            .flatten()
     }
 
     fn resolve_image_from_path(path_str: &str) -> Option<RgbaImage> {
@@ -92,7 +85,7 @@ impl CaptureService {
         perform_crop(img, rect, scale_factor)
     }
 
-    pub fn capture_region(rect: Rect) -> Option<RgbaImage> {
+    fn capture_region(rect: Rect) -> Option<RgbaImage> {
         info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
         let scale_factor = active_monitor_scale();
 
@@ -105,6 +98,12 @@ impl CaptureService {
         } else {
             capture_active_monitor()
         }
+    }
+
+    pub(crate) fn capture_preview() -> Option<Arc<RgbaImage>> {
+        let image = Arc::new(Self::capture_region(Rect::empty())?);
+        set_preview_capture(image.clone());
+        Some(image)
     }
 
     pub(crate) fn resolve_capture_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<ResolvedCaptureImage> {
@@ -149,7 +148,7 @@ impl CaptureService {
         result.ok_or_else(|| "Failed to save image to disk".to_string())
     }
 
-    pub fn run_quick_capture_workflow(rect: Rect) -> bool {
+    pub(crate) fn run_quick_capture_workflow(rect: Rect) -> bool {
         info!("Starting quick capture workflow");
         let Some(image) = Self::capture_region(rect) else {
             error!("Failed to capture quick capture image");
@@ -166,7 +165,7 @@ impl CaptureService {
         true
     }
 
-    pub fn save_temp(image: &RgbaImage) -> Option<String> {
+    pub(crate) fn save_temp(image: &RgbaImage) -> Option<String> {
         save_temp_image(image, false).map(|path| path.replace('\\', "/"))
     }
 

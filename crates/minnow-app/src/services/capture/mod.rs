@@ -1,7 +1,7 @@
 pub mod action;
 pub mod long_capture;
 pub mod service;
-pub mod stitcher;
+mod stitcher;
 
 use crate::services::geometry::Rect;
 use image::RgbaImage;
@@ -9,71 +9,52 @@ use std::sync::{Arc, LazyLock, Mutex};
 use tracing::{debug, error};
 use xcap::Monitor;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VirtualCaptureSource {
-    Preview,
-    Scroll,
-}
-
-pub const PREVIEW_SOURCE: &str = "image://minnow/preview";
-pub const SCROLL_SOURCE: &str = "image://minnow/scroll";
+pub(crate) const PREVIEW_SOURCE: &str = "image://minnow/preview";
 
 fn strip_query_fragment(input: &str) -> &str {
     input.split(['?', '#']).next().unwrap_or(input)
 }
 
-pub fn normalize_virtual_source(source: &str) -> &str {
+fn normalize_virtual_source(source: &str) -> &str {
     strip_query_fragment(source)
 }
 
 #[derive(Default)]
 struct CaptureRepository {
-    last_capture: Mutex<Option<Arc<RgbaImage>>>,
-    scroll_capture: Mutex<Option<Arc<RgbaImage>>>,
+    preview_capture: Mutex<Option<Arc<RgbaImage>>>,
 }
 
 impl CaptureRepository {
     #[must_use]
-    fn get_cached_capture(&self, source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
-        self.cache_cell(source).lock().ok().and_then(|cache| cache.as_ref().cloned())
+    fn get_preview_capture(&self) -> Option<Arc<RgbaImage>> {
+        self.preview_capture.lock().ok().and_then(|cache| cache.as_ref().cloned())
     }
 
-    fn set_cached_capture(&self, source: VirtualCaptureSource, image: RgbaImage) {
-        if let Ok(mut cache) = self.cache_cell(source).lock() {
-            *cache = Some(Arc::new(image));
-        }
-    }
-
-    fn cache_cell(&self, source: VirtualCaptureSource) -> &Mutex<Option<Arc<RgbaImage>>> {
-        match source {
-            VirtualCaptureSource::Preview => &self.last_capture,
-            VirtualCaptureSource::Scroll => &self.scroll_capture,
+    fn set_preview_capture(&self, image: Arc<RgbaImage>) {
+        if let Ok(mut cache) = self.preview_capture.lock() {
+            *cache = Some(image);
         }
     }
 }
 
 static CAPTURE_REPOSITORY: LazyLock<CaptureRepository> = LazyLock::new(CaptureRepository::default);
 
-pub fn get_cached_capture(source: VirtualCaptureSource) -> Option<Arc<RgbaImage>> {
-    CAPTURE_REPOSITORY.get_cached_capture(source)
+fn get_preview_capture() -> Option<Arc<RgbaImage>> {
+    CAPTURE_REPOSITORY.get_preview_capture()
 }
 
-pub fn set_cached_capture(source: VirtualCaptureSource, image: RgbaImage) {
-    CAPTURE_REPOSITORY.set_cached_capture(source, image);
-}
-
-pub fn update_last_capture(image: RgbaImage) {
-    set_cached_capture(VirtualCaptureSource::Preview, image);
+fn set_preview_capture(image: Arc<RgbaImage>) {
+    CAPTURE_REPOSITORY.set_preview_capture(image);
 }
 
 #[must_use]
-pub fn active_monitor_scale() -> f32 {
+pub(crate) fn active_monitor_scale() -> f32 {
     active_monitor().and_then(|m| m.scale_factor().ok()).unwrap_or(1.0)
 }
 
 #[must_use]
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-pub fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
+fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
     debug!(
         "Performing crop: rect={},{} {}x{}, scale={scale}",
         rect.x, rect.y, rect.width, rect.height
@@ -108,7 +89,7 @@ pub fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaIma
 }
 
 #[must_use]
-pub fn capture_active_monitor() -> Option<RgbaImage> {
+fn capture_active_monitor() -> Option<RgbaImage> {
     let Some(monitor) = active_monitor() else {
         error!("No monitors found");
         return None;
@@ -124,7 +105,7 @@ pub fn capture_active_monitor() -> Option<RgbaImage> {
 }
 
 #[must_use]
-pub fn active_monitor() -> Option<Monitor> {
+fn active_monitor() -> Option<Monitor> {
     Monitor::all().ok()?.into_iter().next()
 }
 
@@ -137,14 +118,15 @@ mod tests {
     }
 
     #[test]
-    fn repository_updates_preview_and_scroll_caches_independently() {
+    fn repository_updates_preview_cache() {
         let repository = CaptureRepository::default();
+        let image = Arc::new(test_image(2, 3, 10));
 
-        repository.set_cached_capture(VirtualCaptureSource::Preview, test_image(2, 3, 10));
-        repository.set_cached_capture(VirtualCaptureSource::Scroll, test_image(4, 5, 20));
+        repository.set_preview_capture(image.clone());
 
-        assert_eq!(repository.get_cached_capture(VirtualCaptureSource::Preview).unwrap().dimensions(), (2, 3));
-        assert_eq!(repository.get_cached_capture(VirtualCaptureSource::Scroll).unwrap().dimensions(), (4, 5));
+        let cached = repository.get_preview_capture().unwrap();
+        assert!(Arc::ptr_eq(&cached, &image));
+        assert_eq!(cached.dimensions(), (2, 3));
     }
 
     #[test]

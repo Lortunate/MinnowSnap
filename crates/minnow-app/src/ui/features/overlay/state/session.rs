@@ -6,7 +6,6 @@ use std::sync::Arc;
 use super::diagnostics::{OverlayDiagnostics, OverlayDiagnosticsSnapshot};
 use super::{PickerFormat, PickerNeighborhood, PickerSample};
 use crate::services::capture::service::CaptureService;
-use crate::services::capture::update_last_capture;
 use crate::services::geometry::{RectF, clamp_point, normalize_rect};
 use crate::ui::features::overlay::annotation::{AnnotationEngine, AnnotationUiState};
 use crate::ui::features::overlay::window_catalog::{WindowInfo, fetch_windows_data, find_window_at};
@@ -391,11 +390,10 @@ pub(crate) struct OverlaySurface {
 impl OverlaySurface {
     pub fn capture() -> Self {
         let windows = fetch_windows_data();
-        match CaptureService::capture_region(crate::services::geometry::Rect::empty()) {
+        match CaptureService::capture_preview() {
             Some(image) => {
-                update_last_capture(image.clone());
-                let background_image = Some(render_image::from_rgba_copy(&image));
-                let background_pixels = Some(Arc::new(image));
+                let background_image = Some(render_image::from_rgba_copy(image.as_ref()));
+                let background_pixels = Some(image);
                 Self {
                     background_image,
                     background_pixels,
