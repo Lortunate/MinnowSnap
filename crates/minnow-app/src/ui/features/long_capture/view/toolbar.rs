@@ -1,15 +1,19 @@
+mod actions;
+
+pub(crate) use actions::LongCaptureToolbarAction;
+
 use crate::platform::notify::NotificationType;
-use crate::services::assets::asset_paths;
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::capture::service::CaptureService;
 use crate::services::i18n;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
 use crate::ui::features::long_capture::layout::{TOOLBAR_TOP_RESERVED, long_capture_toolbar_size};
 use crate::ui::features::pin::{self, PinRequest};
+use actions::LongCaptureToolbarIcon;
 use gpui::InteractiveElement;
 use gpui::{App, ClickEvent, Context, Div, FocusHandle, IntoElement, KeyDownEvent, ParentElement, Render, Styled, Window, div, px};
 use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme as _, Disableable, Icon, IconNamed, Sizable, h_flex};
+use gpui_component::{ActiveTheme as _, Disableable, Icon, Sizable, h_flex};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -22,68 +26,6 @@ struct ToolbarPanelLayout {
     y: f64,
     width: f64,
     height: f64,
-}
-
-#[derive(Clone, Copy)]
-enum LongCaptureToolbarIcon {
-    Save,
-    Pin,
-    Copy,
-    Cancel,
-}
-
-impl IconNamed for LongCaptureToolbarIcon {
-    fn path(self) -> gpui::SharedString {
-        match self {
-            Self::Save => asset_paths::icons::SAVE.into(),
-            Self::Pin => asset_paths::icons::KEEP.into(),
-            Self::Copy => asset_paths::icons::FILE_COPY.into(),
-            Self::Cancel => asset_paths::icons::CLOSE.into(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum LongCaptureToolbarAction {
-    Save,
-    Pin,
-    Copy,
-    Cancel,
-}
-
-impl LongCaptureToolbarAction {
-    pub(crate) const ORDERED: [Self; 4] = [Self::Save, Self::Pin, Self::Copy, Self::Cancel];
-
-    fn id(self) -> &'static str {
-        match self {
-            Self::Save => "long-capture-save",
-            Self::Pin => "long-capture-pin",
-            Self::Copy => "long-capture-copy",
-            Self::Cancel => "long-capture-cancel",
-        }
-    }
-
-    fn icon(self) -> LongCaptureToolbarIcon {
-        match self {
-            Self::Save => LongCaptureToolbarIcon::Save,
-            Self::Pin => LongCaptureToolbarIcon::Pin,
-            Self::Copy => LongCaptureToolbarIcon::Copy,
-            Self::Cancel => LongCaptureToolbarIcon::Cancel,
-        }
-    }
-
-    fn tooltip(self) -> String {
-        match self {
-            Self::Save => i18n::common::save(),
-            Self::Pin => i18n::common::pin(),
-            Self::Copy => i18n::common::copy(),
-            Self::Cancel => i18n::common::cancel(),
-        }
-    }
-
-    fn disabled_when_busy(self) -> bool {
-        self != Self::Cancel
-    }
 }
 
 pub(crate) struct ToolbarWindowView {
