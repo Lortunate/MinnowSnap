@@ -1,18 +1,15 @@
 use super::{MutationResult, frame::SelectOption};
-use crate::platform::system::UiSystemActions;
+use crate::platform::shell::{self, UiSystemActions};
+use crate::services::{
+    fonts::get_system_fonts,
+    i18n,
+    i18n::SYSTEM_LOCALE,
+    settings,
+    settings::{AppSettings, SettingsAction, THEME_DARK, THEME_LIGHT, THEME_SYSTEM},
+};
 use crate::ui::features::preferences::view::PreferencesView;
 use crate::ui::support::appearance;
 use crate::ui::support::locale;
-use crate::{
-    platform::storage::get_default_save_path,
-    services::{
-        fonts::get_system_fonts,
-        i18n,
-        i18n::SYSTEM_LOCALE,
-        settings,
-        settings::{AppSettings, SettingsAction, THEME_DARK, THEME_LIGHT, THEME_SYSTEM},
-    },
-};
 use gpui::{App, Context, SharedString, Window};
 use tracing::warn;
 
@@ -134,7 +131,7 @@ fn save_directory_description(settings: &AppSettings) -> String {
     if let Some(path) = settings.output.save_path.clone().filter(|path| !path.trim().is_empty()) {
         path
     } else {
-        i18n::preferences::default_path_with_value(get_default_save_path())
+        i18n::preferences::default_path_with_value(shell::default_save_path())
     }
 }
 
@@ -169,7 +166,7 @@ mod tests {
     fn save_directory_description_falls_back_to_default_label() {
         let settings = AppSettings::default();
         let description = save_directory_description(&settings);
-        let default_path = get_default_save_path();
+        let default_path = shell::default_save_path();
 
         assert_eq!(description, i18n::preferences::default_path_with_value(default_path));
     }

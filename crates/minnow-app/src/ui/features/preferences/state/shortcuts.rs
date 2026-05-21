@@ -1,5 +1,5 @@
 use super::MutationResult;
-use crate::platform::hotkey::HotkeyService;
+use crate::platform::shell::HotkeyService;
 use crate::services::hotkeys::{HotkeyAction, ShortcutBindings};
 use crate::services::i18n;
 use crate::services::settings::{self, SettingsAction};

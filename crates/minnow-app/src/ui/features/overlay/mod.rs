@@ -5,8 +5,7 @@ mod state;
 mod view;
 pub(crate) mod window_catalog;
 
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
-use crate::services::app_meta::APP_ID;
+use crate::platform::shell::{self, PopupWindowSpec};
 use crate::ui::support::appearance;
 use gpui::{App, AppContext, Bounds, WindowBounds, WindowKind, WindowOptions};
 use gpui_component::Root;
@@ -21,7 +20,7 @@ pub fn open_window(cx: &mut App) {
 
     if let Err(err) = cx.open_window(options, move |window, cx| {
         appearance::apply_saved_preferences(Some(window), cx);
-        configure_window(window, cx, true);
+        shell::configure_window(window, cx, true);
         let focus_handle = cx.focus_handle();
         let overlay_handle = overlay_handle.clone();
         let view = cx.new(move |cx| OverlayView::new(overlay_handle, focus_handle, cx));
@@ -34,18 +33,15 @@ pub fn open_window(cx: &mut App) {
 fn window_options(cx: &App) -> WindowOptions {
     let fullscreen_bounds = Bounds::maximized(None, cx);
 
-    popup_window_options(
-        PopupWindowSpec {
-            window_bounds: Some(WindowBounds::Fullscreen(fullscreen_bounds)),
-            kind: WindowKind::PopUp,
-            focus: false,
-            show: true,
-            is_movable: false,
-            is_resizable: false,
-            is_minimizable: false,
-            display_id: None,
-            window_min_size: None,
-        },
-        APP_ID,
-    )
+    shell::popup_window_options(PopupWindowSpec {
+        window_bounds: Some(WindowBounds::Fullscreen(fullscreen_bounds)),
+        kind: WindowKind::PopUp,
+        focus: false,
+        show: true,
+        is_movable: false,
+        is_resizable: false,
+        is_minimizable: false,
+        display_id: None,
+        window_min_size: None,
+    })
 }

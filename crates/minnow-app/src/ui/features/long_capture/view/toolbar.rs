@@ -2,7 +2,7 @@ mod actions;
 
 pub(crate) use actions::LongCaptureToolbarAction;
 
-use crate::platform::notify::NotificationType;
+use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::i18n;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
@@ -97,7 +97,7 @@ impl ToolbarWindowView {
     fn handle_capture_action_result(&mut self, result: ActionResult, window: &mut Window, cx: &mut Context<Self>) {
         match result {
             ActionResult::Copied => {
-                crate::platform::notify::show(
+                shell::show_notification(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
@@ -105,7 +105,7 @@ impl ToolbarWindowView {
                 self.close_capture_windows(window, cx);
             }
             ActionResult::Saved(path) => {
-                crate::platform::notify::show(
+                shell::show_notification(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,

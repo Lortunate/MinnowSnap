@@ -1,7 +1,8 @@
 # Architecture Cleanup Refactor Spec
 
-Status: Active
+Status: Archived
 Tracking: `minnowsnap-0l0`
+Archived-By: `docs/specs/2026-05-22-architecture-cleanup-refactor-spec.md`
 Supersedes:
 - `docs/specs/archive/2026-05-18-architecture-cleanup-spec.md`
 - `docs/specs/archive/2026-05-17-conservative-merge-refactor-design.md`

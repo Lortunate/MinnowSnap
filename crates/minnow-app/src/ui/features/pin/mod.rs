@@ -6,9 +6,7 @@ mod view;
 
 pub use request::PinRequest;
 
-use crate::platform::native_window::{Level, with_level};
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
-use crate::services::app_meta::APP_ID;
+use crate::platform::shell::{self, PopupWindowSpec};
 use crate::ui::support::appearance;
 use gpui::{App, AppContext, Bounds, KeyBinding, WindowBounds, WindowKind, WindowOptions, actions, point, px, size};
 use gpui_component::Root;
@@ -41,9 +39,9 @@ pub fn open_window(cx: &mut App, request: PinRequest) {
 
     if let Err(err) = cx.open_window(
         options,
-        with_level(Level::AlwaysOnTop, move |window, cx| {
+        shell::with_always_on_top(move |window, cx| {
             appearance::apply_saved_preferences(Some(window), cx);
-            configure_window(window, cx, true);
+            shell::configure_window(window, cx, true);
             let focus_handle = cx.focus_handle();
             manager.register(window.window_handle(), cx);
             let session = PinSession::new(cx, request);
@@ -72,18 +70,15 @@ fn window_options(cx: &App, request: &PinRequest) -> WindowOptions {
         "pin window options prepared"
     );
 
-    popup_window_options(
-        PopupWindowSpec {
-            window_bounds: Some(WindowBounds::Windowed(bounds)),
-            focus: true,
-            show: true,
-            kind: WindowKind::PopUp,
-            is_movable: true,
-            is_resizable: true,
-            is_minimizable: false,
-            display_id: cx.displays().first().map(|display| display.id()),
-            window_min_size: Some(size(px(geometry.min_size()), px(geometry.min_size()))),
-        },
-        APP_ID,
-    )
+    shell::popup_window_options(PopupWindowSpec {
+        window_bounds: Some(WindowBounds::Windowed(bounds)),
+        focus: true,
+        show: true,
+        kind: WindowKind::PopUp,
+        is_movable: true,
+        is_resizable: true,
+        is_minimizable: false,
+        display_id: cx.displays().first().map(|display| display.id()),
+        window_min_size: Some(size(px(geometry.min_size()), px(geometry.min_size()))),
+    })
 }

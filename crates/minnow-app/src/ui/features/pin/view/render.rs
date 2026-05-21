@@ -1,6 +1,6 @@
 use super::PinView;
 use super::ocr_geometry::{bounds_from_points, compute_block_geometries, paint_rotated_rect, paint_rotated_stroke, sub_geometry_by_ratio};
-use crate::platform::window_drag::{PopupDragBehavior, PopupDragRegionExt};
+use crate::platform::shell::{PopupDragBehavior, PopupDragRegionExt};
 use crate::services::capture::action::CaptureAction;
 use crate::services::i18n;
 use crate::ui::features::pin::{PIN_CONTEXT, render, state::PinFrame};

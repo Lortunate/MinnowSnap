@@ -1,5 +1,5 @@
 use super::{AnnotationKind, DragMode, OverlayEffect, OverlayOutcome, OverlaySession, ResizeCorner};
-use crate::platform::notify::NotificationType;
+use crate::platform::shell::NotificationType;
 use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::capture::active_monitor_scale;
 use crate::services::geometry::RectF;

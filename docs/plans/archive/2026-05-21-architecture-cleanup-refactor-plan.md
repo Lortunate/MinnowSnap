@@ -1,8 +1,9 @@
 # Architecture Cleanup Refactor Plan
 
-Status: Active
-Spec: `docs/specs/2026-05-21-architecture-cleanup-refactor-spec.md`
+Status: Archived
+Spec: `docs/specs/archive/2026-05-21-architecture-cleanup-refactor-spec.md`
 Tracking: `minnowsnap-0l0`
+Archived-By: `docs/plans/2026-05-22-architecture-cleanup-refactor-plan.md`
 Supersedes: `docs/plans/archive/2026-05-18-architecture-cleanup-plan.md`
 
 ## Phase 1: Public API Boundary

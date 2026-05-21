@@ -203,6 +203,14 @@ fn imports_private_feature_module(use_statement: &str, target_feature: &str, pri
     })
 }
 
+fn imports_private_platform_module(use_statement: &str) -> bool {
+    expanded_use_paths(use_statement).iter().any(|path| {
+        path.first().map(String::as_str) == Some("crate")
+            && path.get(1).map(String::as_str) == Some("platform")
+            && path.get(2).map(String::as_str) != Some("shell")
+    })
+}
+
 fn code_line_mentions_shell_window_api(line: &str) -> bool {
     let code = code_before_comment(line).trim();
     if code.is_empty() {
@@ -219,6 +227,26 @@ fn code_line_mentions_shell_window_api(line: &str) -> bool {
     ]
     .iter()
     .any(|needle| code.contains(needle))
+}
+
+#[test]
+fn platform_shell_facade_matcher_handles_direct_and_grouped_paths() {
+    for import in [
+        "use crate::platform::notify::NotificationType;",
+        "use crate::platform::{clipboard::copy_text_to_clipboard, notify::NotificationType};",
+        "use crate::{platform::notify::NotificationType, services::i18n};",
+        "use crate::{platform::{clipboard::copy_text_to_clipboard, notify::NotificationType}};",
+    ] {
+        assert!(imports_private_platform_module(import), "{import}");
+    }
+
+    for import in [
+        "use crate::platform::shell::{self, NotificationType};",
+        "use crate::{platform::shell, services::i18n};",
+        "use crate::{platform::shell::{self, PopupWindowSpec}, services::i18n};",
+    ] {
+        assert!(!imports_private_platform_module(import), "{import}");
+    }
 }
 
 #[test]
@@ -387,6 +415,42 @@ fn shell_window_helpers_do_not_live_under_ui_support_or_services() {
     assert!(
         misplaced.is_empty(),
         "shell/window helpers belong at the platform edge, not under ui/support or services: {misplaced:#?}"
+    );
+}
+
+#[test]
+fn ui_features_use_platform_shell_facade_only() {
+    let mut violations = Vec::new();
+
+    for file in rs_files_under("crates/minnow-app/src/ui/features") {
+        let rel = repo_relative(&file);
+        let source = fs::read_to_string(&file).unwrap_or_else(|err| panic!("read {rel}: {err}"));
+
+        for import in use_statements(&source) {
+            if imports_private_platform_module(&import) {
+                violations.push(format!("{rel} imports {import}"));
+            }
+        }
+
+        for (line_index, line) in source.lines().enumerate() {
+            let code = code_before_comment(line);
+            let Some((_, platform_path)) = code.split_once("crate::platform::") else {
+                continue;
+            };
+
+            if !platform_path.starts_with("shell::") {
+                let platform_module = platform_path
+                    .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                    .next()
+                    .unwrap_or("<unknown>");
+                violations.push(format!("{rel}:{} references crate::platform::{platform_module}", line_index + 1));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "ui features should reach platform APIs through crate::platform::shell only: {violations:#?}"
     );
 }
 

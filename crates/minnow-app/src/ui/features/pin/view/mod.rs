@@ -6,8 +6,7 @@ use super::{
     CloseAllPins, ClosePin, CopyPinContent, SavePinImage,
     state::{PinManager, PinSession},
 };
-use crate::platform::clipboard::copy_text_to_clipboard;
-use crate::platform::notify::NotificationType;
+use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionResult, CaptureAction};
 use crate::services::i18n;
 use crate::services::ocr::service;
@@ -58,14 +57,14 @@ impl PinView {
         let context = session.read(cx).capture_action_context();
         match action.execute(context) {
             ActionResult::Copied => {
-                crate::platform::notify::show(
+                shell::show_notification(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::copied_image().as_str(),
                     NotificationType::Copy,
                 );
             }
             ActionResult::Saved(path) => {
-                crate::platform::notify::show(
+                shell::show_notification(
                     i18n::app::capture_name().as_str(),
                     i18n::notify::saved_image(path).as_str(),
                     NotificationType::Save,
@@ -81,9 +80,9 @@ impl PinView {
     fn copy_selection_or_image(session: &Entity<PinSession>, cx: &mut App) {
         let text = session.read(cx).selected_or_active_text();
         if let Some(text) = text
-            && copy_text_to_clipboard(text)
+            && shell::copy_text_to_clipboard(text)
         {
-            crate::platform::notify::show(
+            shell::show_notification(
                 i18n::app::capture_name().as_str(),
                 i18n::notify::copied_text().as_str(),
                 NotificationType::Copy,

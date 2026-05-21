@@ -2,9 +2,7 @@ mod coordinator;
 mod layout;
 mod view;
 
-use crate::platform::native_window::{Level, WindowLevelExt};
-use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
-use crate::services::app_meta::APP_ID;
+use crate::platform::shell::{self, PopupWindowSpec};
 use crate::services::geometry::{Rect, RectF};
 use crate::ui::support::appearance;
 use gpui::{App, AppContext, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions};
@@ -51,13 +49,13 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
         let coordinator = coordinator.clone();
         move |window, cx| {
             appearance::apply_saved_preferences(Some(window), cx);
-            configure_window(window, cx, false);
+            shell::configure_window(window, cx, false);
             window.set_background_appearance(WindowBackgroundAppearance::Transparent);
-            if let Err(err) = window.set_level(Level::AlwaysOnTop) {
+            if let Err(err) = shell::set_always_on_top(window) {
                 tracing::warn!("Failed to set frame window level: {err}");
             }
 
-            let frame_click_through_ok = window.set_click_through(true).is_ok();
+            let frame_click_through_ok = shell::set_click_through(window, true).is_ok();
             if !frame_click_through_ok {
                 coordinator.on_frame_click_through_result(false);
                 window.defer(cx, |window, _| {
@@ -78,9 +76,9 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
         let coordinator = coordinator.clone();
         move |window, cx| {
             appearance::apply_saved_preferences(Some(window), cx);
-            configure_window(window, cx, true);
+            shell::configure_window(window, cx, true);
             window.set_background_appearance(WindowBackgroundAppearance::Transparent);
-            if let Err(err) = window.set_level(Level::AlwaysOnTop) {
+            if let Err(err) = shell::set_always_on_top(window) {
                 tracing::warn!("Failed to set toolbar window level: {err}");
             }
             let focus_handle = cx.focus_handle();
@@ -96,9 +94,9 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
 
     if let Err(err) = cx.open_window(window_options(layout.preview_bounds, false), move |window, cx| {
         appearance::apply_saved_preferences(Some(window), cx);
-        configure_window(window, cx, false);
+        shell::configure_window(window, cx, false);
         window.set_background_appearance(WindowBackgroundAppearance::Transparent);
-        if let Err(err) = window.set_level(Level::AlwaysOnTop) {
+        if let Err(err) = shell::set_always_on_top(window) {
             tracing::warn!("Failed to set preview window level: {err}");
         }
         coordinator.register_window(LongCaptureWindowKind::Preview, window.window_handle());
@@ -109,20 +107,17 @@ pub fn open_window(cx: &mut App, request: LongCaptureRequest) {
 }
 
 fn window_options(bounds: gpui::Bounds<gpui::Pixels>, focus: bool) -> WindowOptions {
-    popup_window_options(
-        PopupWindowSpec {
-            window_bounds: Some(WindowBounds::Windowed(bounds)),
-            kind: WindowKind::PopUp,
-            focus,
-            show: true,
-            is_movable: false,
-            is_resizable: false,
-            is_minimizable: false,
-            display_id: None,
-            window_min_size: None,
-        },
-        APP_ID,
-    )
+    shell::popup_window_options(PopupWindowSpec {
+        window_bounds: Some(WindowBounds::Windowed(bounds)),
+        kind: WindowKind::PopUp,
+        focus,
+        show: true,
+        is_movable: false,
+        is_resizable: false,
+        is_minimizable: false,
+        display_id: None,
+        window_min_size: None,
+    })
 }
 
 #[cfg(test)]
