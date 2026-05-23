@@ -7,11 +7,18 @@
 - 项目是 Rust 2024 workspace，主要 crate 是 `crates/minnow-app`，二进制名为 `MinnowSnap`。
 - 当前 UI 技术栈是 GPUI / `gpui-component`，不是 Tauri。旧 Qt/CXX-Qt 代码在 `legacy/qt`，只作为历史归档，不能重新进入 active build。
 - 主要源码边界是 `app`、`platform`、`services`、`ui/features`。
-- 已有 active 架构文档：
-  - `docs/specs/2026-05-18-architecture-cleanup-spec.md`
-  - `docs/plans/2026-05-18-architecture-cleanup-plan.md`
+- 当前 active 架构 spec：
+  - `docs/specs/2026-05-24-architecture-code-directory-refactor-spec.md`
+- 当前 implementation plan 会在 active spec 审阅通过后生成：
+  - `docs/plans/2026-05-24-architecture-code-directory-refactor-plan.md`
 - 已归档历史文档：
   - `docs/specs/archive/2026-05-17-conservative-merge-refactor-design.md`
+  - `docs/specs/archive/2026-05-18-architecture-cleanup-spec.md`
+  - `docs/specs/archive/2026-05-21-architecture-cleanup-refactor-spec.md`
+  - `docs/specs/archive/2026-05-22-architecture-cleanup-refactor-spec.md`
+  - `docs/plans/archive/2026-05-18-architecture-cleanup-plan.md`
+  - `docs/plans/archive/2026-05-21-architecture-cleanup-refactor-plan.md`
+  - `docs/plans/archive/2026-05-22-architecture-cleanup-refactor-plan.md`
 - 项目使用 Beads 追踪工作。先运行 `bd prime`，用 `bd` 创建、认领、更新、关闭任务；不要用 TodoWrite、TaskCreate 或 markdown TODO 列表做任务状态追踪。
 - Shell 默认使用 Git Bash。文件操作必须使用非交互参数，例如 `cp -f`、`mv -f`、`rm -f`、`rm -rf`。
 
