@@ -6,7 +6,16 @@ dhat-heap.json
 /output/
 /er/
 /scripts/__pycache__/
-/docs/superpowers
+.agents
+.beads
+.claude
+.codex
+.dolt
+.gitnexus
+.serena
+skills-lock.json
+AGENTS.md
+CLAUDE.md
 
 /legacy/qt/cpp/.idea/
 /legacy/qt/cpp/cmake-build-*/
