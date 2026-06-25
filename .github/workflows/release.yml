@@ -23,7 +23,7 @@ jobs:
             os_name: Windows
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Guard against legacy UI runtime dependency regressions
         run: python scripts/check_no_qt_runtime_deps.py
