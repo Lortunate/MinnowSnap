@@ -28,7 +28,7 @@ global-hotkey = { workspace = true }
 gpui = { workspace = true }
 gpui-component = { workspace = true }
 gpui-component-assets = { workspace = true }
-image = { workspace = true, features = ["rayon", "png", "jpeg"] }
+image = { workspace = true, features = ["png", "jpeg"] }
 imageproc = { workspace = true }
 mimalloc = { workspace = true }
 ndarray = { workspace = true }
