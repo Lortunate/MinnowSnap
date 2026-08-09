@@ -41,7 +41,7 @@ effects and one UI support module interprets the result for feature hosts.
 
 - App identity and lock policy: `services::app_meta`.
 - Capture image resolution and monitor selection: `services::capture`.
-- Capture action side effects: `app::workflows::capture` through
+- Capture action side effects: `app::workflows::execute_capture_action` through
   `platform::shell`.
 - Settings persistence: `services::settings`.
 - OCR model and recognition pipeline: `services::ocr`.
