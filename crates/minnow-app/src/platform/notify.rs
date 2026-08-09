@@ -24,6 +24,7 @@ const WINDOWS_TOAST_ICON_FILE: &str = "minnowsnap-toast-icon.png";
 pub enum NotificationType {
     Save,
     Copy,
+    QrCode,
     Info,
 }
 
@@ -105,16 +106,7 @@ pub fn init_windows_notification_app_id() {
 pub fn show(title: &str, message: &str, type_: NotificationType) {
     let settings = settings::notification_settings();
 
-    if !settings.enabled {
-        return;
-    }
-
-    let allowed = match type_ {
-        NotificationType::Copy => settings.copy_notification,
-        NotificationType::Save => settings.save_notification,
-        _ => true,
-    };
-    if !allowed {
+    if !notification_allowed(&settings, type_) {
         return;
     }
 
@@ -131,5 +123,52 @@ pub fn show(title: &str, message: &str, type_: NotificationType) {
     #[cfg(not(target_os = "windows"))]
     if let Err(e) = Notification::new().summary(title).body(message).appname(APP_NAME).show() {
         error!("Failed to send notification: {}", e);
+    }
+}
+
+fn notification_allowed(settings: &settings::NotificationSettings, type_: NotificationType) -> bool {
+    if !settings.enabled {
+        return false;
+    }
+
+    match type_ {
+        NotificationType::Copy => settings.copy_notification,
+        NotificationType::Save => settings.save_notification,
+        NotificationType::QrCode => settings.qr_code_notification,
+        NotificationType::Info => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn qr_notification_setting_is_independent_from_copy_setting() {
+        let settings = settings::NotificationSettings {
+            copy_notification: true,
+            qr_code_notification: false,
+            ..Default::default()
+        };
+
+        assert!(notification_allowed(&settings, NotificationType::Copy));
+        assert!(!notification_allowed(&settings, NotificationType::QrCode));
+    }
+
+    #[test]
+    fn global_notification_setting_disables_every_type() {
+        let settings = settings::NotificationSettings {
+            enabled: false,
+            ..Default::default()
+        };
+
+        for kind in [
+            NotificationType::Copy,
+            NotificationType::Save,
+            NotificationType::QrCode,
+            NotificationType::Info,
+        ] {
+            assert!(!notification_allowed(&settings, kind));
+        }
     }
 }

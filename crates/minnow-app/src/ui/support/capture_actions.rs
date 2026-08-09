@@ -134,7 +134,7 @@ fn interpret_overlay(action: CaptureAction, result: ActionResult) -> CaptureActi
         ActionResult::PinRequested(request) => CaptureActionEffect::OpenPin(request),
         ActionResult::OcrResult(content) => CaptureActionEffect::CopyText {
             text: content,
-            notification: NotificationSpec::new(i18n::app::capture_name(), i18n::notify::copied_qr(), NotificationType::Copy),
+            notification: NotificationSpec::new(i18n::app::capture_name(), i18n::notify::copied_qr(), NotificationType::QrCode),
             close_on_success: true,
         },
         ActionResult::NoOp => CaptureActionEffect::Refresh {
