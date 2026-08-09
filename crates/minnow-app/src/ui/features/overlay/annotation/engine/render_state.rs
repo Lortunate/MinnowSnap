@@ -277,10 +277,9 @@ impl AnnotationEngine {
         let scratch = self.raster_cache.scratch_layer.get_or_insert_with(|| base.clone());
         if scratch.dimensions() != base_dimensions {
             *scratch = base.clone();
-        } else {
-            scratch
-                .copy_from(base, 0, 0)
-                .expect("scratch dimensions were validated to match base dimensions");
+        } else if let Err(error) = scratch.copy_from(base, 0, 0) {
+            tracing::warn!("Failed to refresh annotation scratch layer: {error}; replacing the layer");
+            *scratch = base.clone();
         }
         scratch
     }

@@ -18,9 +18,9 @@ pub(super) fn format_selected_blocks(blocks: &[OcrBlock], indices: &[usize]) -> 
 
     selected_blocks.sort_by(|a, b| {
         if (a.cy - b.cy).abs() < 0.01 {
-            a.cx.partial_cmp(&b.cx).unwrap()
+            a.cx.total_cmp(&b.cx)
         } else {
-            a.cy.partial_cmp(&b.cy).unwrap()
+            a.cy.total_cmp(&b.cy)
         }
     });
 
