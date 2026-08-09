@@ -30,11 +30,11 @@ num-traits = "0.2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication"] }
 ort = "2.0.0-rc.12"
-oxipng = { version = "10.2", default-features = false, features = ["parallel", "zopfli"] }
+oxipng = { version = "10.2", default-features = false, features = ["parallel"] }
 raw-window-handle = "0.6"
 rayon = "1.8"
 reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "stream"] }
-rodio = "0.22.2"
+rodio = { version = "0.22.2", default-features = false, features = ["playback", "mp3"] }
 rqrr = "0.10"
 rust-embed = "8"
 rust-i18n = "3.1.5"
@@ -54,7 +54,7 @@ tray-icon = "0.22"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56"
 winres = "0.1"
-xcap = { version = "0.9", features = ["image"] }
+xcap = { version = "0.9", default-features = false }
 
 [profile.release]
 lto = true
