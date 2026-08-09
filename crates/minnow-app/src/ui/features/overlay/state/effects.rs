@@ -1,4 +1,5 @@
 use super::OverlayHandle;
+use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::geometry::{Rect, RectF};
@@ -158,7 +159,7 @@ impl OverlayHandle {
     }
 
     fn capture(&self, action: CaptureAction, context: crate::services::capture::action::ActionContext, window: &mut Window, cx: &mut App) {
-        match action.execute(context) {
+        match workflows::execute_capture_action(action, context) {
             ActionResult::Copied => {
                 shell::show_notification(
                     i18n::app::capture_name().as_str(),

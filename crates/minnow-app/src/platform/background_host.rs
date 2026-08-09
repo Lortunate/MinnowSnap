@@ -1,6 +1,12 @@
+use gpui::App;
+
+#[cfg(target_os = "windows")]
 use crate::platform::windowing::{PopupWindowSpec, configure_window, popup_window_options};
+#[cfg(target_os = "windows")]
 use crate::services::app_meta::APP_ID;
-use gpui::{App, AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBounds, WindowKind, div, point, px, rgba, size};
+#[cfg(target_os = "windows")]
+use gpui::{AppContext, Bounds, Context, IntoElement, Render, Styled, Window, WindowBounds, WindowKind, div, point, px, rgba, size};
+#[cfg(target_os = "windows")]
 use gpui_component::Root;
 
 /// Windows tray apps that close all visible GPUI windows can still receive late
@@ -9,9 +15,11 @@ use gpui_component::Root;
 ///
 /// This is intentionally isolated so the rest of the app can stay focused on
 /// user-facing windows only.
+#[cfg(target_os = "windows")]
 #[derive(Default)]
 struct BackgroundHostWindow;
 
+#[cfg(target_os = "windows")]
 impl Render for BackgroundHostWindow {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div().size_full().bg(rgba(0x00000000))

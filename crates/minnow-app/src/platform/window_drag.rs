@@ -1,7 +1,14 @@
-use anyhow::{Result, anyhow};
+#[cfg(target_os = "windows")]
+use anyhow::Result;
+#[cfg(target_os = "windows")]
+use anyhow::anyhow;
+#[cfg(target_os = "windows")]
+use gpui::MouseButton;
+#[cfg(target_os = "windows")]
+use gpui::Window;
 #[cfg(not(target_os = "windows"))]
 use gpui::WindowControlArea;
-use gpui::{Div, InteractiveElement, MouseButton, Window};
+use gpui::{Div, InteractiveElement};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PopupDragBehavior {
@@ -40,16 +47,14 @@ impl PopupDragRegionExt for Div {
 #[cfg(target_os = "windows")]
 mod platform {
     use super::*;
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use crate::platform::native_window::raw_window_handle;
+    use raw_window_handle::RawWindowHandle;
     use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
     use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
     use windows::Win32::UI::WindowsAndMessaging::{HTCAPTION, PostMessageW, WM_NCLBUTTONDOWN};
 
     fn hwnd(window: &Window) -> Result<HWND> {
-        let raw = HasWindowHandle::window_handle(window)
-            .map_err(|e| anyhow!("failed to get native window handle: {e}"))?
-            .as_raw();
-
+        let raw = raw_window_handle(window)?;
         match raw {
             RawWindowHandle::Win32(h) => Ok(HWND(h.hwnd.get() as *mut _)),
             other => Err(anyhow!("expected Win32 handle, got {other:?}")),
@@ -64,16 +69,6 @@ mod platform {
             PostMessageW(Some(hwnd), WM_NCLBUTTONDOWN, WPARAM(HTCAPTION as usize), LPARAM(0)).map_err(|e| anyhow!("PostMessageW failed: {e}"))?;
         }
 
-        Ok(())
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-mod platform {
-    use super::*;
-
-    pub(super) fn start_system_drag(window: &Window) -> Result<()> {
-        window.start_window_move();
         Ok(())
     }
 }

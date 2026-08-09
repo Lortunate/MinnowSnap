@@ -460,11 +460,11 @@ fn ui_features_use_platform_shell_facade_only() {
                 continue;
             };
 
-            if !platform_path.starts_with("shell::") {
-                let platform_module = platform_path
-                    .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
-                    .next()
-                    .unwrap_or("<unknown>");
+            let platform_module = platform_path
+                .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                .next()
+                .unwrap_or("<unknown>");
+            if platform_module != "shell" {
                 violations.push(format!("{rel}:{} references crate::platform::{platform_module}", line_index + 1));
             }
         }

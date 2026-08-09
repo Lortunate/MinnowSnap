@@ -1,6 +1,14 @@
 use anyhow::{Result, anyhow};
 use gpui::{App, Window};
+#[cfg(target_os = "windows")]
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+#[cfg(target_os = "windows")]
+pub(crate) fn raw_window_handle(window: &Window) -> Result<RawWindowHandle> {
+    HasWindowHandle::window_handle(window)
+        .map(|handle| handle.as_raw())
+        .map_err(|error| anyhow!("failed to get native window handle: {error}"))
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Level {
@@ -53,9 +61,7 @@ mod platform {
     };
 
     fn hwnd(window: &Window) -> Result<HWND> {
-        let raw = HasWindowHandle::window_handle(window)
-            .map_err(|e| anyhow!("failed to get native window handle: {e}"))?
-            .as_raw();
+        let raw = super::raw_window_handle(window)?;
 
         match raw {
             RawWindowHandle::Win32(h) => Ok(HWND(h.hwnd.get() as *mut _)),

@@ -6,6 +6,7 @@ use super::{
     CloseAllPins, ClosePin, CopyPinContent, SavePinImage,
     state::{PinManager, PinSession},
 };
+use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionResult, CaptureAction};
 use crate::services::i18n;
@@ -55,7 +56,7 @@ impl PinView {
 
     fn run_capture_action(session: &Entity<PinSession>, action: CaptureAction, cx: &mut App) {
         let context = session.read(cx).capture_action_context();
-        match action.execute(context) {
+        match workflows::execute_capture_action(action, context) {
             ActionResult::Copied => {
                 shell::show_notification(
                     i18n::app::capture_name().as_str(),

@@ -208,17 +208,16 @@ fn draw_mosaic_pixelate(image: &mut RgbaImage, image_rect: ImageRect, block: u32
                     count += 1;
                 }
             }
-            if count > 0 {
-                let color = Rgba([
-                    (sum[0] / count) as u8,
-                    (sum[1] / count) as u8,
-                    (sum[2] / count) as u8,
-                    (sum[3] / count) as u8,
-                ]);
-                for py in y..by {
-                    for px in x..bx {
-                        image.put_pixel(px, py, color);
-                    }
+            let count = count.max(1);
+            let color = Rgba([
+                (sum[0] / count) as u8,
+                (sum[1] / count) as u8,
+                (sum[2] / count) as u8,
+                (sum[3] / count) as u8,
+            ]);
+            for py in y..by {
+                for px in x..bx {
+                    image.put_pixel(px, py, color);
                 }
             }
             x = bx;

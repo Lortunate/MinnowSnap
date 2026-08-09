@@ -40,10 +40,12 @@ pub(super) fn get_instance_id() -> String {
         if let Err(err) = paths::ensure_parent_dir(&path) {
             error!("Failed to create single-instance lock directory for {:?}: {}", path, err);
         }
-        return path.to_string_lossy().into();
+        path.to_string_lossy().into()
     }
     #[cfg(not(target_os = "macos"))]
-    return APP_LOCK_ID.to_string();
+    {
+        APP_LOCK_ID.to_string()
+    }
 }
 
 pub(super) fn set_auto_start(enabled: bool) {

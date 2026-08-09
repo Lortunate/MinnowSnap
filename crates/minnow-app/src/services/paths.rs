@@ -38,12 +38,12 @@ fn resolve_app_paths() -> AppPaths {
     #[cfg(feature = "portable")]
     {
         let data_dir = executable_dir().join(DATA_DIR_NAME);
-        return AppPaths {
+        AppPaths {
             config_file: data_dir.join(CONFIG_FILE_NAME),
             logs_dir: data_dir.join(LOGS_DIR_NAME),
             temp_dir: data_dir.join(TEMP_DIR_NAME),
             ocr_models_dir: data_dir.join(OCR_MODELS_DIR_NAME),
-        };
+        }
     }
 
     #[cfg(not(feature = "portable"))]

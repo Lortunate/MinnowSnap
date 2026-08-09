@@ -72,6 +72,7 @@ fn ensure_windows_toast_icon_file() -> Option<PathBuf> {
     Some(path)
 }
 
+#[cfg(target_os = "windows")]
 pub fn init_windows_notification_app_id() {
     #[cfg(target_os = "windows")]
     {

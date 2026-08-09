@@ -2,6 +2,7 @@ mod actions;
 
 pub(crate) use actions::LongCaptureToolbarAction;
 
+use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
 use crate::services::i18n;
@@ -144,7 +145,11 @@ impl ToolbarWindowView {
             return;
         };
 
-        self.handle_capture_action_result(action.execute(ActionContext::full_image_data(Arc::new(image))), window, cx);
+        self.handle_capture_action_result(
+            workflows::execute_capture_action(action, ActionContext::full_image_data(Arc::new(image))),
+            window,
+            cx,
+        );
     }
 }
 

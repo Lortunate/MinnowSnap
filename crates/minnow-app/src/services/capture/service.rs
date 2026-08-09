@@ -1,9 +1,5 @@
-use crate::platform::clipboard::copy_image_to_clipboard;
-use crate::platform::notify;
-use crate::platform::storage::{save_image_to_user_dir, save_temp_image};
 use crate::services::capture::action::CaptureInputMode;
 use crate::services::geometry::Rect;
-use crate::services::settings;
 use image::RgbaImage;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -85,7 +81,7 @@ impl CaptureService {
         perform_crop(img, rect, scale_factor)
     }
 
-    fn capture_region(rect: Rect) -> Option<RgbaImage> {
+    pub(crate) fn capture_region(rect: Rect) -> Option<RgbaImage> {
         info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
         let scale_factor = active_monitor_scale();
 
@@ -131,42 +127,6 @@ impl CaptureService {
         } else {
             Self::crop_selection(image.as_ref(), rect).map(ResolvedCaptureImage::Owned)
         }
-    }
-
-    pub(crate) fn copy_rgba(image: &RgbaImage) -> bool {
-        copy_image_to_clipboard(image)
-    }
-
-    pub(crate) fn save_rgba_to_user_dir(image: &RgbaImage, save_path_override: Option<String>) -> Result<String, String> {
-        let settings = settings::output_settings();
-        let save_path = save_path_override.or(settings.save_path);
-
-        let result = save_image_to_user_dir(image, settings.oxipng_enabled, save_path);
-        if result.is_some() {
-            notify::play_shutter();
-        }
-        result.ok_or_else(|| "Failed to save image to disk".to_string())
-    }
-
-    pub(crate) fn run_quick_capture_workflow(rect: Rect) -> bool {
-        info!("Starting quick capture workflow");
-        let Some(image) = Self::capture_region(rect) else {
-            error!("Failed to capture quick capture image");
-            return false;
-        };
-
-        if !copy_image_to_clipboard(&image) {
-            error!("Failed to copy quick capture image to clipboard");
-            return false;
-        }
-
-        notify::play_shutter();
-        info!("Quick capture image copied to clipboard");
-        true
-    }
-
-    pub(crate) fn save_temp(image: &RgbaImage) -> Option<String> {
-        save_temp_image(image, false).map(|path| path.replace('\\', "/"))
     }
 
     pub(crate) fn decode_qrcode(image: &RgbaImage) -> Option<String> {

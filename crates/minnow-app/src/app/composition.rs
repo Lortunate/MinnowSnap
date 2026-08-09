@@ -2,10 +2,11 @@ use gpui::{App, Application};
 use tokio::sync::broadcast;
 use tracing::info;
 
-use crate::platform::{
-    self, hotkey::HotkeyActionSink, notify, notify::init_windows_notification_app_id, shutdown, system::install_ui_system_actions, tray::TrayActions,
-};
-use crate::services::{assets::AppAssets, capture::service::CaptureService, geometry::Rect, i18n, settings};
+use super::workflows;
+#[cfg(target_os = "windows")]
+use crate::platform::notify::init_windows_notification_app_id;
+use crate::platform::{self, hotkey::HotkeyActionSink, shutdown, system::install_ui_system_actions, tray::TrayActions};
+use crate::services::{assets::AppAssets, settings};
 use crate::ui::{
     features::{overlay, pin, preferences},
     support::{appearance, locale},
@@ -40,13 +41,20 @@ pub(super) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         pin::bind_keys(cx);
         pin::install(cx);
         set_auto_start(settings::auto_start_enabled());
-        platform::hotkey::install_hotkey_service(cx, HotkeyActionSink::new(open_capture_overlay, run_quick_capture_with_notification));
+        platform::hotkey::install_hotkey_service(
+            cx,
+            HotkeyActionSink::new(open_capture_overlay, workflows::run_quick_capture_with_notification),
+        );
         let overlay_handle = overlay::OverlayHandle::new(cx);
         cx.set_global(overlay_handle);
 
         if let Err(err) = platform::tray::SystemTray::install(
             cx,
-            TrayActions::new(open_capture_overlay, run_quick_capture_with_notification, open_preferences_window),
+            TrayActions::new(
+                open_capture_overlay,
+                workflows::run_quick_capture_with_notification,
+                open_preferences_window,
+            ),
         ) {
             tracing::error!("Failed to install system tray: {err}");
             cx.quit();
@@ -106,23 +114,6 @@ fn prepare_overlay_session(cx: &mut gpui::App) {
 fn open_capture_overlay(cx: &mut gpui::App) {
     prepare_overlay_session(cx);
     overlay::open_window(cx);
-}
-
-fn run_quick_capture_with_notification() {
-    let ok = CaptureService::run_quick_capture_workflow(Rect::empty());
-    if ok {
-        notify::show(
-            i18n::app::capture_name().as_str(),
-            i18n::notify::quick_capture_copied().as_str(),
-            notify::NotificationType::Copy,
-        );
-    } else {
-        notify::show(
-            i18n::app::name().as_str(),
-            i18n::notify::quick_capture_failed().as_str(),
-            notify::NotificationType::Info,
-        );
-    }
 }
 
 fn open_preferences_window(cx: &mut gpui::App) {

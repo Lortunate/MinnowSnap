@@ -4,9 +4,8 @@ use crate::services::i18n;
 use image::RgbaImage;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::info;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CaptureAction {
     Copy,
     Save,
@@ -46,6 +45,26 @@ pub enum ActionResult {
     Error(String),
 }
 
+/// Domain output for a capture request. The application workflow owns the
+/// platform effects required to turn a plan into an [`ActionResult`].
+#[derive(Debug)]
+pub(crate) enum CaptureActionPlan {
+    CopyImage(Arc<RgbaImage>),
+    SaveImage {
+        image: Arc<RgbaImage>,
+        save_path_override: Option<String>,
+    },
+    Pin {
+        image: Arc<RgbaImage>,
+        source_bounds: Rect,
+        auto_ocr: bool,
+    },
+    Text(String),
+    ColorPicked(String),
+    NoOp,
+    Error(String),
+}
+
 #[derive(Debug)]
 pub struct PinCaptureRequest {
     pub image_path: String,
@@ -70,15 +89,6 @@ pub struct ActionContext {
 enum ActionImageSource {
     Path(String),
     Rgba(Arc<RgbaImage>),
-}
-
-impl ActionImageSource {
-    fn label(&self) -> &str {
-        match self {
-            Self::Path(path) => path,
-            Self::Rgba(_) => "in-memory image",
-        }
-    }
 }
 
 impl ActionContext {
@@ -116,17 +126,15 @@ impl ActionContext {
 }
 
 impl CaptureAction {
-    pub fn execute(&self, ctx: ActionContext) -> ActionResult {
-        info!("Executing action: {:?} for source: {}", self, ctx.source.label());
-
+    pub(crate) fn plan(&self, ctx: ActionContext) -> CaptureActionPlan {
         match self {
-            CaptureAction::Copy => Self::handle_copy(ctx),
-            CaptureAction::Save => Self::handle_save(ctx),
-            CaptureAction::Pin => Self::handle_pin_ocr(ctx, false),
-            CaptureAction::Ocr => Self::handle_pin_ocr(ctx, true),
-            CaptureAction::QrCode => Self::handle_qrcode(ctx),
-            CaptureAction::PickColor => Self::handle_pick_color(ctx),
-            CaptureAction::Scroll | CaptureAction::Unknown => ActionResult::NoOp,
+            CaptureAction::Copy => Self::plan_image(ctx, false),
+            CaptureAction::Save => Self::plan_image(ctx, true),
+            CaptureAction::Pin => Self::plan_pin_ocr(ctx, false),
+            CaptureAction::Ocr => Self::plan_pin_ocr(ctx, true),
+            CaptureAction::QrCode => Self::plan_qrcode(ctx),
+            CaptureAction::PickColor => Self::plan_pick_color(ctx),
+            CaptureAction::Scroll | CaptureAction::Unknown => CaptureActionPlan::NoOp,
         }
     }
 
@@ -137,68 +145,65 @@ impl CaptureAction {
         }
     }
 
-    fn handle_copy(ctx: ActionContext) -> ActionResult {
-        if let Some(image) = Self::resolve_image(&ctx)
-            && CaptureService::copy_rgba(image.as_rgba())
-        {
-            ActionResult::Copied
-        } else {
-            ActionResult::Error(i18n::capture::copy_failed())
-        }
-    }
-
-    fn handle_save(ctx: ActionContext) -> ActionResult {
+    fn plan_image(ctx: ActionContext, save: bool) -> CaptureActionPlan {
         let Some(image) = Self::resolve_image(&ctx) else {
-            return ActionResult::Error("Failed to resolve or crop image for saving".to_string());
+            let message = if save {
+                "Failed to resolve or crop image for saving".to_string()
+            } else {
+                i18n::capture::copy_failed()
+            };
+            return CaptureActionPlan::Error(message);
         };
 
-        match CaptureService::save_rgba_to_user_dir(image.as_rgba(), ctx.save_path_override) {
-            Ok(path) => ActionResult::Saved(path),
-            Err(e) => ActionResult::Error(e),
+        let image = image.into_arc();
+        if save {
+            CaptureActionPlan::SaveImage {
+                image,
+                save_path_override: ctx.save_path_override,
+            }
+        } else {
+            CaptureActionPlan::CopyImage(image)
         }
     }
 
-    fn handle_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> ActionResult {
-        if let Some(image) = Self::resolve_image(&ctx)
-            && let Some(temp_path) = CaptureService::save_temp(image.as_rgba())
-        {
+    fn plan_pin_ocr(ctx: ActionContext, auto_ocr: bool) -> CaptureActionPlan {
+        if let Some(image) = Self::resolve_image(&ctx) {
             let source_rect = if ctx.rect.has_area() {
                 ctx.rect
             } else {
                 Rect::new(0, 0, image.as_rgba().width() as i32, image.as_rgba().height() as i32)
             };
-            return ActionResult::PinRequested(PinCaptureRequest {
-                image_path: temp_path,
+            return CaptureActionPlan::Pin {
+                image: image.into_arc(),
                 source_bounds: source_rect,
                 auto_ocr,
-                ocr_image: image.into_arc(),
-            });
+            };
         }
-        ActionResult::Error(i18n::capture::pin_failed())
+        CaptureActionPlan::Error(i18n::capture::pin_failed())
     }
 
-    fn handle_qrcode(ctx: ActionContext) -> ActionResult {
+    fn plan_qrcode(ctx: ActionContext) -> CaptureActionPlan {
         if let Some(image) = Self::resolve_image(&ctx)
             && let Some(content) = CaptureService::decode_qrcode(image.as_rgba())
         {
-            ActionResult::OcrResult(content)
+            CaptureActionPlan::Text(content)
         } else {
-            ActionResult::Error(i18n::overlay::qr_not_found())
+            CaptureActionPlan::Error(i18n::overlay::qr_not_found())
         }
     }
 
-    fn handle_pick_color(ctx: ActionContext) -> ActionResult {
+    fn plan_pick_color(ctx: ActionContext) -> CaptureActionPlan {
         let Some(img) = Self::resolve_image(&ctx) else {
-            return ActionResult::Error(i18n::capture::copy_failed());
+            return CaptureActionPlan::Error(i18n::capture::copy_failed());
         };
         let img = img.as_rgba();
         if img.width() == 0 || img.height() == 0 {
-            return ActionResult::NoOp;
+            return CaptureActionPlan::NoOp;
         }
         let center_x = img.width() / 2;
         let center_y = img.height() / 2;
         let pixel = img.get_pixel(center_x, center_y);
-        ActionResult::ColorPicked(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]))
+        CaptureActionPlan::ColorPicked(format!("#{:02X}{:02X}{:02X}", pixel[0], pixel[1], pixel[2]))
     }
 }
 
@@ -211,12 +216,17 @@ mod tests {
     fn pin_action_preserves_in_memory_image_for_ocr() {
         let image = Arc::new(RgbaImage::from_pixel(8, 6, Rgba([255, 0, 0, 255])));
 
-        let ActionResult::PinRequested(request) = CaptureAction::Pin.execute(ActionContext::full_image_data(image.clone())) else {
-            panic!("pin action should request a pin window");
+        let CaptureActionPlan::Pin {
+            image: planned,
+            source_bounds,
+            auto_ocr,
+        } = CaptureAction::Pin.plan(ActionContext::full_image_data(image.clone()))
+        else {
+            panic!("pin action should produce a pin plan");
         };
 
-        assert!(Arc::ptr_eq(&request.ocr_image, &image));
-        assert_eq!(request.source_bounds, Rect::new(0, 0, 8, 6));
-        let _ = std::fs::remove_file(request.image_path);
+        assert!(Arc::ptr_eq(&planned, &image));
+        assert_eq!(source_bounds, Rect::new(0, 0, 8, 6));
+        assert!(!auto_ocr);
     }
 }

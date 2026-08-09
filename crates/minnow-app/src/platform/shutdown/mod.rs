@@ -11,7 +11,9 @@ use tracing::info;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ShutdownTrigger {
     TrayMenu,
+    #[cfg(target_os = "windows")]
     CtrlC,
+    #[cfg(target_os = "windows")]
     PipeCommand,
 }
 
@@ -60,11 +62,11 @@ mod tests {
     fn shutdown_request_is_idempotent() {
         init_control_plane();
         let mut rx = subscribe().expect("shutdown receiver");
-        assert!(request_shutdown(ShutdownTrigger::CtrlC));
-        assert!(!request_shutdown(ShutdownTrigger::PipeCommand));
+        assert!(request_shutdown(ShutdownTrigger::TrayMenu));
+        assert!(!request_shutdown(ShutdownTrigger::TrayMenu));
 
         let received = crate::RUNTIME.block_on(async { rx.recv().await }).expect("shutdown trigger");
-        assert_eq!(received, ShutdownTrigger::CtrlC);
+        assert_eq!(received, ShutdownTrigger::TrayMenu);
 
         clear_control_plane();
     }

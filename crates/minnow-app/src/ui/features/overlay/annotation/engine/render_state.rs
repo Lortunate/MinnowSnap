@@ -2,8 +2,8 @@ use gpui::RenderImage;
 use image::{GenericImage, RgbaImage};
 use std::sync::Arc;
 
+use crate::platform::shell;
 use crate::services::capture::PREVIEW_SOURCE;
-use crate::services::capture::service::CaptureService;
 use crate::services::geometry::RectF;
 use crate::ui::support::render_image;
 
@@ -57,7 +57,7 @@ impl AnnotationEngine {
         }
         let background = background?;
         let composed = compose_background_with_annotations(background.as_ref(), self.store.visible_items(), scale);
-        CaptureService::save_temp(&composed)
+        shell::save_temp_image(&composed)
     }
 
     #[cfg(any(feature = "overlay-diagnostics", test))]

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use gpui::{App, Window, WindowOptions};
+use image::RgbaImage;
 
 pub(crate) use super::hotkey::HotkeyService;
 use super::native_window::{Level, WindowLevelExt};
@@ -37,6 +38,24 @@ pub(crate) fn show_notification(title: &str, message: &str, notification_type: N
 
 pub(crate) fn copy_text_to_clipboard(text: String) -> bool {
     super::clipboard::copy_text_to_clipboard(text)
+}
+
+pub(crate) fn copy_image_to_clipboard(image: &RgbaImage) -> bool {
+    super::clipboard::copy_image_to_clipboard(image)
+}
+
+pub(crate) fn save_image_to_user_dir(image: &RgbaImage, save_path_override: Option<String>) -> Result<String, String> {
+    let settings = crate::services::settings::output_settings();
+    let save_path = save_path_override.or(settings.save_path);
+    super::storage::save_image_to_user_dir(image, settings.oxipng_enabled, save_path).ok_or_else(|| "Failed to save image to disk".to_string())
+}
+
+pub(crate) fn save_temp_image(image: &RgbaImage) -> Option<String> {
+    super::storage::save_temp_image(image, false).map(|path| path.replace('\\', "/"))
+}
+
+pub(crate) fn play_shutter() {
+    super::notify::play_shutter();
 }
 
 pub(crate) fn default_save_path() -> String {
