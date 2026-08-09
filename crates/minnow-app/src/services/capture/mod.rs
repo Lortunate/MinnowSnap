@@ -54,7 +54,12 @@ pub(crate) fn active_monitor_scale() -> f32 {
 
 #[must_use]
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
+/// Crops a logical rectangle after applying a physical scale factor.
+///
+/// This is the strict primitive used by monitor and long-capture sampling. It
+/// clamps the resulting rectangle to the image bounds, but does not apply any
+/// selection-specific recovery policy.
+fn crop_scaled_region(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
     debug!(
         "Performing crop: rect={},{} {}x{}, scale={scale}",
         rect.x, rect.y, rect.width, rect.height
@@ -86,6 +91,42 @@ fn perform_crop(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> 
 
     let sub_image = image::imageops::crop_imm(image, crop_x, crop_y, crop_w, crop_h);
     Some(sub_image.to_image())
+}
+
+/// Crops a user selection using the monitor scale and the capture coordinate
+/// recovery policy.
+pub(crate) fn crop_selection(image: &RgbaImage, rect: Rect) -> Option<RgbaImage> {
+    crop_selection_with_scale(image, rect, active_monitor_scale())
+}
+
+fn crop_selection_with_scale(image: &RgbaImage, rect: Rect, scale: f32) -> Option<RgbaImage> {
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    let x_phys = (rect.x as f32 * scale) as i32;
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    let y_phys = (rect.y as f32 * scale) as i32;
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    let w_phys = (rect.width as f32 * scale) as i32;
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+    let h_phys = (rect.height as f32 * scale) as i32;
+
+    let image_width = image.width() as i32;
+    let image_height = image.height() as i32;
+    let exceeds_bounds = x_phys < 0
+        || y_phys < 0
+        || x_phys >= image_width
+        || y_phys >= image_height
+        || x_phys.saturating_add(w_phys) > image_width
+        || y_phys.saturating_add(h_phys) > image_height;
+
+    // Window coordinates can be rounded a couple of pixels past the captured
+    // image when the selection represents the whole source. Preserve the
+    // source rather than returning a subtly cropped image in that case.
+    let almost_full_image = (w_phys - image_width).abs() <= 2 && (h_phys - image_height).abs() <= 2;
+    if exceeds_bounds && almost_full_image {
+        return Some(image.clone());
+    }
+
+    crop_scaled_region(image, rect, scale)
 }
 
 #[must_use]
@@ -130,18 +171,37 @@ mod tests {
     }
 
     #[test]
-    fn perform_crop_clamps_to_image_bounds() {
+    fn scaled_region_crop_clamps_to_image_bounds() {
         let image = test_image(10, 10, 10);
-        let crop = perform_crop(&image, Rect::new(8, 8, 5, 5), 1.0).unwrap();
+        let crop = crop_scaled_region(&image, Rect::new(8, 8, 5, 5), 1.0).unwrap();
 
         assert_eq!(crop.dimensions(), (2, 2));
     }
 
     #[test]
-    fn perform_crop_rejects_empty_or_out_of_bounds_rects() {
+    fn scaled_region_crop_rejects_empty_or_out_of_bounds_rects() {
         let image = test_image(10, 10, 10);
 
-        assert!(perform_crop(&image, Rect::new(20, 0, 5, 5), 1.0).is_none());
-        assert!(perform_crop(&image, Rect::new(0, 0, 0, 5), 1.0).is_none());
+        assert!(crop_scaled_region(&image, Rect::new(20, 0, 5, 5), 1.0).is_none());
+        assert!(crop_scaled_region(&image, Rect::new(0, 0, 0, 5), 1.0).is_none());
+    }
+
+    #[test]
+    fn selection_crop_preserves_an_almost_full_source() {
+        let image = test_image(100, 80, 10);
+
+        let crop = crop_selection_with_scale(&image, Rect::new(0, 0, 101, 81), 1.0).unwrap();
+
+        assert_eq!(crop.dimensions(), image.dimensions());
+        assert_eq!(crop.get_pixel(99, 79), image.get_pixel(99, 79));
+    }
+
+    #[test]
+    fn selection_crop_applies_scale_before_clamping() {
+        let image = test_image(20, 20, 10);
+
+        let crop = crop_selection_with_scale(&image, Rect::new(2, 3, 4, 5), 2.0).unwrap();
+
+        assert_eq!(crop.dimensions(), (8, 10));
     }
 }

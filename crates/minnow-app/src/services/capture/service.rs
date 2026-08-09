@@ -4,7 +4,10 @@ use image::RgbaImage;
 use std::sync::Arc;
 use tracing::{error, info};
 
-use super::{active_monitor_scale, capture_active_monitor, get_preview_capture, normalize_virtual_source, perform_crop, set_preview_capture};
+use super::{
+    active_monitor_scale, capture_active_monitor, crop_scaled_region, crop_selection, get_preview_capture, normalize_virtual_source,
+    set_preview_capture,
+};
 
 pub(crate) struct CaptureService;
 
@@ -26,6 +29,14 @@ impl ResolvedCaptureImage {
             Self::Shared(image) => image,
             Self::Owned(image) => Arc::new(image),
         }
+    }
+
+    fn crop_selection(self, rect: Rect) -> Option<Self> {
+        let cropped = match &self {
+            Self::Shared(image) => crop_selection(image.as_ref(), rect),
+            Self::Owned(image) => crop_selection(image, rect),
+        }?;
+        Some(Self::Owned(cropped))
     }
 }
 
@@ -57,37 +68,13 @@ impl CaptureService {
         Self::resolve_image_from_path(path_str).map(ResolvedCaptureImage::Owned)
     }
 
-    fn crop_selection(img: &RgbaImage, rect: Rect) -> Option<RgbaImage> {
-        let scale_factor = active_monitor_scale();
-        let x_phys = (rect.x as f32 * scale_factor) as i32;
-        let y_phys = (rect.y as f32 * scale_factor) as i32;
-        let w_phys = (rect.width as f32 * scale_factor) as i32;
-        let h_phys = (rect.height as f32 * scale_factor) as i32;
-        let img_w = img.width() as i32;
-        let img_h = img.height() as i32;
-
-        let exceeds_bounds = x_phys < 0
-            || y_phys < 0
-            || x_phys >= img_w
-            || y_phys >= img_h
-            || x_phys.saturating_add(w_phys) > img_w
-            || y_phys.saturating_add(h_phys) > img_h;
-
-        let almost_full_image = (w_phys - img_w).abs() <= 2 && (h_phys - img_h).abs() <= 2;
-        if exceeds_bounds && almost_full_image {
-            return Some(img.clone());
-        }
-
-        perform_crop(img, rect, scale_factor)
-    }
-
     pub(crate) fn capture_region(rect: Rect) -> Option<RgbaImage> {
         info!("Capturing region: x={}, y={}, w={}, h={}", rect.x, rect.y, rect.width, rect.height);
         let scale_factor = active_monitor_scale();
 
         if rect.has_area() {
             if let Some(monitor_img) = capture_active_monitor() {
-                perform_crop(&monitor_img, rect, scale_factor)
+                crop_scaled_region(&monitor_img, rect, scale_factor)
             } else {
                 None
             }
@@ -103,21 +90,11 @@ impl CaptureService {
     }
 
     pub(crate) fn resolve_capture_image(path: &str, rect: Rect, input_mode: CaptureInputMode) -> Option<ResolvedCaptureImage> {
-        match Self::resolve_source_image(path)? {
-            ResolvedCaptureImage::Shared(img) => {
-                if Self::is_full_request(rect, input_mode) {
-                    Some(ResolvedCaptureImage::Shared(img))
-                } else {
-                    Self::crop_selection(img.as_ref(), rect).map(ResolvedCaptureImage::Owned)
-                }
-            }
-            ResolvedCaptureImage::Owned(img) => {
-                if Self::is_full_request(rect, input_mode) {
-                    Some(ResolvedCaptureImage::Owned(img))
-                } else {
-                    Self::crop_selection(&img, rect).map(ResolvedCaptureImage::Owned)
-                }
-            }
+        let image = Self::resolve_source_image(path)?;
+        if Self::is_full_request(rect, input_mode) {
+            Some(image)
+        } else {
+            image.crop_selection(rect)
         }
     }
 
@@ -125,7 +102,7 @@ impl CaptureService {
         if Self::is_full_request(rect, input_mode) {
             Some(ResolvedCaptureImage::Shared(image))
         } else {
-            Self::crop_selection(image.as_ref(), rect).map(ResolvedCaptureImage::Owned)
+            ResolvedCaptureImage::Shared(image).crop_selection(rect)
         }
     }
 

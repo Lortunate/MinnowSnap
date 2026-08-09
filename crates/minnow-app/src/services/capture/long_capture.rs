@@ -1,5 +1,5 @@
 use super::stitcher::{ScrollStitcher, StitchFrameStatus};
-use super::{active_monitor, perform_crop};
+use super::{active_monitor, crop_scaled_region};
 use crate::services::geometry::{Rect, RectF};
 use image::RgbaImage;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -223,7 +223,7 @@ impl LongCaptureRuntime {
 fn crop_frame_with_scale_candidates(full_screen: &RgbaImage, target: CaptureFrameTarget) -> Option<RgbaImage> {
     let candidates = build_scale_candidates(full_screen.width(), full_screen.height(), &target.viewport_rect, target.scale_hint);
     for scale in candidates {
-        if let Some(mut cropped) = perform_crop(full_screen, target.rect, scale) {
+        if let Some(mut cropped) = crop_scaled_region(full_screen, target.rect, scale) {
             normalize_alpha_opaque(&mut cropped);
             return Some(cropped);
         }
