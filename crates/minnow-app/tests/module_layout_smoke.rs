@@ -477,6 +477,60 @@ fn ui_features_use_platform_shell_facade_only() {
 }
 
 #[test]
+fn ui_support_does_not_depend_on_feature_internals() {
+    let mut violations = Vec::new();
+
+    for file in rs_files_under("crates/minnow-app/src/ui/support") {
+        let rel = repo_relative(&file);
+        let source = fs::read_to_string(&file).unwrap_or_else(|err| panic!("read {rel}: {err}"));
+
+        for import in use_statements(&source) {
+            if expanded_use_paths(&import).iter().any(|path| {
+                path.windows(3)
+                    .any(|window| window.iter().map(String::as_str).eq(["crate", "ui", "features"]))
+            }) {
+                violations.push(format!("{rel} imports a feature from {import}"));
+            }
+            if imports_private_platform_module(&import) {
+                violations.push(format!("{rel} imports a private platform adapter from {import}"));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "ui support must remain below feature internals and platform adapters: {violations:#?}"
+    );
+}
+
+#[test]
+fn capture_result_interpretation_has_one_ui_owner() {
+    let support = read_repo_file("crates/minnow-app/src/ui/support/capture_actions.rs");
+    assert!(support.contains("pub(crate) fn interpret"));
+
+    for file in rs_files_under("crates/minnow-app/src/ui/features") {
+        let rel = repo_relative(&file);
+        let source = fs::read_to_string(&file).unwrap_or_else(|err| panic!("read {rel}: {err}"));
+        assert!(
+            !source.contains("ActionResult::"),
+            "feature result matching should stay in ui support: {rel}"
+        );
+    }
+}
+
+#[test]
+fn toolbar_placement_has_one_shared_owner() {
+    let support = read_repo_file("crates/minnow-app/src/ui/support/panel_layout.rs");
+    let overlay = read_repo_file("crates/minnow-app/src/ui/features/overlay/render/layout.rs");
+    let long_capture = read_repo_file("crates/minnow-app/src/ui/features/long_capture/layout.rs");
+
+    assert!(support.contains("pub(crate) fn resolve_toolbar_layout"));
+    assert!(overlay.contains("panel_layout::resolve_toolbar_layout"));
+    assert!(long_capture.contains("panel_layout::resolve_toolbar_layout"));
+    assert!(!long_capture.contains("fn resolve_toolbar_layout"));
+}
+
+#[test]
 fn features_do_not_import_other_features_private_render_or_state_modules() {
     let mut violations = Vec::new();
 
