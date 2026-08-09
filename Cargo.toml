@@ -22,7 +22,7 @@ gpui-component = "0.5.1"
 gpui-component-assets = "0.5.1"
 ico = "0.5"
 image = { version = "0.25", default-features = false }
-imageproc = "0.26.1"
+imageproc = { version = "0.27", default-features = false, features = ["text"] }
 mimalloc = "0.1"
 ndarray = "0.17"
 notify-rust = "4"
