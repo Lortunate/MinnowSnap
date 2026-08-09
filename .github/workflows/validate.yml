@@ -16,7 +16,7 @@ env:
 
 jobs:
   validate:
-    name: ${{ matrix.os_name }} - ${{ github.event_name == 'pull_request' && 'Clippy' || 'Check' }}
+    name: ${{ matrix.os_name }} - Validation
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -32,14 +32,18 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.97.1
-          components: clippy
+          components: rustfmt, clippy
 
       - uses: swatinem/rust-cache@v2
 
-      - name: Run Clippy
-        if: github.event_name == 'pull_request'
-        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Run Format Check
+        run: cargo fmt --check
 
       - name: Run Check
-        if: github.event_name != 'pull_request'
         run: cargo check --workspace --all-targets
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --workspace
