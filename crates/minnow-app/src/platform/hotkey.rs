@@ -1,6 +1,6 @@
 use crate::platform::{app_ready, update_app};
 use crate::services::hotkeys::{HotkeyAction, HotkeyUpdateError, ShortcutBindings};
-use crate::services::settings::{self, SettingsAction, ShortcutSettings};
+use crate::services::settings::{self, SettingsAction};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -9,22 +9,45 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 #[derive(Default)]
-pub struct HotkeyIds {
-    pub screen_capture: Option<u32>,
-    pub quick_capture: Option<u32>,
+struct HotkeyIds {
+    screen_capture: Option<u32>,
+    quick_capture: Option<u32>,
 }
 
-pub struct HotkeyManager {
-    pub manager: Option<GlobalHotKeyManager>,
-    pub ids: Arc<Mutex<HotkeyIds>>,
-    pub screen_hotkey: Option<HotKey>,
-    pub quick_hotkey: Option<HotKey>,
+impl HotkeyIds {
+    fn action_for_event(&self, event: &GlobalHotKeyEvent) -> Option<HotkeyAction> {
+        if event.state != HotKeyState::Pressed {
+            return None;
+        }
+
+        if self.screen_capture == Some(event.id) {
+            Some(HotkeyAction::Capture)
+        } else if self.quick_capture == Some(event.id) {
+            Some(HotkeyAction::QuickCapture)
+        } else {
+            None
+        }
+    }
+
+    fn set(&mut self, action: HotkeyAction, id: Option<u32>) {
+        match action {
+            HotkeyAction::Capture => self.screen_capture = id,
+            HotkeyAction::QuickCapture => self.quick_capture = id,
+        }
+    }
 }
 
-impl Default for HotkeyManager {
+struct NativeHotkeyRegistry {
+    backend: Option<GlobalHotKeyManager>,
+    ids: Arc<Mutex<HotkeyIds>>,
+    screen_hotkey: Option<HotKey>,
+    quick_hotkey: Option<HotKey>,
+}
+
+impl Default for NativeHotkeyRegistry {
     fn default() -> Self {
         Self {
-            manager: None,
+            backend: None,
             ids: Arc::new(Mutex::new(HotkeyIds::default())),
             screen_hotkey: None,
             quick_hotkey: None,
@@ -33,7 +56,7 @@ impl Default for HotkeyManager {
 }
 
 pub struct HotkeyService {
-    manager: HotkeyManager,
+    registry: NativeHotkeyRegistry,
     action_tx: UnboundedSender<HotkeyAction>,
     sink: HotkeyActionSink,
 }
@@ -43,7 +66,9 @@ fn hotkey_ids_guard<'a>(ids: &'a Mutex<HotkeyIds>) -> MutexGuard<'a, HotkeyIds> 
         Ok(guard) => guard,
         Err(poisoned) => {
             error!("Hotkey id lock was poisoned; recovering registered ids");
-            poisoned.into_inner()
+            let guard = poisoned.into_inner();
+            ids.clear_poison();
+            guard
         }
     }
 }
@@ -91,12 +116,12 @@ pub fn install_hotkey_service(cx: &mut App, sink: HotkeyActionSink) {
     cx.set_global(service);
 }
 
-impl HotkeyManager {
-    pub fn register_global_hotkeys<F1, F2>(&mut self, screen_shortcut: &str, quick_shortcut: &str, screen_callback: F1, quick_callback: F2)
-    where
-        F1: Fn() + Send + Sync + 'static,
-        F2: Fn() + Send + Sync + 'static,
-    {
+impl NativeHotkeyRegistry {
+    fn is_initialized(&self) -> bool {
+        self.backend.is_some()
+    }
+
+    fn register(&mut self, bindings: &ShortcutBindings, action_tx: UnboundedSender<HotkeyAction>) {
         let manager = match GlobalHotKeyManager::new() {
             Ok(m) => m,
             Err(e) => {
@@ -105,74 +130,66 @@ impl HotkeyManager {
             }
         };
 
-        self.manager = Some(manager);
-        let screen_hotkey = crate::services::hotkeys::parse_hotkey(screen_shortcut);
-        let quick_hotkey = crate::services::hotkeys::parse_hotkey(quick_shortcut);
+        self.backend = Some(manager);
+        let screen_hotkey = crate::services::hotkeys::parse_hotkey(&bindings.capture);
+        let quick_hotkey = crate::services::hotkeys::parse_hotkey(&bindings.quick_capture);
 
-        if let Some(ref m) = self.manager {
+        if let Some(ref backend) = self.backend {
             if let Some(hk) = screen_hotkey {
-                if let Err(e) = m.register(hk) {
+                if let Err(e) = backend.register(hk) {
                     error!("Failed to register screen hotkey: {e}");
                 } else {
                     hotkey_ids_guard(&self.ids).screen_capture = Some(hk.id());
                     self.screen_hotkey = Some(hk);
-                    info!("Screen capture hotkey registered: {screen_shortcut}");
+                    info!("Screen capture hotkey registered: {}", bindings.capture);
                 }
             }
 
             if let Some(hk) = quick_hotkey {
-                if let Err(e) = m.register(hk) {
+                if let Err(e) = backend.register(hk) {
                     error!("Failed to register quick hotkey: {e}");
                 } else {
                     hotkey_ids_guard(&self.ids).quick_capture = Some(hk.id());
                     self.quick_hotkey = Some(hk);
-                    info!("Quick capture hotkey registered: {quick_shortcut}");
+                    info!("Quick capture hotkey registered: {}", bindings.quick_capture);
                 }
             }
         }
 
         let ids_clone = self.ids.clone();
         GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
-            if event.state != HotKeyState::Pressed {
-                return;
-            }
-
-            let ids = hotkey_ids_guard(&ids_clone);
-
-            if let Some(id) = ids.screen_capture
-                && event.id == id
-            {
-                info!("Screen capture hotkey triggered (id: {id})");
-                screen_callback();
-            }
-
-            if let Some(id) = ids.quick_capture
-                && event.id == id
-            {
-                info!("Quick capture hotkey triggered (id: {id})");
-                quick_callback();
+            let action = hotkey_ids_guard(&ids_clone).action_for_event(&event);
+            if let Some(action) = action {
+                info!("Hotkey triggered (id: {}, action: {action:?})", event.id);
+                enqueue_action(&action_tx, action);
             }
         }));
 
         info!("Global hotkeys registered");
     }
 
-    pub fn update_shortcut(&mut self, shortcut: &str, is_screen: bool) {
+    fn update_shortcut(&mut self, shortcut: &str, action: HotkeyAction) {
         let mut shortcut_str = shortcut.to_string();
         if shortcut_str.is_empty() {
-            let defaults = ShortcutSettings::default();
-            shortcut_str = if is_screen { defaults.capture } else { defaults.quick_capture };
+            let defaults = ShortcutBindings::default();
+            shortcut_str = match action {
+                HotkeyAction::Capture => defaults.capture,
+                HotkeyAction::QuickCapture => defaults.quick_capture,
+            };
         }
 
-        let Some(manager) = &self.manager else {
+        let Some(backend) = &self.backend else {
             return;
         };
         let new_hotkey = crate::services::hotkeys::parse_hotkey(&shortcut_str);
 
-        let current_hotkey = if is_screen { &mut self.screen_hotkey } else { &mut self.quick_hotkey };
+        let current_hotkey = match action {
+            HotkeyAction::Capture => &mut self.screen_hotkey,
+            HotkeyAction::QuickCapture => &mut self.quick_hotkey,
+        };
 
         if let Some(old) = current_hotkey
-            && let Err(e) = manager.unregister(*old)
+            && let Err(e) = backend.unregister(*old)
         {
             error!("Failed to unregister hotkey: {e}");
         }
@@ -180,33 +197,32 @@ impl HotkeyManager {
         let mut next_hotkey = None;
 
         if let Some(hotkey) = new_hotkey {
-            if let Err(e) = manager.register(hotkey) {
+            if let Err(e) = backend.register(hotkey) {
                 error!("Failed to register hotkey: {e}");
             } else {
                 next_hotkey = Some(hotkey);
-                let label = if is_screen { "Screen capture" } else { "Quick capture" };
-                info!("{label} hotkey updated to: {shortcut_str}");
+                info!("{} hotkey updated to: {shortcut_str}", action_label(action));
             }
         } else {
-            let label = if is_screen { "Screen capture" } else { "Quick capture" };
-            info!("{label} hotkey cleared");
+            info!("{} hotkey cleared", action_label(action));
         }
 
         *current_hotkey = next_hotkey;
+        hotkey_ids_guard(&self.ids).set(action, next_hotkey.map(|hotkey| hotkey.id()));
+    }
+}
 
-        let mut ids = hotkey_ids_guard(&self.ids);
-        if is_screen {
-            ids.screen_capture = next_hotkey.map(|hk| hk.id());
-        } else {
-            ids.quick_capture = next_hotkey.map(|hk| hk.id());
-        }
+fn action_label(action: HotkeyAction) -> &'static str {
+    match action {
+        HotkeyAction::Capture => "Screen capture",
+        HotkeyAction::QuickCapture => "Quick capture",
     }
 }
 
 impl HotkeyService {
-    pub fn new(action_tx: UnboundedSender<HotkeyAction>, sink: HotkeyActionSink) -> Self {
+    fn new(action_tx: UnboundedSender<HotkeyAction>, sink: HotkeyActionSink) -> Self {
         Self {
-            manager: HotkeyManager::default(),
+            registry: NativeHotkeyRegistry::default(),
             action_tx,
             sink,
         }
@@ -217,20 +233,13 @@ impl HotkeyService {
         ShortcutBindings::from_settings(&settings)
     }
 
-    pub fn register_from_settings(&mut self) {
-        if self.manager.manager.is_some() {
+    fn register_from_settings(&mut self) {
+        if self.registry.is_initialized() {
             return;
         }
 
         let bindings = self.current_bindings();
-        let screen_capture = self.action_tx.clone();
-        let quick_capture = self.action_tx.clone();
-        self.manager.register_global_hotkeys(
-            &bindings.capture,
-            &bindings.quick_capture,
-            move || enqueue_action(&screen_capture, HotkeyAction::Capture),
-            move || enqueue_action(&quick_capture, HotkeyAction::QuickCapture),
-        );
+        self.registry.register(&bindings, self.action_tx.clone());
     }
 
     pub fn update_bindings(&mut self, bindings: ShortcutBindings) -> Result<(), HotkeyUpdateError> {
@@ -243,11 +252,11 @@ impl HotkeyService {
             quick_capture: bindings.quick_capture.clone(),
         });
 
-        if self.manager.manager.is_none() {
+        if !self.registry.is_initialized() {
             self.register_from_settings();
         } else {
-            self.manager.update_shortcut(&bindings.capture, true);
-            self.manager.update_shortcut(&bindings.quick_capture, false);
+            self.registry.update_shortcut(&bindings.capture, HotkeyAction::Capture);
+            self.registry.update_shortcut(&bindings.quick_capture, HotkeyAction::QuickCapture);
         }
 
         Ok(())
@@ -296,9 +305,6 @@ fn handle_hotkey_action(action: HotkeyAction, sink: &HotkeyActionSink, async_app
             }
         }
         HotkeyAction::QuickCapture => {
-            if !app_ready(async_app) {
-                return false;
-            }
             sink.run_quick_capture();
         }
     }
@@ -308,10 +314,49 @@ fn handle_hotkey_action(action: HotkeyAction, sink: &HotkeyActionSink, async_app
 
 #[cfg(test)]
 mod tests {
+    use super::HotkeyIds;
     use crate::services::hotkeys::{
         DEFAULT_CAPTURE_SHORTCUT, DEFAULT_QUICK_CAPTURE_SHORTCUT, HotkeyAction, ShortcutBindings, format_keystroke, resolve_shortcut,
         shortcuts_conflict,
     };
+    use global_hotkey::{GlobalHotKeyEvent, HotKeyState};
+
+    #[test]
+    fn native_events_map_to_domain_actions_only_on_press() {
+        let ids = HotkeyIds {
+            screen_capture: Some(7),
+            quick_capture: Some(11),
+        };
+
+        assert_eq!(
+            ids.action_for_event(&GlobalHotKeyEvent {
+                id: 7,
+                state: HotKeyState::Pressed,
+            }),
+            Some(HotkeyAction::Capture)
+        );
+        assert_eq!(
+            ids.action_for_event(&GlobalHotKeyEvent {
+                id: 11,
+                state: HotKeyState::Pressed,
+            }),
+            Some(HotkeyAction::QuickCapture)
+        );
+        assert_eq!(
+            ids.action_for_event(&GlobalHotKeyEvent {
+                id: 7,
+                state: HotKeyState::Released,
+            }),
+            None
+        );
+        assert_eq!(
+            ids.action_for_event(&GlobalHotKeyEvent {
+                id: 99,
+                state: HotKeyState::Pressed,
+            }),
+            None
+        );
+    }
 
     #[test]
     fn empty_shortcuts_fall_back_to_defaults() {
