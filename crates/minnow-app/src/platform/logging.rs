@@ -66,7 +66,6 @@ pub(crate) fn init_logger() -> Option<WorkerGuard> {
         return None;
     }
 
-    let _ = tracing_log::LogTracer::init();
     install_panic_hook();
     log_portable_paths();
     Some(guard)
