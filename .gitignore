@@ -8,9 +8,6 @@ dhat-heap.json
 /scripts/__pycache__/
 /docs/superpowers
 
-/legacy/qt/cpp/.idea/
-/legacy/qt/cpp/cmake-build-*/
-
 ### macOS template
 .DS_Store
 .AppleDouble
@@ -36,7 +33,9 @@ target/
 **/*.rs.bk
 *.pdb
 .idea/
-Cargo.lock
+
+# Generated packaging icons are rebuilt from resources/logo.png by build.rs.
+/crates/minnow-app/assets_icons/*
 
 ### Windows template
 Thumbs.db

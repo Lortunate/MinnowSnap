@@ -101,7 +101,7 @@ Target modules:
 - Active warnings from `cargo check -p minnow-app`.
 - Stale modules with no `rg` call sites.
 - `Cargo.toml` workspace and crate dependencies.
-- Active references to `legacy/qt`.
+- Active references to retired UI sources.
 
 Work:
 
@@ -130,7 +130,7 @@ cargo test -p minnow-app --test module_layout_smoke -- --nocapture
 cargo test -p minnow-app
 cargo clippy -p minnow-app -- -W clippy::all
 cargo machete
-rg -n -F -e "legacy/qt" -e "legacy::" -e "cxx_qt" -e "cxx-qt" -e "qt_" Cargo.toml crates/minnow-app/Cargo.toml crates/minnow-app/build.rs crates/minnow-app/src crates/minnow-app/tests --glob '!target/**'
+cargo test -p minnow-app --test module_layout_smoke -- --nocapture
 ```
 
 ## Session Close

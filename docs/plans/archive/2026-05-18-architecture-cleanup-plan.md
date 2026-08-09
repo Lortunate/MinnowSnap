@@ -55,7 +55,7 @@ Scope:
 
 - Delete stale modules after call sites move.
 - Keep `cargo machete` clean.
-- Keep archived legacy Qt code out of active build and tests.
+- Keep retired UI sources out of the active build and tests.
 
 Verification:
 

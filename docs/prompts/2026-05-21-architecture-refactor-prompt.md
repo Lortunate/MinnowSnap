@@ -5,7 +5,7 @@
 ## 项目上下文
 
 - 项目是 Rust 2024 workspace，主要 crate 是 `crates/minnow-app`，二进制名为 `MinnowSnap`。
-- 当前 UI 技术栈是 GPUI / `gpui-component`，不是 Tauri。旧 Qt/CXX-Qt 代码在 `legacy/qt`，只作为历史归档，不能重新进入 active build。
+- 当前 UI 技术栈是 GPUI / `gpui-component`，不是 Tauri。退休的旧 UI 源码已经移除，不能重新引入第二套运行时。
 - 主要源码边界是 `app`、`platform`、`services`、`ui/features`。
 - 当前 active 架构 spec：
   - `docs/specs/2026-05-24-architecture-code-directory-refactor-spec.md`
@@ -67,7 +67,7 @@
 - Overlay annotation：拆分过大的 annotation engine，把文档 mutation、hit testing、render prep 分离。
 - Capture / image pipeline：保持截图、OCR、长截图、stitching 等重计算逻辑在 services；UI 只编排窗口状态和渲染。
 - Platform adapters：`platform` 只做 OS/GPUI 适配，产品策略回到 `app` 或 `services`。
-- Legacy Qt：继续隔离在 `legacy/qt`，active crate、测试、CI 不得依赖它。
+- 退休 UI：保持仓库中不存在旧运行时、桥接层或资源入口。
 
 ## 重构规则
 
@@ -93,7 +93,7 @@ cargo check -p minnow-app
 cargo test -p minnow-app
 cargo test -p minnow-app --test module_layout_smoke
 cargo clippy -p minnow-app -- -W clippy::all
-python scripts/check_no_qt_runtime_deps.py
+cargo test --workspace
 ```
 
 如果安装了 `cargo machete`，还要运行依赖清理检查；如果未安装，记录为明确 blocker，不要假装通过。
@@ -102,8 +102,8 @@ python scripts/check_no_qt_runtime_deps.py
 
 - active spec/plan 已核对；仅当本 phase 改变架构决策时更新。未变更时已在 Beads notes 中记录 `spec/plan reviewed, no update needed`。
 - Beads issue 已更新或关闭，剩余工作拆成子 issue。
-- 模块边界由具体检查锁定：`module_layout_smoke` 覆盖 crate-root public modules；本 phase 新增或更新测试断言目标边界；`rg` 检查无 active build 引用 `legacy/qt`。
+- 模块边界由具体检查锁定：`module_layout_smoke` 覆盖 crate-root public modules、GPUI 入口和平台 seam；本 phase 新增或更新测试断言目标边界。
 - 重复来源和零价值封装被删除，或在 Beads issue 中用证据解释为什么暂留。
-- active build 不依赖 `legacy/qt`。
+- active build 只有 GPUI 入口和一套状态来源。
 - 所有 mandatory 质量门禁通过；失败时 issue 保持 open/in_progress，且失败原因、影响范围、下一步已记录。
 - 会话结束前确认 `git status`，只 stage 本 issue 相关文件，提交后执行 `git pull --rebase`、`bd dolt push`、`git push`，最后 `git status` 必须显示无未提交任务改动且 branch up to date with origin。

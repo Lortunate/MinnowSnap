@@ -115,14 +115,14 @@ Evidence commands:
 cargo check -p minnow-app
 cargo clippy -p minnow-app -- -W clippy::all
 cargo machete
-rg -n -F -e "legacy/qt" -e "legacy::" -e "cxx_qt" -e "cxx-qt" -e "qt_" Cargo.toml crates/minnow-app/Cargo.toml crates/minnow-app/build.rs crates/minnow-app/src crates/minnow-app/tests --glob '!target/**'
+cargo test -p minnow-app --test module_layout_smoke -- --nocapture
 ```
 
 Work sequence:
 
 1. Delete warning-backed unused functions, traits, enum variants, or modules.
 2. Remove dependencies only when `cargo machete` or manual call-site evidence agrees.
-3. Keep legacy Qt references out of active Cargo/build/source/test paths.
+3. Keep retired UI references out of active Cargo/build/source/test paths.
 4. File beads follow-ups for risky deletions instead of leaving markdown TODOs.
 
 ## Session Close

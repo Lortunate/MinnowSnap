@@ -19,7 +19,7 @@ Make MinnowSnap's Rust 2024 GPUI application easier to read, test, and evolve by
 - App shell: one binary crate, `minnow-app`.
 - Platform integration: tray, hotkeys, native windows, notifications, clipboard, storage, and shutdown.
 - Domain services: capture, long capture, OCR, geometry, settings, i18n, fonts, paths, and assets.
-- Legacy Qt/CXX-Qt code: archived under `legacy/qt` only.
+- Retired UI code: removed from the working tree.
 
 Context7 documentation for GPUI and `gpui-component` was checked before this spec refresh. The current GPUI direction remains valid: initialize `gpui_component::init(cx)` during app startup before component use, and open windows with `Root` as the first-level view.
 
@@ -33,7 +33,7 @@ Context7 documentation for GPUI and `gpui-component` was checked before this spe
 | `services` | Domain logic and data transformations that can be tested without GPUI windows where possible. | GPUI view code or native window setup. |
 | `ui::features` | GPUI views, feature state, user interaction handling, and feature-level public APIs. | Direct imports from private platform modules. |
 | `ui::support` | Shared UI-only support such as appearance, locale, and image rendering helpers. | Platform shell/window helpers. |
-| `legacy/qt` | Historical archive. | Active build input, tests, or new implementation references. |
+| Retired UI sources | Historical archive. | Active build input, tests, or new implementation references. |
 
 ## Public API
 
@@ -53,7 +53,7 @@ Context7 documentation for GPUI and `gpui-component` was checked before this spe
 | Capture/image pipeline | `src/services/capture` | UI dispatches actions; capture owns image IO, clipboard image copy, saving, QR decode, and stitching. |
 | OCR | `src/services/ocr` | UI requests OCR; OCR service owns model state, preprocessing, and inference. |
 | Settings | `src/services/settings.rs` | Preferences UI mutates settings through settings actions and registered shell services. |
-| Legacy Qt | `legacy/qt` archive | No adapters, tests, or build paths should point to it. |
+| Retired UI | Removed source tree | No adapters, tests, or build paths should point to it. |
 
 ## Cleanup Rules
 
@@ -68,7 +68,7 @@ Context7 documentation for GPUI and `gpui-component` was checked before this spe
 
 - Active specs/plans live under `docs/specs` and `docs/plans`; superseded specs/plans live under matching `archive` directories.
 - `module_layout_smoke` locks the public crate API, app composition boundary, feature-private module boundary, shell helper placement, and UI platform facade boundary.
-- Active Rust code contains no references to `legacy/qt`.
+- Active Rust code contains no references to retired UI sources.
 - `ui/features` imports platform APIs only through `crate::platform::shell`.
 - Deleted wrappers/dead modules have call-site evidence and fresh verification.
 - Required gates pass before closing a phase: `cargo fmt --check`, `cargo check -p minnow-app`, `cargo test -p minnow-app --test module_layout_smoke -- --nocapture`, plus any phase-specific tests.

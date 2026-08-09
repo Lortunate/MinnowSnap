@@ -17,7 +17,7 @@ Make MinnowSnap's Rust 2024 GPUI app easier to read, test, and evolve by alignin
 - UI feature directories contain large files whose boundaries sometimes reflect historical growth instead of stable responsibilities.
 - Capture, OCR, pin, and long-capture paths still contain unused helpers and duplicated ownership around image buffers, monitor state, and preprocessing.
 - Settings, i18n, appearance, hotkeys, and OCR preferences have multiple nearby representations that need explicit ownership.
-- Legacy Qt code is archival only and must remain outside active build, tests, and documentation flows.
+- Retired UI code was archival only and must remain outside active build, tests, and documentation flows.
 - Dead code exists in active Rust modules after earlier call sites moved.
 
 ## Target Boundaries
@@ -29,7 +29,7 @@ Make MinnowSnap's Rust 2024 GPUI app easier to read, test, and evolve by alignin
 | `services` | Durable app logic: settings, capture, OCR, i18n, assets, paths, fonts, geometry. | GPUI rendering, window widget composition, compatibility facades. |
 | `ui/features/<feature>` | Feature state, view composition, input handling, and feature-local render helpers. | Cross-feature private imports, storage policy, heavy image/OCR/stitching work. |
 | `ui/support` | Small GPUI support adapters shared by multiple features. | Shell/window behavior, service orchestration, duplicate settings/i18n state. |
-| `legacy/qt` | Historical archive only. | Active build input, tests, or new implementation references. |
+| Retired UI sources | Historical archive only. | Active build input, tests, or new implementation references. |
 
 ## Public API
 
@@ -55,7 +55,7 @@ Everything else should be `pub(crate)` or private unless the binary, tests, or a
 | OCR models | OCR config, model manager, preferences OCR state. | `services::ocr` owns model paths, download state, recognition pipeline. | Preferences only shows and updates user intent. |
 | OCR/pin rendering | OCR service output and pin text/geometry view code. | OCR service owns recognition data; pin view owns display geometry. | No OCR preprocessing in UI view modules. |
 | Overlay annotation | Annotation model, render state, raster cache. | Overlay annotation module owns annotation data and rasterization. | Cross-feature imports cannot reach private render/state modules. |
-| Legacy Qt | Archived historical source. | `legacy/qt` archive only. | No adapter, dependency, or active test may point at it. |
+| Retired UI | Removed historical source. | No source tree remains. | No adapter, dependency, or active test may point at it. |
 
 ## Cleanup Rules
 
@@ -80,7 +80,7 @@ Before removing a wrapper, re-export, shim, or dead module, record:
 
 - No migration away from GPUI / `gpui-component`.
 - No framework, runtime, or language rewrite.
-- No reactivation of Qt/CXX-Qt code.
+- No reactivation of the retired UI runtime.
 - No compatibility layer for internal old paths unless an active external consumer is proven.
 - No broad phase-2 or phase-3 restructuring while executing a narrower claimed issue.
 
@@ -89,7 +89,7 @@ Before removing a wrapper, re-export, shim, or dead module, record:
 - Only one active architecture spec/plan pair exists under `docs/specs` and `docs/plans`.
 - Archived specs/plans live under the corresponding `archive` directory.
 - `minnow_app::app` remains the only public crate-root facade.
-- Active Rust code contains no references to `legacy/qt`.
+- Active Rust code contains no references to retired UI sources.
 - Deleted wrappers and dead modules have call-site evidence and fresh verification.
 - `cargo fmt --check`, `cargo check -p minnow-app`, `cargo test -p minnow-app --test module_layout_smoke`, and issue-specific tests pass before closing a phase issue.
 - `cargo machete` is clean or any tool/install blocker is recorded on the Beads issue.

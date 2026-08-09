@@ -32,6 +32,28 @@ fn rs_files_under(path: &str) -> Vec<PathBuf> {
     files
 }
 
+fn files_under(path: &Path, files: &mut Vec<PathBuf>) {
+    if !path.exists() {
+        return;
+    }
+
+    for entry in fs::read_dir(path).unwrap_or_else(|err| panic!("read dir {}: {err}", path.display())) {
+        let entry = entry.expect("read dir entry");
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            let ignored = entry_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| matches!(name, ".git" | ".beads" | ".serena" | "target"));
+            if !ignored {
+                files_under(&entry_path, files);
+            }
+        } else {
+            files.push(entry_path);
+        }
+    }
+}
+
 fn repo_relative(path: &Path) -> String {
     path.strip_prefix(repo_root())
         .expect("repo relative path")
@@ -490,4 +512,52 @@ fn features_do_not_import_other_features_private_render_or_state_modules() {
         violations.is_empty(),
         "features should use other features through public feature APIs only: {violations:#?}"
     );
+}
+
+#[test]
+fn repository_contains_only_the_gpui_ui_stack() {
+    let root = repo_root();
+    assert!(!root.join("legacy").exists(), "retired UI source tree must be removed");
+
+    let mut files = Vec::new();
+    files_under(&root, &mut files);
+    let retired_extensions = ["qml", "qrc", "qmldir", "qmltypes"];
+    let retired_paths = files
+        .iter()
+        .map(|path| repo_relative(path))
+        .filter(|path| {
+            path.split('/').any(|segment| segment.eq_ignore_ascii_case("legacy"))
+                || path
+                    .rsplit_once('.')
+                    .is_some_and(|(_, extension)| retired_extensions.iter().any(|candidate| candidate == &extension.to_ascii_lowercase()))
+        })
+        .collect::<Vec<_>>();
+
+    assert!(retired_paths.is_empty(), "retired UI files remain: {retired_paths:#?}");
+
+    for path in ["Cargo.toml", "crates/minnow-app/Cargo.toml", "crates/minnow-app/build.rs"] {
+        let source = read_repo_file(path).to_ascii_lowercase();
+        assert!(!source.contains("qt"), "retired toolkit reference remains in {path}");
+        assert!(!source.contains("qml"), "retired markup reference remains in {path}");
+    }
+}
+
+#[test]
+fn packaging_and_runtime_share_app_identity() {
+    let app_meta = read_repo_file("crates/minnow-app/src/services/app_meta.rs");
+    let manifest = read_repo_file("crates/minnow-app/Cargo.toml");
+    let expected = "com.lortunate.minnowsnap";
+
+    assert!(app_meta.contains(&format!("APP_ID: &str = \"{expected}\"")));
+    assert!(app_meta.contains(&format!("APP_LOCK_ID: &str = \"{expected}.lock\"")));
+    assert!(manifest.contains(&format!("identifier = \"{expected}\"")));
+}
+
+#[test]
+fn generated_icons_have_one_checked_in_source() {
+    let ignore = read_repo_file(".gitignore");
+    let build_script = read_repo_file("crates/minnow-app/build.rs");
+
+    assert!(ignore.contains("/crates/minnow-app/assets_icons/*"));
+    assert!(build_script.contains("resources/logo.png"));
 }
