@@ -3,8 +3,9 @@ use super::{active_monitor, crop_scaled_region};
 use crate::services::geometry::{Rect, RectF};
 use image::RgbaImage;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex, MutexGuard, mpsc};
 use std::time::{Duration, Instant};
+use tracing::error;
 
 const SCALE_EPSILON: f32 = 0.01;
 const CAPTURE_LOOP_INTERVAL: Duration = Duration::from_millis(16);
@@ -63,9 +64,7 @@ impl LongCaptureRuntime {
     pub fn start_with_viewport(&self, rect: Rect, viewport_rect: RectF, scale_hint: f32) {
         self.stop();
         self.clear_pending_events();
-        if let Ok(mut final_image) = self.final_image.lock() {
-            *final_image = None;
-        }
+        *self.final_image_slot() = None;
         self.active.store(true, Ordering::SeqCst);
 
         let active = self.active.clone();
@@ -142,9 +141,7 @@ impl LongCaptureRuntime {
             }
 
             let final_img = stitcher.get_final_image();
-            if let Ok(mut slot) = final_image.lock() {
-                *slot = final_img;
-            }
+            *lock_capture_state(&final_image, "final image") = final_img;
             let _ = tx.send(LongCaptureEvent::Finished);
         });
     }
@@ -173,9 +170,7 @@ impl LongCaptureRuntime {
             let wait = remaining.min(CAPTURE_LOOP_INTERVAL);
 
             let recv_result = {
-                let Ok(rx) = self.events_rx.lock() else {
-                    return None;
-                };
+                let rx = self.event_receiver();
                 rx.recv_timeout(wait)
             };
 
@@ -195,14 +190,12 @@ impl LongCaptureRuntime {
     }
 
     pub fn take_result(&self) -> Option<RgbaImage> {
-        self.final_image.lock().ok().and_then(|mut slot| slot.take())
+        self.final_image_slot().take()
     }
 
     pub fn drain_events(&self) -> Vec<LongCaptureEvent> {
         let mut events = Vec::new();
-        let Ok(rx) = self.events_rx.lock() else {
-            return events;
-        };
+        let rx = self.event_receiver();
 
         while let Ok(event) = rx.try_recv() {
             events.push(event);
@@ -212,11 +205,29 @@ impl LongCaptureRuntime {
     }
 
     fn clear_pending_events(&self) {
-        let Ok(rx) = self.events_rx.lock() else {
-            return;
-        };
+        let rx = self.event_receiver();
 
         while rx.try_recv().is_ok() {}
+    }
+
+    fn event_receiver(&self) -> MutexGuard<'_, mpsc::Receiver<LongCaptureEvent>> {
+        lock_capture_state(&self.events_rx, "event receiver")
+    }
+
+    fn final_image_slot(&self) -> MutexGuard<'_, Option<RgbaImage>> {
+        lock_capture_state(&self.final_image, "final image")
+    }
+}
+
+fn lock_capture_state<'a, T>(mutex: &'a Mutex<T>, state_name: &str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Long-capture {state_name} lock was poisoned; recovering state");
+            let guard = poisoned.into_inner();
+            mutex.clear_poison();
+            guard
+        }
     }
 }
 
@@ -336,5 +347,19 @@ mod tests {
         assert_eq!(target.rect, Rect::new(1, 2, 3, 4));
         assert_eq!(target.viewport_rect, RectF::new(5.0, 6.0, 7.0, 8.0));
         assert_eq!(target.scale_hint, 2.5);
+    }
+
+    #[test]
+    fn runtime_recovers_and_clears_a_poisoned_result_lock() {
+        let runtime = LongCaptureRuntime::new();
+        let panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _slot = runtime.final_image.lock().expect("lock should start healthy");
+            panic!("poison final image slot for recovery test");
+        }));
+
+        assert!(panic_result.is_err());
+        assert!(runtime.final_image.is_poisoned());
+        assert!(runtime.take_result().is_none());
+        assert!(!runtime.final_image.is_poisoned());
     }
 }
