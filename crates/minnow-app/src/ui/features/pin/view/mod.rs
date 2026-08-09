@@ -8,9 +8,10 @@ use super::{
 };
 use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
-use crate::services::capture::action::{ActionResult, CaptureAction};
+use crate::services::capture::action::CaptureAction;
 use crate::services::i18n;
 use crate::services::ocr::service;
+use crate::ui::support::capture_actions::{self, CaptureActionHostKind};
 use gpui::{App, Context, Entity, FocusHandle, Subscription, Window};
 use std::collections::BTreeSet;
 
@@ -56,26 +57,9 @@ impl PinView {
 
     fn run_capture_action(session: &Entity<PinSession>, action: CaptureAction, cx: &mut App) {
         let context = session.read(cx).capture_action_context();
-        match workflows::execute_capture_action(action, context) {
-            ActionResult::Copied => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::copied_image().as_str(),
-                    NotificationType::Copy,
-                );
-            }
-            ActionResult::Saved(path) => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::saved_image(path).as_str(),
-                    NotificationType::Save,
-                );
-            }
-            ActionResult::Error(err) => {
-                tracing::error!("Pin action error: {err}");
-            }
-            _ => {}
-        }
+        let result = workflows::execute_capture_action(action, context);
+        let effect = capture_actions::interpret(action, result, CaptureActionHostKind::Pin);
+        capture_actions::apply_pin_effect(effect);
     }
 
     fn copy_selection_or_image(session: &Entity<PinSession>, cx: &mut App) {

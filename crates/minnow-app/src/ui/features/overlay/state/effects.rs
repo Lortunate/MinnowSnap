@@ -1,11 +1,11 @@
 use super::OverlayHandle;
 use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
-use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
+use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::geometry::{Rect, RectF};
-use crate::services::i18n;
 use crate::ui::features::long_capture::{self, LongCaptureRequest};
 use crate::ui::features::pin::{self, PinRequest};
+use crate::ui::support::capture_actions::{self, CaptureActionHost, CaptureActionHostKind};
 use gpui::{App, Window};
 
 pub(crate) enum OverlayEffect {
@@ -159,69 +159,28 @@ impl OverlayHandle {
     }
 
     fn capture(&self, action: CaptureAction, context: crate::services::capture::action::ActionContext, window: &mut Window, cx: &mut App) {
-        match workflows::execute_capture_action(action, context) {
-            ActionResult::Copied => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::copied_image().as_str(),
-                    NotificationType::Copy,
-                );
-                self.close(window, cx);
-            }
-            ActionResult::ColorPicked(color) => {
-                self.copy_text(
-                    CopyTextPayload {
-                        text: color.clone(),
-                        title: i18n::app::capture_name(),
-                        message: format!("Color copied: {color}"),
-                        notification_type: NotificationType::Copy,
-                        close_on_success: true,
-                    },
-                    window,
-                    cx,
-                );
-            }
-            ActionResult::Saved(path) => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::saved_image(path).as_str(),
-                    NotificationType::Save,
-                );
-                self.close(window, cx);
-            }
-            ActionResult::PinRequested(request) => {
-                let request = PinRequest::from_capture(request);
-                cx.defer(move |cx| {
-                    pin::open_window(cx, request);
-                });
-                self.close(window, cx);
-            }
-            ActionResult::OcrResult(content) => {
-                self.copy_text(
-                    CopyTextPayload {
-                        text: content,
-                        title: i18n::app::capture_name(),
-                        message: i18n::notify::copied_qr(),
-                        notification_type: NotificationType::Copy,
-                        close_on_success: true,
-                    },
-                    window,
-                    cx,
-                );
-            }
-            ActionResult::NoOp => {
-                if matches!(action, CaptureAction::QrCode) {
-                    shell::show_notification(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
-                }
-                self.refresh(window, cx);
-            }
-            ActionResult::Error(err) => {
-                tracing::error!("Action error: {err}");
-                if matches!(action, CaptureAction::QrCode) {
-                    shell::show_notification(i18n::app::name().as_str(), i18n::overlay::qr_not_found().as_str(), NotificationType::Info);
-                }
-                self.refresh(window, cx);
-            }
-        }
+        let result = workflows::execute_capture_action(action, context);
+        let effect = capture_actions::interpret(action, result, CaptureActionHostKind::Overlay);
+        capture_actions::apply_host_effect(self, effect, window, cx);
+    }
+}
+
+impl CaptureActionHost for OverlayHandle {
+    fn close_capture(&self, window: &mut Window, cx: &mut App) {
+        self.close(window, cx);
+    }
+
+    fn refresh_capture(&self, window: &mut Window, cx: &mut App) {
+        self.refresh(window, cx);
+    }
+
+    fn open_pin(&self, request: PinRequest, cx: &mut App) {
+        cx.defer(move |cx| {
+            pin::open_window(cx, request);
+        });
+    }
+
+    fn show_warning(&self, message: String, _window: &mut Window, _cx: &mut App) {
+        tracing::warn!("Capture action warning: {message}");
     }
 }

@@ -1,11 +1,8 @@
 use crate::services::geometry::RectF;
+use crate::ui::support::panel_layout::{self, PanelLayout};
 
-const VIEWPORT_MARGIN: f64 = 16.0;
-pub(crate) const SELECTION_PANEL_GAP: f64 = 8.0;
-const TOOLBAR_BUTTON_SIZE: f64 = 32.0;
-const TOOLBAR_BUTTON_GAP: f64 = 2.0;
-const TOOLBAR_PADDING_X: f64 = 8.0;
-const TOOLBAR_PADDING_Y: f64 = 4.0;
+const VIEWPORT_MARGIN: f64 = panel_layout::VIEWPORT_MARGIN;
+pub(crate) const SELECTION_PANEL_GAP: f64 = panel_layout::SELECTION_PANEL_GAP;
 const PROPERTY_BUTTON_SIZE: f64 = 32.0;
 const PROPERTY_SWATCH_SIZE: f64 = 26.0;
 const PROPERTY_SWATCH_COUNT: f64 = 6.0;
@@ -25,19 +22,7 @@ const RESOLUTION_TOOLTIP_MIN_WIDTH: f64 = 88.0;
 const TOOLTIP_HORIZONTAL_PADDING: f64 = 16.0;
 const TOOLTIP_CHARACTER_WIDTH: f64 = 7.0;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct OverlayPanelLayout {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl OverlayPanelLayout {
-    pub fn as_rect(self) -> RectF {
-        RectF::new(self.x, self.y, self.width, self.height)
-    }
-}
+pub(crate) type OverlayPanelLayout = PanelLayout;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum VerticalSide {
@@ -55,13 +40,6 @@ struct PanelLayoutRequest<'a> {
     viewport_h: f64,
     preferred_side: VerticalSide,
     occupied: &'a [OverlayPanelLayout],
-}
-
-pub(crate) fn toolbar_size(action_count: usize) -> (f64, f64) {
-    let button_count = action_count.max(1) as f64;
-    let width = button_count * TOOLBAR_BUTTON_SIZE + (button_count - 1.0) * TOOLBAR_BUTTON_GAP + TOOLBAR_PADDING_X * 2.0;
-    let height = TOOLBAR_BUTTON_SIZE + TOOLBAR_PADDING_Y * 2.0;
-    (width, height)
 }
 
 pub(crate) fn property_panel_size(include_text_action: bool, include_mosaic_controls: bool) -> (f64, f64) {
@@ -217,17 +195,7 @@ pub(crate) fn resolve_toolbar_layout(
     viewport_h: f64,
     occupied: &[OverlayPanelLayout],
 ) -> OverlayPanelLayout {
-    let (toolbar_w, toolbar_h) = toolbar_size(action_count);
-    resolve_panel_layout(PanelLayoutRequest {
-        target: selection,
-        desired_x: selection.x + selection.width - toolbar_w,
-        width: toolbar_w,
-        height: toolbar_h,
-        viewport_w,
-        viewport_h,
-        preferred_side: VerticalSide::Below,
-        occupied,
-    })
+    panel_layout::resolve_toolbar_layout(selection, action_count, viewport_w, viewport_h, occupied)
 }
 
 pub(crate) fn resolve_info_reserved_slot_layout(selection: RectF, viewport_w: f64, viewport_h: f64) -> OverlayPanelLayout {
@@ -289,14 +257,7 @@ pub(crate) fn resolve_property_layout(
 }
 
 fn clamp_layout(x: f64, y: f64, width: f64, height: f64, viewport_w: f64, viewport_h: f64) -> OverlayPanelLayout {
-    let max_x = (viewport_w - width - VIEWPORT_MARGIN).max(VIEWPORT_MARGIN);
-    let max_y = (viewport_h - height - VIEWPORT_MARGIN).max(VIEWPORT_MARGIN);
-    OverlayPanelLayout {
-        x: x.clamp(VIEWPORT_MARGIN, max_x),
-        y: y.clamp(VIEWPORT_MARGIN, max_y),
-        width,
-        height,
-    }
+    panel_layout::clamp_layout(x, y, width, height, viewport_w, viewport_h)
 }
 
 #[cfg(test)]
@@ -307,10 +268,10 @@ mod tests {
 
     #[test]
     fn toolbar_size_scales_with_actions() {
-        let (width, height) = toolbar_size(TEST_ACTION_COUNT);
+        let (width, height) = panel_layout::toolbar_size(TEST_ACTION_COUNT);
 
         assert!(width > height);
-        assert_eq!(height, TOOLBAR_BUTTON_SIZE + TOOLBAR_PADDING_Y * 2.0);
+        assert_eq!(height, 40.0);
     }
 
     #[test]

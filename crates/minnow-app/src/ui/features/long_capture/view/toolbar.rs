@@ -3,30 +3,24 @@ mod actions;
 pub(crate) use actions::LongCaptureToolbarAction;
 
 use crate::app::workflows;
-use crate::platform::shell::{self, NotificationType};
-use crate::services::capture::action::{ActionContext, ActionResult, CaptureAction};
+use crate::services::capture::action::{ActionContext, CaptureAction};
 use crate::services::i18n;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
-use crate::ui::features::long_capture::layout::{TOOLBAR_TOP_RESERVED, long_capture_toolbar_size};
+use crate::ui::features::long_capture::layout::TOOLBAR_TOP_RESERVED;
 use crate::ui::features::pin::{self, PinRequest};
+use crate::ui::support::capture_actions::{self, CaptureActionHost, CaptureActionHostKind};
+use crate::ui::support::panel_layout::{self, PanelLayout};
 use actions::LongCaptureToolbarIcon;
 use gpui::InteractiveElement;
 use gpui::{App, ClickEvent, Context, Div, FocusHandle, IntoElement, KeyDownEvent, ParentElement, Render, Styled, Window, div, px};
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::{ActiveTheme as _, Disableable, Icon, Sizable, h_flex};
+use std::borrow::BorrowMut;
 use std::sync::Arc;
 use std::time::Duration;
 
 const WARNING_HEIGHT: f64 = 34.0;
 const CAPTURE_ACTION_TIMEOUT: Duration = Duration::from_millis(260);
-
-#[derive(Clone, Copy)]
-struct ToolbarPanelLayout {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-}
 
 pub(crate) struct ToolbarWindowView {
     coordinator: Arc<LongCaptureCoordinator>,
@@ -88,49 +82,6 @@ impl ToolbarWindowView {
         self.cancel(window, cx);
     }
 
-    fn close_capture_windows(&self, window: &mut Window, cx: &mut Context<Self>) {
-        self.coordinator.close_windows_except(Some(window.window_handle().window_id()), cx);
-        window.defer(cx, |window, _| {
-            window.remove_window();
-        });
-    }
-
-    fn handle_capture_action_result(&mut self, result: ActionResult, window: &mut Window, cx: &mut Context<Self>) {
-        match result {
-            ActionResult::Copied => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::copied_image().as_str(),
-                    NotificationType::Copy,
-                );
-                self.close_capture_windows(window, cx);
-            }
-            ActionResult::Saved(path) => {
-                shell::show_notification(
-                    i18n::app::capture_name().as_str(),
-                    i18n::notify::saved_image(path).as_str(),
-                    NotificationType::Save,
-                );
-                self.close_capture_windows(window, cx);
-            }
-            ActionResult::PinRequested(request) => {
-                let request = PinRequest::from_capture(request);
-                cx.defer(move |cx| {
-                    pin::open_window(cx, request);
-                });
-                self.close_capture_windows(window, cx);
-            }
-            ActionResult::Error(err) => {
-                self.coordinator.finish_capture_action_with_warning(err);
-                cx.notify();
-            }
-            _ => {
-                self.coordinator.finish_capture_action_with_warning(i18n::overlay::action_unavailable());
-                cx.notify();
-            }
-        }
-    }
-
     fn execute_capture_action(&mut self, action: CaptureAction, window: &mut Window, cx: &mut Context<Self>) {
         if self.coordinator.snapshot().busy {
             return;
@@ -145,19 +96,41 @@ impl ToolbarWindowView {
             return;
         };
 
-        self.handle_capture_action_result(
-            workflows::execute_capture_action(action, ActionContext::full_image_data(Arc::new(image))),
-            window,
-            cx,
-        );
+        let result = workflows::execute_capture_action(action, ActionContext::full_image_data(Arc::new(image)));
+        let effect = capture_actions::interpret(action, result, CaptureActionHostKind::LongCapture);
+        capture_actions::apply_host_effect(self, effect, window, BorrowMut::borrow_mut(cx));
+    }
+}
+
+impl CaptureActionHost for ToolbarWindowView {
+    fn close_capture(&self, window: &mut Window, cx: &mut App) {
+        self.coordinator.close_windows_except(Some(window.window_handle().window_id()), cx);
+        window.defer(cx, |window, _| {
+            window.remove_window();
+        });
+    }
+
+    fn refresh_capture(&self, window: &mut Window, _cx: &mut App) {
+        window.refresh();
+    }
+
+    fn open_pin(&self, request: PinRequest, cx: &mut App) {
+        cx.defer(move |cx| {
+            pin::open_window(cx, request);
+        });
+    }
+
+    fn show_warning(&self, message: String, window: &mut Window, _cx: &mut App) {
+        self.coordinator.finish_capture_action_with_warning(message);
+        window.refresh();
     }
 }
 
 impl Render for ToolbarWindowView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let snapshot = self.coordinator.snapshot();
-        let (toolbar_width, toolbar_height) = long_capture_toolbar_size(LongCaptureToolbarAction::ORDERED.len());
-        let layout = ToolbarPanelLayout {
+        let (toolbar_width, toolbar_height) = panel_layout::toolbar_size(LongCaptureToolbarAction::ORDERED.len());
+        let layout = PanelLayout {
             x: 0.0,
             y: TOOLBAR_TOP_RESERVED,
             width: toolbar_width,
@@ -206,7 +179,7 @@ fn toolbar_icon(app_ctx: &App, icon_name: LongCaptureToolbarIcon) -> Icon {
     Icon::new(icon_name).small().text_color(theme.popover_foreground)
 }
 
-fn toolbar_panel(app_ctx: &App, layout: ToolbarPanelLayout) -> Div {
+fn toolbar_panel(app_ctx: &App, layout: PanelLayout) -> Div {
     let theme = app_ctx.theme();
     let mut panel = div()
         .absolute()
