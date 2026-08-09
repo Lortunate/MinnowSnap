@@ -176,78 +176,6 @@ impl LongCaptureCoordinatorState {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use image::Rgba;
-
-    #[test]
-    fn runtime_event_batch_updates_state_with_one_revision() {
-        let mut state = LongCaptureCoordinatorState::default();
-        state.snapshot.busy = true;
-        let final_image = RgbaImage::from_pixel(4, 3, Rgba([10, 20, 30, 255]));
-
-        state.apply_runtime_events(
-            vec![
-                LongCaptureEvent::Started,
-                LongCaptureEvent::Warning {
-                    text: "unstable".to_string(),
-                },
-                LongCaptureEvent::Finished,
-            ],
-            Some(final_image),
-        );
-
-        assert_eq!(state.revision, 1);
-        assert!(!state.snapshot.busy);
-        assert_eq!(state.snapshot.warning_text, "unstable");
-        assert_eq!(state.capture_image.as_ref().map(RgbaImage::dimensions), Some((4, 3)));
-    }
-
-    #[test]
-    fn empty_runtime_event_batch_does_not_change_revision() {
-        let mut state = LongCaptureCoordinatorState::default();
-
-        state.apply_runtime_events(Vec::new(), None);
-
-        assert_eq!(state.revision, 0);
-    }
-
-    #[test]
-    fn capture_action_transitions_own_busy_warning_and_revision() {
-        let mut state = LongCaptureCoordinatorState::default();
-        state.snapshot.warning_text = "previous warning".to_string();
-
-        state.start_capture_action();
-        assert!(state.snapshot.busy);
-        assert!(state.snapshot.warning_text.is_empty());
-        assert_eq!(state.revision, 1);
-
-        state.finish_capture_action_with_warning("save failed".to_string());
-        assert!(!state.snapshot.busy);
-        assert_eq!(state.snapshot.warning_text, "save failed");
-        assert_eq!(state.revision, 2);
-    }
-
-    #[test]
-    fn coordinator_recovers_and_clears_a_poisoned_state_lock() {
-        let coordinator = LongCaptureCoordinator {
-            runtime: LongCaptureRuntime::new(),
-            state: Mutex::new(LongCaptureCoordinatorState::default()),
-        };
-
-        let panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _state = coordinator.state.lock().expect("lock should start healthy");
-            panic!("poison coordinator state for recovery test");
-        }));
-
-        assert!(panic_result.is_err());
-        assert!(coordinator.state.is_poisoned());
-        let _snapshot = coordinator.snapshot();
-        assert!(!coordinator.state.is_poisoned());
-    }
-}
-
 pub(crate) struct LongCaptureCoordinator {
     runtime: LongCaptureRuntime,
     state: Mutex<LongCaptureCoordinatorState>,
@@ -412,5 +340,77 @@ impl LongCaptureCoordinator {
         }
 
         self.state_guard().retain_windows_except(except);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Rgba;
+
+    #[test]
+    fn runtime_event_batch_updates_state_with_one_revision() {
+        let mut state = LongCaptureCoordinatorState::default();
+        state.snapshot.busy = true;
+        let final_image = RgbaImage::from_pixel(4, 3, Rgba([10, 20, 30, 255]));
+
+        state.apply_runtime_events(
+            vec![
+                LongCaptureEvent::Started,
+                LongCaptureEvent::Warning {
+                    text: "unstable".to_string(),
+                },
+                LongCaptureEvent::Finished,
+            ],
+            Some(final_image),
+        );
+
+        assert_eq!(state.revision, 1);
+        assert!(!state.snapshot.busy);
+        assert_eq!(state.snapshot.warning_text, "unstable");
+        assert_eq!(state.capture_image.as_ref().map(RgbaImage::dimensions), Some((4, 3)));
+    }
+
+    #[test]
+    fn empty_runtime_event_batch_does_not_change_revision() {
+        let mut state = LongCaptureCoordinatorState::default();
+
+        state.apply_runtime_events(Vec::new(), None);
+
+        assert_eq!(state.revision, 0);
+    }
+
+    #[test]
+    fn capture_action_transitions_own_busy_warning_and_revision() {
+        let mut state = LongCaptureCoordinatorState::default();
+        state.snapshot.warning_text = "previous warning".to_string();
+
+        state.start_capture_action();
+        assert!(state.snapshot.busy);
+        assert!(state.snapshot.warning_text.is_empty());
+        assert_eq!(state.revision, 1);
+
+        state.finish_capture_action_with_warning("save failed".to_string());
+        assert!(!state.snapshot.busy);
+        assert_eq!(state.snapshot.warning_text, "save failed");
+        assert_eq!(state.revision, 2);
+    }
+
+    #[test]
+    fn coordinator_recovers_and_clears_a_poisoned_state_lock() {
+        let coordinator = LongCaptureCoordinator {
+            runtime: LongCaptureRuntime::new(),
+            state: Mutex::new(LongCaptureCoordinatorState::default()),
+        };
+
+        let panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _state = coordinator.state.lock().expect("lock should start healthy");
+            panic!("poison coordinator state for recovery test");
+        }));
+
+        assert!(panic_result.is_err());
+        assert!(coordinator.state.is_poisoned());
+        let _snapshot = coordinator.snapshot();
+        assert!(!coordinator.state.is_poisoned());
     }
 }
