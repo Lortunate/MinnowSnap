@@ -143,7 +143,7 @@ fn interpret_overlay(action: CaptureAction, result: ActionResult) -> CaptureActi
         },
         ActionResult::Error(error) => CaptureActionEffect::Refresh {
             notification: qr_notification(action),
-            error: (!matches!(action, CaptureAction::QrCode)).then_some(error),
+            error: Some(error),
         },
     }
 }
@@ -189,4 +189,36 @@ fn qr_notification(action: CaptureAction) -> Option<NotificationSpec> {
 
 fn show_notification(notification: NotificationSpec) {
     shell::show_notification(&notification.title, &notification.message, notification.kind);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overlay_qr_error_keeps_diagnostics_and_user_feedback() {
+        let effect = interpret(
+            CaptureAction::QrCode,
+            ActionResult::Error("decode failed".to_string()),
+            CaptureActionHostKind::Overlay,
+        );
+
+        let CaptureActionEffect::Refresh { notification, error } = effect else {
+            panic!("QR error should refresh the overlay");
+        };
+        assert_eq!(error.as_deref(), Some("decode failed"));
+        assert_eq!(notification.map(|item| item.kind), Some(NotificationType::Info));
+    }
+
+    #[test]
+    fn long_capture_rejects_unsupported_results_with_warning() {
+        let effect = interpret(CaptureAction::Copy, ActionResult::NoOp, CaptureActionHostKind::LongCapture);
+        assert!(matches!(effect, CaptureActionEffect::Warning(_)));
+    }
+
+    #[test]
+    fn pin_copy_result_only_notifies() {
+        let effect = interpret(CaptureAction::Copy, ActionResult::Copied, CaptureActionHostKind::Pin);
+        assert!(matches!(effect, CaptureActionEffect::NotifyOnly(_)));
+    }
 }
