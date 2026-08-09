@@ -28,17 +28,18 @@ fn normalize_pixel(pixel: &Rgb<u8>, mean: &[f32; 3], std: &[f32; 3]) -> [f32; 3]
     ]
 }
 
-pub fn normalize_image(img: &DynamicImage, mean: &[f32; 3], std: &[f32; 3]) -> Array4<f32> {
+pub fn normalize_image(img: &DynamicImage, mean: &[f32; 3], std: &[f32; 3]) -> Result<Array4<f32>> {
     let (w, h) = img.dimensions();
     let img_rgb = img.to_rgb8();
 
     let pixels: Vec<f32> = img_rgb.pixels().flat_map(|p| normalize_pixel(p, mean, std)).collect();
 
-    Array3::from_shape_vec((h as usize, w as usize, 3), pixels)
-        .unwrap()
+    let tensor = Array3::from_shape_vec((h as usize, w as usize, 3), pixels)
+        .map_err(|err| anyhow::anyhow!("Failed to shape normalized image tensor: {err}"))?
         .permuted_axes([2, 0, 1])
         .insert_axis(ndarray::Axis(0))
-        .to_owned()
+        .to_owned();
+    Ok(tensor)
 }
 
 pub fn preprocess_batch(images: &[DynamicImage], height: u32) -> Result<Array4<f32>> {

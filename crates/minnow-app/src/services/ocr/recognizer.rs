@@ -63,21 +63,39 @@ impl Recognizer {
         let (shape, data) = outputs[0].try_extract_tensor::<f32>()?;
         debug!("Recognizer inference time: {:?}", start_infer.elapsed());
 
-        let batch_size = shape[0] as usize;
-        let time_steps = shape[1] as usize;
-        let num_classes = shape[2] as usize;
+        if shape.len() != 3 {
+            return Err(anyhow::anyhow!("Recognizer output must have three dimensions, got {:?}", shape));
+        }
+
+        let batch_size = usize::try_from(shape[0]).context("Recognizer batch dimension is negative")?;
+        let time_steps = usize::try_from(shape[1]).context("Recognizer time dimension is negative")?;
+        let num_classes = usize::try_from(shape[2]).context("Recognizer class dimension is negative")?;
+        if batch_size == 0 || time_steps == 0 || num_classes == 0 {
+            return Err(anyhow::anyhow!(
+                "Recognizer output has an empty dimension: batch={batch_size}, time_steps={time_steps}, classes={num_classes}"
+            ));
+        }
 
         let start_decode = Instant::now();
 
-        let batch_stride = time_steps * num_classes;
+        let batch_stride = time_steps.checked_mul(num_classes).context("Recognizer output dimensions overflowed")?;
+        let expected_len = batch_size.checked_mul(batch_stride).context("Recognizer output size overflowed")?;
+        if data.len() != expected_len {
+            return Err(anyhow::anyhow!(
+                "Recognizer output data length mismatch: expected {expected_len}, got {}",
+                data.len()
+            ));
+        }
 
-        let results: Vec<(String, f32)> = data
+        let results: Result<Vec<(String, f32)>> = data
             .par_chunks(batch_stride)
             .map(|batch_data| {
-                let view = ArrayView2::from_shape((time_steps, num_classes), batch_data).expect("Data shape mismatch during decoding");
-                Self::ctc_decode(&self.keys, view)
+                let view = ArrayView2::from_shape((time_steps, num_classes), batch_data)
+                    .map_err(|err| anyhow::anyhow!("Data shape mismatch during decoding: {err}"))?;
+                Ok(Self::ctc_decode(&self.keys, view))
             })
             .collect();
+        let results = results?;
 
         debug!("Recognizer decode time: {:?}", start_decode.elapsed());
 

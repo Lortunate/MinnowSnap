@@ -44,7 +44,7 @@ impl Detector {
         let resize_w = ((w as f32 * ratio) as u32 / 32).max(1) * 32;
         let resize_h = ((h as f32 * ratio) as u32 / 32).max(1) * 32;
         let resized = image.resize_exact(resize_w, resize_h, FilterType::Triangle);
-        Ok(normalize_image(&resized, &PPOCR_MEAN, &PPOCR_STD))
+        normalize_image(&resized, &PPOCR_MEAN, &PPOCR_STD)
     }
 
     fn postprocess(&self, data: &[f32], out_w: usize, out_h: usize, orig_w: f32, orig_h: f32) -> Result<Vec<BoxPoints>> {
