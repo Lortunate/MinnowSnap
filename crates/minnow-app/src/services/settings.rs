@@ -1,10 +1,13 @@
+mod persistence;
+
 use crate::services::{hotkeys, paths::ensure_parent_dir};
 use config::{Config, File};
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 use tracing::{error, info};
+
+use persistence::SettingsPersistence;
 
 static SETTINGS: LazyLock<Mutex<SettingsStore>> = LazyLock::new(|| Mutex::new(SettingsStore::new()));
 
@@ -17,7 +20,9 @@ fn settings_guard() -> MutexGuard<'static, SettingsStore> {
         Ok(guard) => guard,
         Err(poisoned) => {
             error!("Settings lock was poisoned; recovering the latest in-memory state");
-            poisoned.into_inner()
+            let guard = poisoned.into_inner();
+            SETTINGS.clear_poison();
+            guard
         }
     }
 }
@@ -56,6 +61,12 @@ pub fn auto_start_enabled() -> bool {
 
 pub fn apply(action: SettingsAction) {
     settings_guard().apply(action);
+}
+
+pub fn flush() {
+    if let Err(err) = settings_guard().flush() {
+        error!("Failed to flush the latest settings snapshot: {err}");
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -178,6 +189,7 @@ pub struct AppSettings {
 pub struct SettingsStore {
     config: AppSettings,
     config_path: PathBuf,
+    persistence: SettingsPersistence,
     #[cfg(test)]
     save_count: usize,
 }
@@ -194,6 +206,7 @@ impl SettingsStore {
         Self {
             config,
             config_path,
+            persistence: SettingsPersistence::new(),
             #[cfg(test)]
             save_count: 0,
         }
@@ -297,36 +310,35 @@ impl SettingsStore {
             self.save_count += 1;
         }
 
-        let config = self.config.clone();
-        let path = self.config_path.clone();
+        self.persistence.enqueue(self.config.clone(), self.config_path.clone());
+    }
 
-        crate::RUNTIME.spawn_blocking(move || match toml::to_string_pretty(&config) {
-            Ok(toml_string) => {
-                if let Err(e) = ensure_parent_dir(&path) {
-                    error!("Failed to create config directory for {:?}: {}", path, e);
-                    return;
-                }
-                if let Err(e) = fs::write(&path, toml_string) {
-                    error!("Failed to write config file to {:?}: {}", path, e);
-                } else {
-                    info!("Settings saved to {:?}", path);
-                }
-            }
-            Err(e) => error!("Failed to serialize config: {}", e),
-        });
+    fn flush(&self) -> Result<(), String> {
+        self.persistence.flush_latest(&self.config, &self.config_path)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_STORE_ID: AtomicU64 = AtomicU64::new(0);
 
     fn test_store() -> SettingsStore {
+        let id = TEST_STORE_ID.fetch_add(1, Ordering::Relaxed);
         SettingsStore {
             config: AppSettings::default(),
-            config_path: std::env::temp_dir().join("minnowsnap-settings-test.toml"),
+            config_path: std::env::temp_dir().join(format!("minnowsnap-settings-test-{}-{id}.toml", std::process::id())),
+            persistence: SettingsPersistence::new(),
             save_count: 0,
         }
+    }
+
+    fn cleanup_store(store: SettingsStore) {
+        let path = store.config_path.clone();
+        drop(store);
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -342,6 +354,7 @@ mod tests {
         assert_eq!(settings.shortcuts.capture, "Ctrl+Shift+1");
         assert_eq!(settings.shortcuts.quick_capture, "Ctrl+Shift+2");
         assert_eq!(store.save_count, 1);
+        cleanup_store(store);
     }
 
     #[test]
@@ -361,6 +374,7 @@ mod tests {
         assert_eq!(settings.output.save_path.as_deref(), Some("D:/captures"));
         assert!(!settings.output.oxipng_enabled);
         assert_eq!(store.save_count, 5);
+        cleanup_store(store);
     }
 
     #[test]
@@ -373,6 +387,7 @@ mod tests {
         let settings = store.get();
         assert_eq!(settings.general.font_family, None);
         assert_eq!(settings.output.save_path, None);
+        cleanup_store(store);
     }
 
     #[test]

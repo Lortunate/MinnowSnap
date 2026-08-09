@@ -3,6 +3,7 @@ use super::bootstrap::hide_dock_icon;
 use super::bootstrap::{ensure_single_instance, get_instance_id, set_auto_start};
 use super::composition::run_application;
 use crate::platform::{logging, shutdown};
+use crate::services::settings;
 use tracing::info;
 
 pub fn run() {
@@ -26,6 +27,7 @@ pub fn run() {
     #[cfg(not(target_os = "macos"))]
     run_application(set_auto_start, noop_hide_dock_icon);
 
+    settings::flush();
     shutdown::clear_control_plane();
 }
 
