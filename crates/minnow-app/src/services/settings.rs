@@ -1,9 +1,9 @@
 mod persistence;
 
 use crate::services::{hotkeys, paths::ensure_parent_dir};
-use config::{Config, File};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 use tracing::{error, info};
 
@@ -218,30 +218,33 @@ impl SettingsStore {
 
     fn load_config() -> (AppSettings, PathBuf) {
         let config_path = Self::get_config_path();
+        let config = Self::load_config_from(&config_path);
+        (config, config_path)
+    }
 
-        if !config_path.exists() {
-            if let Err(e) = ensure_parent_dir(&config_path) {
-                error!("Failed to create config directory: {}", e);
+    fn load_config_from(config_path: &Path) -> AppSettings {
+        let contents = match fs::read_to_string(config_path) {
+            Ok(contents) => contents,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                if let Err(err) = ensure_parent_dir(config_path) {
+                    error!("Failed to create config directory: {err}");
+                }
+                return AppSettings::default();
             }
-            return (AppSettings::default(), config_path);
-        }
+            Err(err) => {
+                error!("Failed to read config file {}: {err}", config_path.display());
+                return AppSettings::default();
+            }
+        };
 
-        let s = Config::builder().add_source(File::from(config_path.clone())).build();
-
-        match s {
-            Ok(s) => match s.try_deserialize() {
-                Ok(c) => {
-                    info!("Config loaded successfully from {:?}", config_path);
-                    (c, config_path)
-                }
-                Err(e) => {
-                    error!("Failed to parse config file: {}", e);
-                    (AppSettings::default(), config_path)
-                }
-            },
-            Err(e) => {
-                error!("Failed to load config: {}", e);
-                (AppSettings::default(), config_path)
+        match toml::from_str(&contents) {
+            Ok(config) => {
+                info!("Config loaded successfully from {:?}", config_path);
+                config
+            }
+            Err(err) => {
+                error!("Failed to parse config file {}: {err}", config_path.display());
+                AppSettings::default()
             }
         }
     }
@@ -339,6 +342,61 @@ mod tests {
         let path = store.config_path.clone();
         drop(store);
         let _ = std::fs::remove_file(path);
+    }
+
+    fn test_config_path(label: &str) -> PathBuf {
+        let id = TEST_STORE_ID.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir()
+            .join(format!("minnowsnap-settings-load-{label}-{}-{id}", std::process::id()))
+            .join("settings.toml")
+    }
+
+    fn cleanup_config_path(path: &Path) {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::remove_dir_all(parent);
+        }
+    }
+
+    #[test]
+    fn missing_config_returns_defaults_and_prepares_parent_directory() {
+        let path = test_config_path("missing");
+
+        let settings = SettingsStore::load_config_from(&path);
+
+        assert_eq!(settings.general.theme, THEME_SYSTEM);
+        assert_eq!(settings.shortcuts.capture, hotkeys::DEFAULT_CAPTURE_SHORTCUT);
+        assert!(path.parent().is_some_and(Path::exists));
+        cleanup_config_path(&path);
+    }
+
+    #[test]
+    fn malformed_config_returns_defaults() {
+        let path = test_config_path("malformed");
+        ensure_parent_dir(&path).expect("create config test directory");
+        std::fs::write(&path, "general = [").expect("write malformed config");
+
+        let settings = SettingsStore::load_config_from(&path);
+
+        assert_eq!(settings.general.theme, THEME_SYSTEM);
+        assert_eq!(settings.general.language, "System");
+        assert!(settings.notification.enabled);
+        cleanup_config_path(&path);
+    }
+
+    #[test]
+    fn partial_config_uses_section_defaults() {
+        let path = test_config_path("partial");
+        ensure_parent_dir(&path).expect("create config test directory");
+        std::fs::write(&path, "[general]\ntheme = \"Dark\"\n").expect("write partial config");
+
+        let settings = SettingsStore::load_config_from(&path);
+
+        assert_eq!(settings.general.theme, THEME_DARK);
+        assert_eq!(settings.general.language, "System");
+        assert_eq!(settings.shortcuts.capture, hotkeys::DEFAULT_CAPTURE_SHORTCUT);
+        assert!(settings.output.oxipng_enabled);
+        assert!(settings.notification.enabled);
+        cleanup_config_path(&path);
     }
 
     #[test]
