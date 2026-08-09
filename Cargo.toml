@@ -30,7 +30,7 @@ num-traits = "0.2"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSApplication"] }
 ort = "2.0.0-rc.12"
-oxipng = { version = "10.0", default-features = false, features = ["parallel", "zopfli", "filetime"] }
+oxipng = { version = "10.2", default-features = false, features = ["parallel", "zopfli"] }
 raw-window-handle = "0.6"
 rayon = "1.8"
 reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "stream"] }
