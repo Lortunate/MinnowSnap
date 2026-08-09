@@ -33,8 +33,15 @@ Delete duplicate helpers after call-site searches prove they are private-only.
 Verification: focused geometry tests, smoke test, format, check, and clippy.
 Native handle extraction and toolbar placement each have one active owner.
 
-## Phase 4: Toolchain and final gates
+## Phase 4: Toolchain and final gates (completed)
 
 Pin the current stable Rust toolchain in `rust-toolchain.toml`, keep the package
 MSRV aligned, and run every required workspace gate. Separate host graphics SDK
 failures from source failures in the handoff.
+
+Verification: Rust `1.97.1` is current and up to date at execution time;
+`cargo fmt --check`, `cargo check --workspace --all-targets`,
+`cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+`cargo test --workspace`, and `cargo build --workspace --release` all pass on
+the host. The Windows GNU cross-check was attempted separately and is blocked
+only by the unavailable `x86_64-w64-mingw32-gcc` toolchain.
