@@ -74,7 +74,7 @@ ort = { workspace = true, features = ["load-dynamic"] }
 [build-dependencies]
 anyhow = { workspace = true }
 ico = { workspace = true }
-image = { workspace = true, features = ["default"] }
+image = { workspace = true, features = ["png"] }
 winres = { workspace = true }
 
 [package.metadata.bundle]
