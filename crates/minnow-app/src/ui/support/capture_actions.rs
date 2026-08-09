@@ -1,7 +1,6 @@
 use crate::platform::shell::{self, NotificationType};
 use crate::services::capture::action::{ActionResult, CaptureAction, PinCaptureRequest};
 use crate::services::i18n;
-use crate::ui::features::pin::PinRequest;
 use gpui::{App, Window};
 
 #[derive(Debug)]
@@ -46,7 +45,7 @@ pub(crate) enum CaptureActionHostKind {
 pub(crate) trait CaptureActionHost {
     fn close_capture(&self, window: &mut Window, cx: &mut App);
     fn refresh_capture(&self, window: &mut Window, cx: &mut App);
-    fn open_pin(&self, request: PinRequest, cx: &mut App);
+    fn open_pin(&self, request: PinCaptureRequest, cx: &mut App);
     fn show_warning(&self, message: String, window: &mut Window, cx: &mut App);
 }
 
@@ -79,7 +78,7 @@ pub(crate) fn apply_host_effect<H: CaptureActionHost>(host: &H, effect: CaptureA
             }
         }
         CaptureActionEffect::OpenPin(request) => {
-            host.open_pin(PinRequest::from_capture(request), cx);
+            host.open_pin(request, cx);
             host.close_capture(window, cx);
         }
         CaptureActionEffect::Refresh { notification, error } => {

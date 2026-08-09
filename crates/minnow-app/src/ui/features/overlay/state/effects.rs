@@ -1,7 +1,7 @@
 use super::OverlayHandle;
 use crate::app::workflows;
 use crate::platform::shell::{self, NotificationType};
-use crate::services::capture::action::{ActionContext, CaptureAction};
+use crate::services::capture::action::{ActionContext, CaptureAction, PinCaptureRequest};
 use crate::services::geometry::{Rect, RectF};
 use crate::ui::features::long_capture::{self, LongCaptureRequest};
 use crate::ui::features::pin::{self, PinRequest};
@@ -174,7 +174,8 @@ impl CaptureActionHost for OverlayHandle {
         self.refresh(window, cx);
     }
 
-    fn open_pin(&self, request: PinRequest, cx: &mut App) {
+    fn open_pin(&self, request: PinCaptureRequest, cx: &mut App) {
+        let request = PinRequest::from_capture(request);
         cx.defer(move |cx| {
             pin::open_window(cx, request);
         });

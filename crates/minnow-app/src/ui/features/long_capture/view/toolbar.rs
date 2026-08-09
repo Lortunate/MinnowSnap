@@ -3,7 +3,7 @@ mod actions;
 pub(crate) use actions::LongCaptureToolbarAction;
 
 use crate::app::workflows;
-use crate::services::capture::action::{ActionContext, CaptureAction};
+use crate::services::capture::action::{ActionContext, CaptureAction, PinCaptureRequest};
 use crate::services::i18n;
 use crate::ui::features::long_capture::coordinator::LongCaptureCoordinator;
 use crate::ui::features::long_capture::layout::TOOLBAR_TOP_RESERVED;
@@ -114,7 +114,8 @@ impl CaptureActionHost for ToolbarWindowView {
         window.refresh();
     }
 
-    fn open_pin(&self, request: PinRequest, cx: &mut App) {
+    fn open_pin(&self, request: PinCaptureRequest, cx: &mut App) {
+        let request = PinRequest::from_capture(request);
         cx.defer(move |cx| {
             pin::open_window(cx, request);
         });
