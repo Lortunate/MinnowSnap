@@ -45,3 +45,20 @@ Verification: Rust `1.97.1` is current and up to date at execution time;
 `cargo test --workspace`, and `cargo build --workspace --release` all pass on
 the host. The Windows GNU cross-check was attempted separately and is blocked
 only by the unavailable `x86_64-w64-mingw32-gcc` toolchain.
+
+## Phase 5: Deepen capture and settings state ownership (completed)
+
+Separate strict scaled-region cropping from user-selection recovery, then route
+shared and owned capture images through that single policy. Move long-capture
+event transitions, revision updates, and window-handle cleanup into the
+coordinator state owner; recover poisoned capture locks without discarding the
+latest result.
+
+Replace unordered per-update settings writes with one serial persistence
+adapter. Keep the in-memory store authoritative, preserve the existing settings
+API, and flush all queued snapshots after the GPUI application exits.
+
+Verification: focused crop/state/persistence tests, full library tests,
+architecture smoke tests, workspace check, and all-target strict clippy. Capture
+selection math has one owner, long-capture transitions have one owner, and older
+settings snapshots can no longer overtake newer snapshots.
