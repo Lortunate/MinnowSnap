@@ -3,7 +3,7 @@ use config::{Config, File};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, MutexGuard};
 use tracing::{error, info};
 
 static SETTINGS: LazyLock<Mutex<SettingsStore>> = LazyLock::new(|| Mutex::new(SettingsStore::new()));
@@ -12,8 +12,18 @@ pub const THEME_SYSTEM: &str = "System";
 pub const THEME_LIGHT: &str = "Light";
 pub const THEME_DARK: &str = "Dark";
 
+fn settings_guard() -> MutexGuard<'static, SettingsStore> {
+    match SETTINGS.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Settings lock was poisoned; recovering the latest in-memory state");
+            poisoned.into_inner()
+        }
+    }
+}
+
 pub fn snapshot() -> AppSettings {
-    SETTINGS.lock().map(|guard| guard.get()).unwrap_or_default()
+    settings_guard().get()
 }
 
 pub fn general_settings() -> GeneralSettings {
@@ -45,7 +55,7 @@ pub fn auto_start_enabled() -> bool {
 }
 
 pub fn apply(action: SettingsAction) {
-    SETTINGS.lock().unwrap().apply(action);
+    settings_guard().apply(action);
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

@@ -3,7 +3,7 @@ use crate::services::hotkeys::{HotkeyAction, HotkeyUpdateError, ShortcutBindings
 use crate::services::settings::{self, SettingsAction, ShortcutSettings};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use gpui::{App, AsyncApp, Global};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
@@ -36,6 +36,16 @@ pub struct HotkeyService {
     manager: HotkeyManager,
     action_tx: UnboundedSender<HotkeyAction>,
     sink: HotkeyActionSink,
+}
+
+fn hotkey_ids_guard<'a>(ids: &'a Mutex<HotkeyIds>) -> MutexGuard<'a, HotkeyIds> {
+    match ids.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Hotkey id lock was poisoned; recovering registered ids");
+            poisoned.into_inner()
+        }
+    }
 }
 
 impl Global for HotkeyService {}
@@ -104,7 +114,7 @@ impl HotkeyManager {
                 if let Err(e) = m.register(hk) {
                     error!("Failed to register screen hotkey: {e}");
                 } else {
-                    self.ids.lock().unwrap().screen_capture = Some(hk.id());
+                    hotkey_ids_guard(&self.ids).screen_capture = Some(hk.id());
                     self.screen_hotkey = Some(hk);
                     info!("Screen capture hotkey registered: {screen_shortcut}");
                 }
@@ -114,7 +124,7 @@ impl HotkeyManager {
                 if let Err(e) = m.register(hk) {
                     error!("Failed to register quick hotkey: {e}");
                 } else {
-                    self.ids.lock().unwrap().quick_capture = Some(hk.id());
+                    hotkey_ids_guard(&self.ids).quick_capture = Some(hk.id());
                     self.quick_hotkey = Some(hk);
                     info!("Quick capture hotkey registered: {quick_shortcut}");
                 }
@@ -127,7 +137,7 @@ impl HotkeyManager {
                 return;
             }
 
-            let ids = ids_clone.lock().unwrap();
+            let ids = hotkey_ids_guard(&ids_clone);
 
             if let Some(id) = ids.screen_capture
                 && event.id == id
@@ -184,7 +194,7 @@ impl HotkeyManager {
 
         *current_hotkey = next_hotkey;
 
-        let mut ids = self.ids.lock().unwrap();
+        let mut ids = hotkey_ids_guard(&self.ids);
         if is_screen {
             ids.screen_capture = next_hotkey.map(|hk| hk.id());
         } else {

@@ -5,7 +5,13 @@ use tracing::{error, info};
 static FONTS_CACHE: LazyLock<Mutex<Option<Vec<String>>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn get_system_fonts() -> Vec<String> {
-    let mut cache_guard = FONTS_CACHE.lock().unwrap();
+    let mut cache_guard = match FONTS_CACHE.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Font cache lock was poisoned; rebuilding the cache");
+            poisoned.into_inner()
+        }
+    };
 
     if let Some(cached) = cache_guard.as_ref() {
         return cached.clone();
