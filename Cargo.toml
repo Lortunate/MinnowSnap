@@ -33,14 +33,12 @@ ort = "2.0.0-rc.12"
 oxipng = { version = "10.0", default-features = false, features = ["parallel", "zopfli", "filetime"] }
 raw-window-handle = "0.6"
 rayon = "1.8"
-rdev = "0.5"
 reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "stream"] }
 rodio = "0.22.2"
 rqrr = "0.10"
 rust-embed = "8"
 rust-i18n = "3.1.5"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 single-instance = "0.3"
 sys-locale = "0.3.2"
 tauri-winrt-notification = "0.7.2"

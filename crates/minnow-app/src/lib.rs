@@ -9,13 +9,16 @@ fn build_runtime() -> Runtime {
     let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
     let worker_threads = cpus.clamp(MIN_WORKER_THREADS, MAX_WORKER_THREADS);
 
-    Builder::new_multi_thread()
+    match Builder::new_multi_thread()
         .worker_threads(worker_threads)
         .max_blocking_threads(MAX_BLOCKING_THREADS)
         .enable_all()
         .thread_name("minnow-app-rt")
         .build()
-        .expect("Failed to create Tokio runtime")
+    {
+        Ok(runtime) => runtime,
+        Err(error) => panic!("Failed to create Tokio runtime: {error}"),
+    }
 }
 
 pub(crate) static RUNTIME: LazyLock<Runtime> = LazyLock::new(build_runtime);
