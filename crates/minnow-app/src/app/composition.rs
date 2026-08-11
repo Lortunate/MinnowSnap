@@ -24,12 +24,15 @@ pub(super) fn run_application(set_auto_start: fn(bool), _hide_dock_icon: fn()) {
         tracing::error!("Failed to set application: {err}");
     }
 
-    #[cfg(target_os = "macos")]
-    _hide_dock_icon();
-
     let app = Application::new().with_assets(AppAssets);
 
     app.run(move |cx| {
+        // GPUI installs an NSApplication subclass with its own `platform`
+        // ivar. Calling `sharedApplication` before `Application::new()` would
+        // create the standard NSApplication class and make GPUI panic.
+        #[cfg(target_os = "macos")]
+        _hide_dock_icon();
+
         install_shutdown_listener(cx);
 
         let locale_choice = settings::language();
