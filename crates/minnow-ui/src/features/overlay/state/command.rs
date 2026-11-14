@@ -1,0 +1,270 @@
+use super::{AnnotationKind, DragMode, OverlayEffect, OverlayOutcome, OverlaySession, ResizeCorner};
+use crate::features::overlay::annotation::{AnnotationTool, MosaicMode};
+use crate::flows::output::CaptureIntent;
+use crate::presentation::i18n;
+use gpui::{Pixels, Point};
+use minnow_application::SaveDestination;
+use minnow_imaging::geometry::RectF;
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum CaptureCommand {
+    Execute(CaptureIntent),
+    SaveWithPath(std::path::PathBuf),
+    CopyPickerColor,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PickerCommand {
+    CycleFormat,
+    MoveByPixel { delta_x: i32, delta_y: i32 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum AnnotationCommand {
+    SetTool(AnnotationTool),
+    StartDraw(Point<Pixels>),
+    StartMove { id: u64, point: Point<Pixels> },
+    Select(Option<u64>),
+    DeleteIntent,
+    Undo,
+    Redo,
+    CycleColor,
+    SetColor { color: u32 },
+    ToggleFill,
+    AdjustStroke { delta: f64 },
+    SetMosaicMode(MosaicMode),
+    AdjustMosaicIntensity { delta: f64 },
+    AdjustByWheel { point: Point<Pixels>, delta: f64 },
+    StartTextEdit,
+    StartTextEditAtPoint(Point<Pixels>),
+    AppendText { text: String },
+    InsertTextNewline,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum LifecycleCommand {
+    StartSelection(Point<Pixels>),
+    StartMove(Point<Pixels>),
+    StartResize { corner: ResizeCorner, point: Point<Pixels> },
+    PointerMoved(Point<Pixels>),
+    PointerReleased,
+    ClearSelection,
+    CloseIntent,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum OverlayCommand {
+    Capture(CaptureCommand),
+    Picker(PickerCommand),
+    Annotation(AnnotationCommand),
+    Lifecycle(LifecycleCommand),
+}
+
+enum SessionTransition {
+    NoOp,
+    Refresh,
+    Effect(OverlayEffect),
+}
+
+impl SessionTransition {
+    fn from_changed(changed: bool) -> Self {
+        if changed { Self::Refresh } else { Self::NoOp }
+    }
+
+    fn into_outcome(self) -> OverlayOutcome {
+        match self {
+            Self::NoOp => OverlayOutcome::default(),
+            Self::Refresh => OverlayOutcome::refresh(),
+            Self::Effect(effect) => OverlayOutcome::with_effect(effect),
+        }
+    }
+}
+
+impl OverlaySession {
+    pub(super) fn apply(&mut self, command: OverlayCommand) -> OverlayOutcome {
+        let transition = match command {
+            OverlayCommand::Capture(command) => self.apply_capture(command),
+            OverlayCommand::Picker(command) => self.apply_picker(command),
+            OverlayCommand::Annotation(command) => self.apply_annotation(command),
+            OverlayCommand::Lifecycle(command) => self.apply_lifecycle(command),
+        };
+        transition.into_outcome()
+    }
+
+    fn apply_capture(&mut self, command: CaptureCommand) -> SessionTransition {
+        if self.output.is_pending() {
+            return SessionTransition::NoOp;
+        }
+        self.finish_pointer_interaction();
+        match command {
+            CaptureCommand::Execute(action) => {
+                if matches!(action, CaptureIntent::Copy) && self.text_editing_id().is_some() {
+                    return SessionTransition::from_changed(self.commit_text_edit());
+                }
+                self.capture_effect(action)
+                    .map(SessionTransition::Effect)
+                    .unwrap_or(SessionTransition::NoOp)
+            }
+            CaptureCommand::SaveWithPath(path) => self
+                .capture_effect(CaptureIntent::Save(SaveDestination::Directory(path)))
+                .map(SessionTransition::Effect)
+                .unwrap_or(SessionTransition::NoOp),
+            CaptureCommand::CopyPickerColor => self
+                .picker_text()
+                .map(|text| {
+                    SessionTransition::Effect(OverlayEffect::CopyText {
+                        message: i18n::notify::copied_text(),
+                        text,
+                    })
+                })
+                .unwrap_or(SessionTransition::NoOp),
+        }
+    }
+
+    fn apply_picker(&mut self, command: PickerCommand) -> SessionTransition {
+        match command {
+            PickerCommand::CycleFormat => SessionTransition::from_changed(self.cycle_picker_format()),
+            PickerCommand::MoveByPixel { delta_x, delta_y } => SessionTransition::from_changed(self.move_picker_by_pixel(delta_x, delta_y)),
+        }
+    }
+
+    fn apply_annotation(&mut self, command: AnnotationCommand) -> SessionTransition {
+        let requires_font = match &command {
+            AnnotationCommand::SetTool(AnnotationTool::Text | AnnotationTool::Counter)
+            | AnnotationCommand::StartTextEdit
+            | AnnotationCommand::AppendText { .. }
+            | AnnotationCommand::InsertTextNewline => true,
+            AnnotationCommand::StartTextEditAtPoint(point) => self
+                .annotation_hit_test(*point)
+                .and_then(|id| self.annotation_kind_for(id))
+                .is_some_and(|kind| matches!(kind, AnnotationKind::Text { .. })),
+            AnnotationCommand::StartDraw(_) => matches!(self.annotation.active_tool(), Some(AnnotationTool::Text | AnnotationTool::Counter)),
+            _ => false,
+        };
+        if requires_font && let Err(error) = self.require_annotation_font() {
+            return SessionTransition::Effect(OverlayEffect::Warning(error));
+        }
+        match command {
+            AnnotationCommand::SetTool(tool) => SessionTransition::from_changed(self.set_annotation_tool(tool)),
+            AnnotationCommand::StartDraw(point) => SessionTransition::from_changed(self.start_annotation_draw(point)),
+            AnnotationCommand::StartMove { id, point } => SessionTransition::from_changed(self.start_annotation_move(id, point)),
+            AnnotationCommand::Select(id) => SessionTransition::from_changed(self.select_annotation(id)),
+            AnnotationCommand::DeleteIntent => {
+                if self.text_editing_id().is_some() {
+                    SessionTransition::from_changed(self.backspace_text_edit())
+                } else {
+                    SessionTransition::from_changed(self.delete_selected_annotation())
+                }
+            }
+            AnnotationCommand::Undo => SessionTransition::from_changed(self.undo_annotation()),
+            AnnotationCommand::Redo => SessionTransition::from_changed(self.redo_annotation()),
+            AnnotationCommand::CycleColor => SessionTransition::from_changed(self.cycle_annotation_color()),
+            AnnotationCommand::SetColor { color } => SessionTransition::from_changed(self.set_annotation_color(color)),
+            AnnotationCommand::ToggleFill => SessionTransition::from_changed(self.toggle_annotation_fill()),
+            AnnotationCommand::AdjustStroke { delta } => SessionTransition::from_changed(self.adjust_annotation_stroke(delta)),
+            AnnotationCommand::SetMosaicMode(mode) => SessionTransition::from_changed(self.set_annotation_mosaic_mode(mode)),
+            AnnotationCommand::AdjustMosaicIntensity { delta } => SessionTransition::from_changed(self.adjust_annotation_mosaic_intensity(delta)),
+            AnnotationCommand::AdjustByWheel { point, delta } => {
+                SessionTransition::from_changed(self.adjust_selected_annotation_by_wheel(point, delta))
+            }
+            AnnotationCommand::StartTextEdit => SessionTransition::from_changed(self.begin_text_edit_selected()),
+            AnnotationCommand::StartTextEditAtPoint(point) => {
+                let next = self
+                    .annotation_hit_test(point)
+                    .and_then(|id| matches!(self.annotation_kind_for(id), Some(AnnotationKind::Text { .. })).then_some(id));
+                if let Some(id) = next {
+                    self.select_annotation(Some(id));
+                    SessionTransition::from_changed(self.begin_text_edit_selected())
+                } else {
+                    SessionTransition::NoOp
+                }
+            }
+            AnnotationCommand::AppendText { text } => SessionTransition::from_changed(self.append_text_edit(&text)),
+            AnnotationCommand::InsertTextNewline => SessionTransition::from_changed(self.insert_newline_text_edit()),
+        }
+    }
+
+    fn apply_lifecycle(&mut self, command: LifecycleCommand) -> SessionTransition {
+        match command {
+            LifecycleCommand::StartSelection(point) => {
+                self.start_selection(point);
+                SessionTransition::Refresh
+            }
+            LifecycleCommand::StartMove(point) => {
+                self.start_move(point);
+                SessionTransition::Refresh
+            }
+            LifecycleCommand::StartResize { corner, point } => {
+                self.start_resize(corner, point);
+                SessionTransition::Refresh
+            }
+            LifecycleCommand::PointerMoved(point) => {
+                if self.queue_pointer(point) {
+                    SessionTransition::Effect(OverlayEffect::FlushPointer)
+                } else {
+                    SessionTransition::NoOp
+                }
+            }
+            LifecycleCommand::PointerReleased => {
+                self.finish_pointer_interaction();
+                SessionTransition::Refresh
+            }
+            LifecycleCommand::ClearSelection => {
+                self.clear();
+                SessionTransition::Refresh
+            }
+            LifecycleCommand::CloseIntent => {
+                if self.text_editing_id().is_some() {
+                    SessionTransition::from_changed(self.cancel_text_edit())
+                } else {
+                    SessionTransition::Effect(OverlayEffect::Close)
+                }
+            }
+        }
+    }
+
+    fn finish_pointer_interaction(&mut self) {
+        let _ = self.apply_pending_pointer();
+        if self.has_active_annotation_interaction() {
+            self.finish_annotation_interaction();
+        } else {
+            match self.mode() {
+                DragMode::Selecting => self.finish_selection(),
+                DragMode::Resizing(_) => self.finish_resize(),
+                DragMode::Idle => {}
+            }
+        }
+    }
+
+    fn capture_effect(&mut self, intent: CaptureIntent) -> Option<OverlayEffect> {
+        if matches!(intent, CaptureIntent::Scroll) {
+            let selection_rect = self.selection_rect()?;
+            if !selection_rect.has_area() {
+                return None;
+            }
+
+            let viewport_rect = RectF::new(0.0, 0.0, self.viewport.viewport_w, self.viewport.viewport_h);
+            return Some(OverlayEffect::StartLongCapture {
+                selection_rect,
+                viewport_rect,
+                geometry: self.captured_frame.as_ref()?.geometry().clone(),
+            });
+        }
+
+        let selection = minnow_imaging::ViewRect(self.viewport.selection?);
+        let annotations = match self.annotation.prepare_output_snapshot(Self::MIN_SELECTION_SIZE) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                return Some(OverlayEffect::Warning(minnow_application::OperationError::new(
+                    minnow_application::ErrorKind::InvalidInput,
+                    error.to_string(),
+                )));
+            }
+        };
+        Some(OverlayEffect::Capture {
+            intent,
+            selection,
+            annotations,
+        })
+    }
+}

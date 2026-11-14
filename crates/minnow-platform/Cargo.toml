@@ -1,0 +1,36 @@
+[package]
+name = "minnow-platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ab_glyph = { workspace = true }
+arboard = { workspace = true }
+auto-launch = { workspace = true }
+directories = { workspace = true }
+font-kit = { workspace = true }
+global-hotkey = { workspace = true }
+image = { workspace = true, features = ["png"] }
+minnow-application = { workspace = true }
+minnow-capture = { workspace = true }
+minnow-imaging = { workspace = true }
+oxipng = { workspace = true }
+raw-window-handle = { workspace = true }
+rodio = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+xcap = { workspace = true }
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+notify-rust = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+tauri-winrt-notification = { workspace = true }
+windows = { workspace = true }
+winreg = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.5"
+objc2-app-kit = { version = "0.3.2", features = ["NSView", "NSWindow"] }

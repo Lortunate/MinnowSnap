@@ -1,0 +1,101 @@
+name: Build and Package
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os_name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      NATIVE_OCR_CACHE: minnowsnap-native-ocr
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            os_name: Windows
+            python: python
+          - os: macos-latest
+            os_name: macOS
+            python: python3
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Install Metal Toolchain
+        if: runner.os == 'macOS'
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Build and Package
+        id: package
+        shell: bash
+        run: ${{ matrix.python }} scripts/bundle.py --profile release
+
+      - name: Verify Release Identity
+        shell: bash
+        env:
+          BUILD_MANIFEST: ${{ steps.package.outputs.build_manifest }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          ${{ matrix.python }} - <<'PY'
+          import json
+          import os
+          manifest = json.loads(os.environ["BUILD_MANIFEST"])
+          expected = {"profile": "release", "data_layout": "installed", "ocr": "full"}
+          mismatches = {key: manifest.get(key) for key, value in expected.items() if manifest.get(key) != value}
+          if mismatches:
+              raise SystemExit(f"Unexpected release variant: {mismatches}")
+          if manifest["source"]["dirty"]:
+              raise SystemExit("Release source tree was dirty during compilation")
+          if f"v{manifest['version']}" != os.environ["RELEASE_TAG"]:
+              raise SystemExit("Release tag does not match Cargo's resolved package version")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Cache Verified OCR Models
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+          key: native-ocr-v1-${{ runner.os }}-${{ hashFiles('crates/minnow-recognition/src/catalog.rs', 'crates/minnow-recognition/src/sources.rs') }}
+          restore-keys: |
+            native-ocr-v1-${{ runner.os }}-
+
+      - name: Accept Release Native OCR - Mobile
+        timeout-minutes: 12
+        env:
+          MINNOW_NATIVE_OCR_MODEL: Mobile
+          MINNOW_NATIVE_OCR_DOWNLOAD: "1"
+          MINNOW_NATIVE_OCR_CACHE_DIR: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+        run: cargo test --locked --release -p minnow-recognition --features local-ocr --test native_ocr -- --ignored --exact native_ocr_recognizes_committed_fixture --nocapture
+
+      - name: Accept Release Native OCR - Server
+        timeout-minutes: 12
+        env:
+          MINNOW_NATIVE_OCR_MODEL: Server
+          MINNOW_NATIVE_OCR_DOWNLOAD: "1"
+          MINNOW_NATIVE_OCR_CACHE_DIR: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+        run: cargo test --locked --release -p minnow-recognition --features local-ocr --test native_ocr -- --ignored --exact native_ocr_recognizes_committed_fixture --nocapture
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: MinnowSnap-${{ matrix.os_name }}
+          path: ${{ steps.package.outputs.artifact }}
+          if-no-files-found: error

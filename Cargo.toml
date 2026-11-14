@@ -1,0 +1,75 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/minnow-app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+
+[workspace.dependencies]
+minnow-imaging = { path = "crates/minnow-imaging" }
+minnow-application = { path = "crates/minnow-application" }
+minnow-capture = { path = "crates/minnow-capture" }
+minnow-editor = { path = "crates/minnow-editor" }
+minnow-settings = { path = "crates/minnow-settings" }
+minnow-recognition = { path = "crates/minnow-recognition", default-features = false }
+minnow-platform = { path = "crates/minnow-platform" }
+minnow-ui = { path = "crates/minnow-ui" }
+ab_glyph = "0.2.32"
+anyhow = "1.0.104"
+arboard = "3.7.0"
+auto-launch = "0.6.0"
+ctrlc = "3.5.2"
+dhat = "0.3.3"
+directories = "6.0.0"
+font-kit = "0.14.3"
+futures-util = "0.3.34"
+global-hotkey = { version = "0.10.0", features = ["tracing"] }
+# Keep the GPUI snapshot aligned with gpui-component's exact dependency.
+gpui = { package = "gpui-pre", version = "=0.3.12" }
+gpui-platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "wayland", "x11"] }
+gpui-component = "=0.9.1"
+gpui-kit-assets = "=0.9.1"
+ico = "0.6.0"
+image = { version = "0.25.10", default-features = false }
+imageproc = { version = "0.27.0", default-features = false }
+mimalloc = "0.1.52"
+ndarray = "0.17.2"
+notify-rust = "4.19.0"
+num-traits = "0.2.19"
+ort = "=2.0.0-rc.15"
+oxipng = { version = "10.2.1", default-features = false, features = ["parallel"] }
+raw-window-handle = "0.6.2"
+rayon = "1.12.0"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "stream"] }
+rodio = { version = "0.23.0", default-features = false, features = ["playback", "mp3"] }
+rqrr = "0.11.0"
+rust-embed = "8.14.0"
+rust-i18n = "4.2.4"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+single-instance = "0.3.3"
+sys-locale = "0.3.2"
+tauri-winrt-notification = "0.8.1"
+thiserror = "2.0.21"
+tempfile = "3.27.0"
+tokio = { version = "1.54.1", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "net", "sync"] }
+tokio-util = "0.7.20"
+toml = "1.2.1"
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi", "env-filter", "smallvec", "tracing-log"] }
+tray-icon = "0.26.1"
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+winreg = "0.56.0"
+winres = "0.1.12"
+xcap = { version = "0.9.10", default-features = false }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

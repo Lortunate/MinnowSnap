@@ -1,0 +1,129 @@
+name: Validation
+
+on:
+  push:
+    branches: ["master"]
+    tags-ignore: ["*"]
+  pull_request:
+    branches: ["master"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: ${{ matrix.os_name }} - Validation
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      NATIVE_OCR_CACHE: minnowsnap-native-ocr
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            os_name: Windows
+            python: python
+          - os: macos-latest
+            os_name: macOS
+            python: python3
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Select Native OCR Acceptance
+        id: native_changes
+        shell: bash
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_REVISION: ${{ github.sha }}
+        run: |
+          ${{ matrix.python }} - <<'PY'
+          import os
+          import subprocess
+          base = os.environ["BASE_REVISION"]
+          required = True
+          if base and set(base) != {"0"}:
+              try:
+                  paths = subprocess.check_output(
+                      ["git", "diff", "--name-only", "-z", base, os.environ["HEAD_REVISION"]], text=True
+                  ).split("\0")
+                  required = any(
+                      path in {"Cargo.toml", "Cargo.lock", "rust-toolchain", "rust-toolchain.toml",
+                               ".github/workflows/validate.yml", ".github/workflows/release.yml"}
+                      or path.endswith("/Cargo.toml")
+                      or path.startswith((".cargo/", "crates/minnow-recognition/",
+                                          "crates/minnow-imaging/", "crates/minnow-application/"))
+                      for path in paths
+                  )
+              except subprocess.CalledProcessError:
+                  pass  # Unknown comparison must run acceptance, never skip it.
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"required={str(required).lower()}\n")
+          PY
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Install Metal Toolchain
+        if: runner.os == 'macOS'
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Validate Packaging Contracts
+        run: ${{ matrix.python }} -m unittest discover -s scripts -p "test_*.py"
+
+      - name: Run Format Check
+        run: cargo fmt --all --check
+
+      - name: Run Check
+        run: cargo check --locked --workspace --all-targets
+
+      - name: Run Clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --locked --workspace --all-features
+
+      - name: Check Base Application
+        run: cargo check --locked -p minnow-app --all-targets --no-default-features
+
+      - name: Test Base Recognition
+        run: cargo test --locked -p minnow-recognition --no-default-features
+
+      - name: Cache Verified OCR Models
+        if: steps.native_changes.outputs.required == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+          key: native-ocr-v1-${{ runner.os }}-${{ hashFiles('crates/minnow-recognition/src/catalog.rs', 'crates/minnow-recognition/src/sources.rs') }}
+          restore-keys: |
+            native-ocr-v1-${{ runner.os }}-
+
+      - name: Accept Native OCR - Mobile
+        if: steps.native_changes.outputs.required == 'true'
+        timeout-minutes: 12
+        env:
+          MINNOW_NATIVE_OCR_MODEL: Mobile
+          MINNOW_NATIVE_OCR_DOWNLOAD: "1"
+          MINNOW_NATIVE_OCR_CACHE_DIR: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+        run: cargo test --locked -p minnow-recognition --features local-ocr --test native_ocr -- --ignored --exact native_ocr_recognizes_committed_fixture --nocapture
+
+      - name: Accept Native OCR - Server
+        if: steps.native_changes.outputs.required == 'true'
+        timeout-minutes: 12
+        env:
+          MINNOW_NATIVE_OCR_MODEL: Server
+          MINNOW_NATIVE_OCR_DOWNLOAD: "1"
+          MINNOW_NATIVE_OCR_CACHE_DIR: ${{ runner.temp }}/${{ env.NATIVE_OCR_CACHE }}
+        run: cargo test --locked -p minnow-recognition --features local-ocr --test native_ocr -- --ignored --exact native_ocr_recognizes_committed_fixture --nocapture

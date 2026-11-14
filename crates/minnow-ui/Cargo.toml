@@ -1,0 +1,25 @@
+[package]
+name = "minnow-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+overlay-diagnostics = []
+
+[dependencies]
+minnow-application.workspace = true
+minnow-editor.workspace = true
+minnow-imaging.workspace = true
+ab_glyph = { workspace = true }
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+gpui-kit-assets = { workspace = true }
+image = { workspace = true }
+rust-embed = { workspace = true }
+rust-i18n = { workspace = true }
+serde = { workspace = true }
+sys-locale = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

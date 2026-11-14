@@ -1,0 +1,16 @@
+[package]
+name = "minnow-application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+minnow-imaging = { workspace = true }
+minnow-capture = { workspace = true }
+minnow-settings.workspace = true
+minnow-editor.workspace = true
+futures-util = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }

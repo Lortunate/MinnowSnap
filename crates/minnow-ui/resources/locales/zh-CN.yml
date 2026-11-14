@@ -1,0 +1,242 @@
+app:
+  name: "MinnowSnap"
+  capture_name: "屏幕截图"
+
+common:
+  actions:
+    close: "关闭"
+    cancel: "取消"
+    copy: "复制"
+    save: "保存"
+    pin: "贴图"
+    ocr: "OCR"
+    scan_qr: "识别二维码"
+    scroll: "长截图"
+  states:
+    enabled: "已开启"
+    disabled: "已关闭"
+
+overlay:
+  status:
+    preview_reduced: "预览已缩小以适应显示，导出保留原始分辨率。"
+    image_changed: "操作完成前图片已改变，请重试。"
+    preparing_surface: "正在准备截图画布..."
+    ready_to_select: "拖动以选择区域"
+    selecting_area: "正在选择区域"
+    selection_size: "正在选择区域：%{width} x %{height}"
+    selection_locked: "选区已锁定：%{width} x %{height}"
+    moving_selection: "正在移动选区"
+    resizing_selection: "正在调整选区大小"
+    missing_surface: "截图画布不可用"
+    missing_selection: "当前没有可用选区"
+    copied_selection: "选区已复制"
+    saved_selection: "选区已保存"
+    pin_ready: "贴图内容已准备：%{path}（auto_ocr=%{auto_ocr}）"
+    qr_ready: "二维码内容已就绪：%{content}"
+    action_unavailable: "当前操作不可用"
+    qr_copy_failed: "复制二维码内容失败"
+  picker:
+    value_and_format: "%{value} · %{format}"
+    coordinates: "X：%{x}  Y：%{y}"
+    shortcuts: "%{copy_key}：复制  %{cycle_key}：切换格式"
+  annotation:
+    font_unavailable: "字体加载失败，文字和序号工具暂不可用。"
+    font_failed: "文字和序号工具暂不可用：%{message}"
+    tool:
+      arrow: "箭头"
+      rectangle: "矩形"
+      circle: "圆形"
+      counter: "序号"
+      text: "文本"
+      mosaic: "马赛克"
+    actions:
+      undo: "撤销"
+      redo: "重做"
+      cycle_color: "切换颜色"
+      set_color: "设置颜色"
+      custom_color: "自定义颜色"
+      toggle_fill: "切换填充"
+      stroke_up: "增大尺寸"
+      stroke_down: "减小尺寸"
+      edit_text: "编辑文本"
+      mosaic_mode_pixelate: "像素化"
+      mosaic_mode_blur: "模糊"
+      mosaic_intensity_up: "增强强度"
+      mosaic_intensity_down: "减弱强度"
+  notify:
+    qr_not_found: "未检测到二维码"
+  long_capture:
+    output_continues: "关闭窗口后，已提交的保存或复制仍会继续。"
+    processing: "正在处理长截图..."
+    scroll_hint: "滚动以捕获"
+    empty: "尚未生成长截图结果"
+    complete: "采集完成"
+    partial: "采集已停止，可使用已采集的部分。"
+    partial_selected: "正在使用已采集部分"
+    use_partial: "使用已采集部分"
+    failed: "采集失败，没有可用的图片。"
+    export_failed: "输出失败，可重试：%{message}"
+    stopped_reason: "采集已停止：%{message}"
+
+notify:
+  capture:
+    copied_image: "图片已复制到剪贴板"
+    saved_image: "图片已保存到：%{path}"
+    copied_qr: "二维码内容已复制到剪贴板"
+    copied_text: "文本已复制到剪贴板"
+    quick_capture_copied: "快速截图已复制到剪贴板"
+    quick_capture_failed: "快速截图失败"
+    pin_reissued: "已重新发起贴图请求（auto_ocr=%{auto_ocr}）"
+
+capture:
+  errors:
+    copy_failed: "准备复制图片失败"
+    pin_failed: "准备贴图图片失败"
+
+preferences:
+  window:
+    title: "设置"
+    subtitle: "配置截图、OCR、快捷键和通知"
+  pages:
+    general:
+      title: "通用"
+      description: "外观、语言、启动行为与保存偏好。"
+    shortcuts:
+      title: "快捷键"
+      description: "全局截图快捷键与冲突处理。"
+    notifications:
+      title: "通知"
+      description: "系统通知与截图反馈。"
+    ocr:
+      title: "OCR"
+      description: "本地 OCR 状态与模型配置。"
+    about:
+      title: "关于"
+      description: "版本信息、项目链接与诊断入口。"
+  fields:
+    auto_start: "开机自启动"
+    auto_start_description: "登录系统后自动启动应用。"
+    startup_shortcuts_status: "启动与快捷键状态"
+    startup_shortcuts_status_description: "刷新开机自启动和快捷键的当前可用状态。"
+    language: "语言"
+    language_description: "选择应用显示语言。"
+    theme: "主题"
+    theme_description: "选择应用外观。"
+    font_family: "应用字体"
+    font_family_description: "选择原生窗口使用的字体。"
+    ocr: "OCR"
+    ocr_enabled_description: "文字识别可用时，在截图流程中使用 OCR。"
+    ocr_model: "OCR 模型"
+    ocr_model_type: "模型类型"
+    ocr_model_type_mobile: "Mobile"
+    notifications: "通知"
+    notifications_enabled: "启用通知"
+    notifications_enabled_description: "为截图相关操作显示系统通知。"
+    save_notification: "保存通知"
+    save_notification_description: "图片保存后显示通知。"
+    copy_notification: "复制通知"
+    copy_notification_description: "内容复制后显示通知。"
+    qr_code_notification: "二维码通知"
+    qr_code_notification_description: "识别到二维码后显示通知。"
+    shutter_sound: "快门音"
+    shutter_sound_description: "截图时播放音效。"
+    save_path: "保存路径"
+    save_directory: "保存目录"
+    image_compression: "图像压缩"
+    image_compression_description: "使用 Oxipng 优化已保存图片。关闭后保存更快，但文件体积更大。"
+    capture_shortcut: "截图快捷键"
+    quick_capture_shortcut: "快速截图快捷键"
+    capture_shortcut_description: "用于选择区域或窗口进行截图。"
+    quick_capture_shortcut_description: "立即截取当前可见的整个屏幕区域。"
+    default_path: "系统默认"
+    default_path_with_value: "系统默认（%{path}）"
+    default_path_not_displayable: "系统默认（无法显示此目录路径）"
+    default_path_unavailable: "系统默认目录不可用：%{message}"
+  description:
+    intro: "管理原生应用行为与截图默认设置。"
+  actions:
+    select_save_directory: "选择保存目录"
+    browse: "浏览"
+    open: "打开"
+    refresh_status: "刷新"
+    shortcuts_recording: "请按下组合键"
+    shortcuts_recording_hint: "点击某个快捷键后，按下下一组组合键。"
+    shortcuts_restore_defaults: "恢复默认"
+    shortcuts_retry: "重试应用请求的快捷键"
+    shortcuts_restore_defaults_description: "将截图快捷键重置为 F1 和 F2。"
+    ocr_download: "下载模型"
+    ocr_redownload: "重新下载模型"
+    ocr_download_in_progress: "下载中..."
+  options:
+    follow_system: "跟随系统"
+    light: "浅色"
+    dark: "深色"
+    zh_cn: "简体中文"
+    en_us: "English (US)"
+  about:
+    summary: "一款使用 Rust 构建的简洁而强大的截图工具。"
+    version: "版本"
+    github_repository: "GitHub 仓库"
+    github_repository_description: "在默认浏览器中打开项目主页。"
+    report_issue: "反馈问题"
+    report_issue_description: "打开 Issue 页面反馈缺陷或提出功能建议。"
+    open_log_folder: "打开日志目录"
+  shortcuts:
+    title: "全局快捷键"
+    conflict: "截图与快速截图快捷键不能相同。"
+    effective: "当前生效：%{value}。"
+    not_registered: "未注册"
+    pending_activation: "你请求的快捷键尚未完整应用。按钮显示请求值，各行说明显示当前生效值。可以重试应用，或选择其他按键。"
+    retry_succeeded: "你请求的快捷键现已生效。"
+  ocr:
+    status_missing: "模型尚未下载"
+    status_downloading: "下载中 %{progress}%"
+    status_ready: "模型可用"
+    status_failed: "最近一次下载失败：%{message}"
+    model_and_download: "%{model}；%{download}"
+    runtime_available: "当前版本支持 OCR。开启 OCR 后可使用文字识别。"
+    runtime_unavailable: "当前版本无法使用 OCR：%{reason}。已保留你的 OCR 开关设置；下载和识别暂不可用。"
+    note: "OCR 完全在本机运行。当前默认使用 Mobile 模型以兼顾性能与体积。"
+    download_completed: "OCR 模型下载完成。"
+    download_failed: "OCR 模型下载失败"
+  errors:
+    folder_picker_failed: "打开文件夹选择器失败"
+    save_directory_non_utf8: "无法在保持原名称的情况下保存此目录路径。请选择其他目录。"
+    save_directory_contains_nul: "此目录路径包含无效的 NUL 字符。请选择其他目录。"
+  status:
+    temporary: "本次修改仅在当前运行期间保留，退出应用后会丢失。"
+    saving: "正在保存设置..."
+    load_failed: "无法读取已保存的设置。本次修改仅在当前运行期间保留，退出应用后会丢失。开机自启动和快捷键设置未被改动。详情：%{message}"
+    save_failed: "设置未能保存，本次修改仅在当前运行期间保留。详情：%{message}"
+    auto_start_update_failed: "开机自启动未能更改，请检查系统设置后重试。详情：%{message}"
+    shortcuts_update_failed: "部分快捷键不可用。详情：%{message}"
+    shortcut_cleanup_failed: "部分快捷键未能释放，请重启应用后重试。详情：%{message}"
+    shortcuts_unavailable: "以下快捷键暂时不可用，且仍占用这些组合键：%{keys}。请重启应用后重试。"
+    shortcuts_restart_required: "暂时无法确认以下快捷键是否可用：%{keys}。请重启应用后重试。"
+
+output:
+  processing: "正在处理..."
+  retry: "重试"
+  busy: "其他操作仍在处理中，请稍后重试。"
+  failed: "操作未完成：%{message}"
+
+pin:
+  ocr:
+    processing: "正在识别文字..."
+    failed: "文字识别失败：%{message}"
+    retry: "重试"
+    previous_result: "上次识别的文字仍可使用。"
+  badge:
+    auto_ocr: "自动 OCR"
+    pinned_image: "贴图图片"
+  hint:
+    shortcuts: "Ctrl+C 复制，Ctrl+S 保存，Esc 关闭"
+  menu:
+    close_all: "关闭全部"
+
+tray:
+  actions:
+    capture_overlay: "截图遮罩"
+    quick_capture: "快速截图"
+    preferences: "设置"
+    exit: "退出"

@@ -1,0 +1,62 @@
+[package]
+name = "minnow-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors = ["Lortuante"]
+
+[[bin]]
+name = "MinnowSnap"
+path = "src/main.rs"
+
+[features]
+default = ["local-ocr"]
+local-ocr = ["minnow-recognition/local-ocr"]
+dhat-heap = ["dep:dhat"]
+overlay-diagnostics = ["minnow-ui/overlay-diagnostics"]
+portable = []
+
+[dependencies]
+ab_glyph = { workspace = true }
+anyhow = { workspace = true }
+ctrlc = { workspace = true, features = ["termination"] }
+dhat = { workspace = true, optional = true }
+global-hotkey = { workspace = true }
+gpui = { workspace = true }
+gpui-platform = { workspace = true }
+gpui-component = { workspace = true }
+image = { workspace = true, features = ["png", "jpeg"] }
+mimalloc = { workspace = true }
+minnow-application = { workspace = true }
+minnow-platform = { workspace = true }
+minnow-recognition = { workspace = true }
+minnow-settings = { workspace = true }
+minnow-ui = { workspace = true }
+raw-window-handle = { workspace = true }
+single-instance = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+tray-icon = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+thiserror = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+ico = { workspace = true }
+image = { workspace = true, features = ["png"] }
+winres = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[package.metadata.bundle]
+identifier = "com.lortunate.minnowsnap"
+icon = ["resources/logo.png"]
+osx_info_plist_exts = ["resources/Info.plist.extra"]
+
+[package.metadata.cargo-machete]
+ignored = ["anyhow", "ico", "image", "winres"]

@@ -1,0 +1,1502 @@
+use image::RgbaImage;
+use std::mem::size_of;
+
+use crate::CaptureError;
+
+pub(crate) const MAX_PREVIEW_PIXELS: u64 = 1024 * 1024;
+const MAX_PREVIEW_EDGE: u32 = 4096;
+const DEFAULT_MAX_OUTPUT_PIXELS: u64 = 64 * 1024 * 1024;
+const DEFAULT_MAX_WORKING_BYTES: u64 = 512 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StitchFrameStatus {
+    Appended,
+    Stationary,
+    LowConfidence,
+    Reverse,
+}
+
+#[derive(Debug, Clone)]
+pub struct StitchFrameResult {
+    pub status: StitchFrameStatus,
+    pub height: i32,
+    pub warning: Option<String>,
+}
+
+/// Stitching policy, validated before frame admission.
+///
+/// Integer pixel sizes and sample counts must be positive and fit `i32`.
+/// Blocks require at least 8 pixels, strips at least 3, patches at least 4 rows,
+/// and the seam divisor at least 2.
+/// Search radius may be zero. Intensity thresholds use `0..=255`, correlation
+/// thresholds `-1..=1`, and confidence gaps `0..=2`; all must be finite.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StitchConfig {
+    pub min_overlap: u32,
+    pub min_scroll_threshold: u32,
+    pub dynamic_block_size: usize,
+    pub dynamic_threshold: f32,
+    pub min_stable_blocks: usize,
+    pub zncc_strip_count: usize,
+    pub zncc_patch_height: usize,
+    pub zncc_search_radius: i32,
+    pub low_confidence_threshold: f32,
+    pub low_confidence_gap: f32,
+    pub seam_margin_divisor: u32,
+}
+
+impl Default for StitchConfig {
+    fn default() -> Self {
+        Self {
+            min_overlap: 24,
+            min_scroll_threshold: 4,
+            dynamic_block_size: 16,
+            dynamic_threshold: 12.0,
+            min_stable_blocks: 6,
+            zncc_strip_count: 6,
+            zncc_patch_height: 8,
+            zncc_search_radius: 8,
+            low_confidence_threshold: 0.52,
+            low_confidence_gap: 0.06,
+            seam_margin_divisor: 5,
+        }
+    }
+}
+
+impl StitchConfig {
+    pub(crate) fn validate(self) -> Result<(), CaptureError> {
+        for (valid, field) in [
+            ((1..=i32::MAX as u32).contains(&self.min_overlap), "min_overlap"),
+            ((1..=i32::MAX as u32).contains(&self.min_scroll_threshold), "min_scroll_threshold"),
+            ((8..=i32::MAX as usize).contains(&self.dynamic_block_size), "dynamic_block_size"),
+            ((0.0..=255.0).contains(&self.dynamic_threshold), "dynamic_threshold"),
+            ((1..=i32::MAX as usize).contains(&self.min_stable_blocks), "min_stable_blocks"),
+            ((3..=i32::MAX as usize).contains(&self.zncc_strip_count), "zncc_strip_count"),
+            ((4..=i32::MAX as usize).contains(&self.zncc_patch_height), "zncc_patch_height"),
+            (self.zncc_search_radius >= 0, "zncc_search_radius"),
+            ((-1.0..=1.0).contains(&self.low_confidence_threshold), "low_confidence_threshold"),
+            ((0.0..=2.0).contains(&self.low_confidence_gap), "low_confidence_gap"),
+            (self.seam_margin_divisor >= 2, "seam_margin_divisor"),
+        ] {
+            if !valid {
+                return Err(CaptureError::InvalidStitchConfig { field });
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct FrameAnalysis {
+    width: usize,
+    height: usize,
+    gray: Vec<f32>,
+    edge: Vec<f32>,
+}
+
+impl FrameAnalysis {
+    fn from_image(image: &RgbaImage) -> Result<Self, CaptureError> {
+        let width = image.width() as usize;
+        let height = image.height() as usize;
+        let gray = ScrollStitcher::grayscale(image)?;
+        let edge = ScrollStitcher::edge_energy(&gray, width, height)?;
+        Ok(Self { width, height, gray, edge })
+    }
+
+    fn allocated_bytes(&self) -> u64 {
+        (self.gray.capacity() as u64)
+            .saturating_add(self.edge.capacity() as u64)
+            .saturating_mul(4)
+    }
+}
+
+#[derive(Default)]
+struct StitchScratch {
+    stable_blocks: Vec<usize>,
+    signature_prev: Vec<f32>,
+    signature_next: Vec<f32>,
+    coarse_prev: Vec<f32>,
+    coarse_next: Vec<f32>,
+    medium_prev: Vec<f32>,
+    medium_next: Vec<f32>,
+    strip_scores: Vec<f32>,
+}
+
+impl StitchScratch {
+    fn capacities(width: u32, height: u32, config: StitchConfig) -> [usize; 8] {
+        let height = height as usize;
+        [
+            (width as usize / config.dynamic_block_size.max(8)).max(1),
+            height,
+            height,
+            height.div_ceil(4),
+            height.div_ceil(4),
+            height.div_ceil(2),
+            height.div_ceil(2),
+            config.zncc_strip_count.max(3),
+        ]
+    }
+
+    fn allocated_bytes(&self) -> u64 {
+        self.stable_blocks.capacity() as u64 * size_of::<usize>() as u64
+            + [
+                self.signature_prev.capacity(),
+                self.signature_next.capacity(),
+                self.coarse_prev.capacity(),
+                self.coarse_next.capacity(),
+                self.medium_prev.capacity(),
+                self.medium_next.capacity(),
+                self.strip_scores.capacity(),
+            ]
+            .into_iter()
+            .map(|capacity| capacity as u64 * 4)
+            .sum::<u64>()
+    }
+
+    fn prepare(&mut self, capacities: [usize; 8]) -> Result<(), CaptureError> {
+        reserve(&mut self.stable_blocks, capacities[0])?;
+        for (buffer, capacity) in [
+            &mut self.signature_prev,
+            &mut self.signature_next,
+            &mut self.coarse_prev,
+            &mut self.coarse_next,
+            &mut self.medium_prev,
+            &mut self.medium_next,
+            &mut self.strip_scores,
+        ]
+        .into_iter()
+        .zip(capacities.into_iter().skip(1))
+        {
+            reserve(buffer, capacity)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StitchRegion {
+    width: usize,
+    height: usize,
+    fixed_top: usize,
+    fixed_bottom: usize,
+}
+
+impl StitchRegion {
+    fn valid_height(self) -> usize {
+        self.height.saturating_sub(self.fixed_top + self.fixed_bottom)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct FramePairRef<'a> {
+    prev: &'a [f32],
+    next: &'a [f32],
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StitchAppendPlan {
+    trim_amount: u32,
+    append_start_y: u32,
+    append_end_y: u32,
+    fixed_bottom: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ZNCCPatch {
+    x0: usize,
+    x1: usize,
+    y0_prev: usize,
+    y0_next: usize,
+    patch_h: usize,
+}
+
+#[derive(Default)]
+struct ThumbnailCache {
+    target_width: u32,
+    source_width: u32,
+    source_height: u32,
+    dirty_from: u32,
+    image: Option<RgbaImage>,
+}
+
+impl ThumbnailCache {
+    fn reset(&mut self) {
+        self.target_width = 0;
+        self.source_width = 0;
+        self.source_height = 0;
+        self.dirty_from = 0;
+        self.image = None;
+    }
+
+    fn mark_dirty_from(&mut self, source_row: u32) {
+        if self.image.is_none() {
+            return;
+        }
+        self.dirty_from = self.dirty_from.min(source_row);
+    }
+}
+
+pub struct ScrollStitcher {
+    canvas: Option<RgbaImage>,
+    valid_height: u32,
+    // Matching stays anchored to the frame represented by the canvas tail.
+    // Rejected observations must not advance this anchor.
+    accepted_analysis: Option<FrameAnalysis>,
+    config: StitchConfig,
+    scratch: StitchScratch,
+    thumbnail: ThumbnailCache,
+    max_output_pixels: u64,
+    max_working_bytes: u64,
+}
+
+impl Default for ScrollStitcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScrollStitcher {
+    pub fn new() -> Self {
+        Self::with_config(StitchConfig::default())
+    }
+
+    /// Creates a stitcher whose configuration is checked on frame admission.
+    /// Invalid values return `CaptureError::InvalidStitchConfig` from processing.
+    pub fn with_config(config: StitchConfig) -> Self {
+        Self::with_limits(config, DEFAULT_MAX_OUTPUT_PIXELS, DEFAULT_MAX_WORKING_BYTES)
+    }
+
+    pub(crate) fn with_limits(config: StitchConfig, max_output_pixels: u64, max_working_bytes: u64) -> Self {
+        Self {
+            canvas: None,
+            valid_height: 0,
+            accepted_analysis: None,
+            config,
+            scratch: StitchScratch::default(),
+            thumbnail: ThumbnailCache::default(),
+            max_output_pixels,
+            max_working_bytes,
+        }
+    }
+
+    pub fn current_image(&self) -> Option<(&RgbaImage, u32)> {
+        self.canvas.as_ref().map(|img| (img, self.valid_height))
+    }
+
+    pub fn get_final_image(&self) -> Option<RgbaImage> {
+        let (canvas, h) = self.current_image()?;
+        if h == 0 || canvas.width() == 0 {
+            return None;
+        }
+        let mut final_img = RgbaImage::new(canvas.width(), h);
+        Self::copy_region(canvas, 0, &mut final_img, 0, h);
+        Some(final_img)
+    }
+
+    /// Transfers the canvas without allocating a second full output image.
+    pub fn into_final_image(mut self) -> Option<RgbaImage> {
+        let canvas = self.canvas.take()?;
+        let width = canvas.width();
+        if width == 0 || self.valid_height == 0 {
+            return None;
+        }
+        let mut pixels = canvas.into_raw();
+        pixels.truncate(width as usize * self.valid_height as usize * 4);
+        RgbaImage::from_raw(width, self.valid_height, pixels)
+    }
+
+    /// Checks the peak before cropping or analyzing the incoming frame.
+    ///
+    /// `retained_bytes` includes the caller's source frame and preview slots.
+    /// `input_bytes` is the actual allocation of the owned RGBA observation.
+    /// A growing canvas must fit beside the old canvas until copying completes.
+    pub(crate) fn admit_frame(&self, width: u32, height: u32, input_bytes: u64, retained_bytes: u64) -> Result<u64, CaptureError> {
+        self.config.validate()?;
+        let pixels = u64::from(width) * u64::from(height);
+        if pixels == 0 || pixels > self.max_output_pixels || width > i32::MAX as u32 || height > i32::MAX as u32 {
+            return Err(CaptureError::CapacityExceeded {
+                max_pixels: self.max_output_pixels,
+            });
+        }
+        let capacities = StitchScratch::capacities(width, height, self.config);
+        let scratch_next = capacities[1..]
+            .iter()
+            .map(|capacity| (*capacity as u64).saturating_mul(4))
+            .fold((capacities[0] as u64).saturating_mul(size_of::<usize>() as u64), u64::saturating_add);
+        let required_bytes = [
+            retained_bytes,
+            input_bytes,              // actual owned RGBA allocation, including spare capacity
+            pixels.saturating_mul(8), // next gray/edge analysis uses logical pixels
+            self.accepted_analysis.as_ref().map_or(0, FrameAnalysis::allocated_bytes),
+            self.scratch.allocated_bytes(),
+            scratch_next,
+            self.canvas.as_ref().map_or(0, |canvas| canvas.as_raw().capacity() as u64),
+            self.thumbnail.image.as_ref().map_or(0, |image| image.as_raw().capacity() as u64),
+        ]
+        .into_iter()
+        .fold(0u64, u64::saturating_add);
+        if required_bytes > self.max_working_bytes {
+            return Err(CaptureError::WorkingSetExceeded {
+                max_bytes: self.max_working_bytes,
+                required_bytes,
+            });
+        }
+        Ok(self.max_working_bytes - required_bytes)
+    }
+
+    pub fn make_thumbnail(&mut self, target_width: u32) -> Option<RgbaImage> {
+        let canvas = self.canvas.as_ref()?;
+        let valid_h = self.valid_height;
+        let source_width = canvas.width();
+        if target_width == 0 || valid_h == 0 || source_width == 0 {
+            return None;
+        }
+
+        let (target_width, target_height) = preview_dimensions(source_width, valid_h, target_width);
+        let scale = target_width as f32 / source_width as f32;
+
+        let requires_full_render = self.thumbnail.image.is_none()
+            || self.thumbnail.target_width != target_width
+            || self.thumbnail.source_width != source_width
+            || valid_h < self.thumbnail.source_height
+            || u64::from(valid_h) * u64::from(target_width) / u64::from(source_width) != u64::from(target_height);
+
+        if requires_full_render {
+            let cropped = image::imageops::crop_imm(canvas, 0, 0, source_width, valid_h);
+            self.thumbnail.image = Some(image::imageops::thumbnail(&*cropped, target_width, target_height));
+            self.thumbnail.target_width = target_width;
+            self.thumbnail.source_width = source_width;
+            self.thumbnail.source_height = valid_h;
+            self.thumbnail.dirty_from = valid_h;
+            return self.thumbnail.image.clone();
+        }
+
+        let dirty_from = self.thumbnail.dirty_from.min(valid_h);
+        if dirty_from >= valid_h && self.thumbnail.source_height == valid_h {
+            return self.thumbnail.image.clone();
+        }
+
+        let previous_thumbnail = self.thumbnail.image.as_ref()?;
+        let mut next_thumbnail = if previous_thumbnail.height() == target_height {
+            previous_thumbnail.clone()
+        } else {
+            let mut resized = RgbaImage::new(target_width, target_height);
+            let preserved_rows = ((dirty_from as f32) * scale).floor() as u32;
+            let copy_rows = preserved_rows.min(previous_thumbnail.height()).min(target_height);
+            if copy_rows > 0 {
+                Self::copy_region(previous_thumbnail, 0, &mut resized, 0, copy_rows);
+            }
+            resized
+        };
+
+        let source_start = if valid_h > self.thumbnail.source_height {
+            dirty_from.saturating_sub(1)
+        } else {
+            dirty_from
+        };
+        let target_start = ((source_start as f32) * scale).floor() as u32;
+        let source_h = valid_h.saturating_sub(source_start);
+        let target_h = target_height.saturating_sub(target_start);
+
+        if source_h > 0 && target_h > 0 {
+            let strip = image::imageops::crop_imm(canvas, 0, source_start, source_width, source_h);
+            let resized_strip = image::imageops::thumbnail(&*strip, target_width, target_h);
+            Self::copy_region(&resized_strip, 0, &mut next_thumbnail, target_start, target_h);
+        }
+
+        self.thumbnail.image = Some(next_thumbnail);
+        self.thumbnail.target_width = target_width;
+        self.thumbnail.source_width = source_width;
+        self.thumbnail.source_height = valid_h;
+        self.thumbnail.dirty_from = valid_h;
+        self.thumbnail.image.clone()
+    }
+
+    /// Processes an owned observation, retaining the last committed canvas on
+    /// resource errors. Unreliable overlap is reported in the successful result.
+    pub fn process_frame_detailed(&mut self, new_image: RgbaImage) -> Result<StitchFrameResult, CaptureError> {
+        self.try_process_frame_detailed(new_image, 0)
+    }
+
+    pub(crate) fn try_process_frame_detailed(&mut self, new_image: RgbaImage, retained_bytes: u64) -> Result<StitchFrameResult, CaptureError> {
+        let allocation_bytes = self.admit_frame(
+            new_image.width(),
+            new_image.height(),
+            new_image.as_raw().capacity() as u64,
+            retained_bytes,
+        )?;
+        if self.canvas.is_none() {
+            self.initialize_canvas(new_image)?;
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::Appended,
+                height: self.valid_height as i32,
+                warning: None,
+            });
+        }
+
+        if self.accepted_analysis.is_none() {
+            self.initialize_canvas(new_image)?;
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::Appended,
+                height: self.valid_height as i32,
+                warning: None,
+            });
+        }
+
+        self.scratch
+            .prepare(StitchScratch::capacities(new_image.width(), new_image.height(), self.config))?;
+        let next_analysis = FrameAnalysis::from_image(&new_image)?;
+        let prev_analysis = self.accepted_analysis.as_ref().expect("accepted frame analysis exists");
+        if prev_analysis.width != next_analysis.width || prev_analysis.height != next_analysis.height {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Frame geometry changed while scrolling".to_string()),
+            });
+        }
+
+        let width = prev_analysis.width;
+        let height = prev_analysis.height;
+        let (fixed_top, fixed_bottom) = self.detect_sticky_regions(&prev_analysis.gray, &next_analysis.gray, width, height);
+        let region = StitchRegion {
+            width,
+            height,
+            fixed_top: fixed_top as usize,
+            fixed_bottom: fixed_bottom as usize,
+        };
+        let valid_h = (height as u32).saturating_sub(fixed_top + fixed_bottom);
+        if valid_h < self.config.min_overlap || (valid_h as usize) < self.config.zncc_patch_height {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Insufficient scrollable content for overlap and ZNCC patch".to_string()),
+            });
+        }
+
+        let gray_pair = FramePairRef {
+            prev: &prev_analysis.gray,
+            next: &next_analysis.gray,
+        };
+        Self::detect_stable_blocks(self.config, gray_pair, region, &mut self.scratch.stable_blocks);
+
+        if self.scratch.stable_blocks.len() < self.config.min_stable_blocks {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Dynamic content dominates viewport; wait for a stable frame".to_string()),
+            });
+        }
+
+        Self::row_signature(
+            self.config,
+            &prev_analysis.edge,
+            region,
+            &self.scratch.stable_blocks,
+            &mut self.scratch.signature_prev,
+        );
+        Self::row_signature(
+            self.config,
+            &next_analysis.edge,
+            region,
+            &self.scratch.stable_blocks,
+            &mut self.scratch.signature_next,
+        );
+
+        let coarse_shift = Self::multiscale_row_shift(
+            &self.scratch.signature_prev,
+            &self.scratch.signature_next,
+            self.config.min_overlap as usize,
+            &mut self.scratch.coarse_prev,
+            &mut self.scratch.coarse_next,
+            &mut self.scratch.medium_prev,
+            &mut self.scratch.medium_next,
+        )
+        .unwrap_or(0);
+
+        let refine = Self::refine_shift_zncc(
+            self.config,
+            gray_pair,
+            region,
+            coarse_shift,
+            &self.scratch.stable_blocks,
+            &mut self.scratch.strip_scores,
+        );
+
+        let Some((delta, best_score, second_score)) = refine else {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Unable to estimate reliable overlap".to_string()),
+            });
+        };
+
+        if delta < 0 {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::Reverse,
+                height: self.valid_height as i32,
+                warning: Some("Detected reverse scrolling; capture paused".to_string()),
+            });
+        }
+
+        let delta = delta as u32;
+        if delta < self.config.min_scroll_threshold {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::Stationary,
+                height: self.valid_height as i32,
+                warning: None,
+            });
+        }
+
+        let confidence_gap = best_score - second_score;
+        if best_score < self.config.low_confidence_threshold || confidence_gap < self.config.low_confidence_gap {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Low confidence overlap match; keep scrolling smoothly".to_string()),
+            });
+        }
+
+        let valid_h_usize = valid_h as usize;
+        let delta_usize = delta as usize;
+        if delta_usize >= valid_h_usize {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Overlap collapsed due to unstable motion".to_string()),
+            });
+        }
+
+        let overlap_valid = valid_h_usize.saturating_sub(delta_usize);
+        if overlap_valid < self.config.min_overlap as usize {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Overlap too small; scroll slower".to_string()),
+            });
+        }
+
+        let cut_valid = self.find_smart_seam(gray_pair, region, overlap_valid, &self.scratch.stable_blocks);
+
+        let trim_prev = overlap_valid.saturating_sub(cut_valid);
+        let append_start = fixed_top as usize + cut_valid;
+        let append_end = new_image.height() as usize;
+
+        if append_end <= append_start {
+            return Ok(StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("No appendable content after sticky region filtering".to_string()),
+            });
+        }
+
+        let plan = StitchAppendPlan {
+            trim_amount: trim_prev as u32,
+            append_start_y: append_start as u32,
+            append_end_y: append_end as u32,
+            fixed_bottom,
+        };
+
+        let appended = self.execute_stitch(&new_image, plan, allocation_bytes)?;
+        Ok(if appended {
+            self.accepted_analysis = Some(next_analysis);
+            StitchFrameResult {
+                status: StitchFrameStatus::Appended,
+                height: self.valid_height as i32,
+                warning: None,
+            }
+        } else {
+            StitchFrameResult {
+                status: StitchFrameStatus::LowConfidence,
+                height: self.valid_height as i32,
+                warning: Some("Failed to append frame into scroll canvas".to_string()),
+            }
+        })
+    }
+
+    fn initialize_canvas(&mut self, first_image: RgbaImage) -> Result<(), CaptureError> {
+        let h = first_image.height();
+        let analysis = FrameAnalysis::from_image(&first_image)?;
+        // The admitted input becomes the first canvas; no triple-height copy.
+        self.canvas = Some(first_image);
+        self.valid_height = h;
+        self.accepted_analysis = Some(analysis);
+        self.thumbnail.reset();
+        Ok(())
+    }
+
+    fn grayscale(image: &RgbaImage) -> Result<Vec<f32>, CaptureError> {
+        let mut gray = Vec::new();
+        reserve(&mut gray, image.width() as usize * image.height() as usize)?;
+        gray.extend(
+            image
+                .pixels()
+                .map(|px| (0.299 * f32::from(px[0])) + (0.587 * f32::from(px[1])) + (0.114 * f32::from(px[2]))),
+        );
+        Ok(gray)
+    }
+
+    fn edge_energy(gray: &[f32], width: usize, height: usize) -> Result<Vec<f32>, CaptureError> {
+        let mut out = Vec::new();
+        reserve(&mut out, gray.len())?;
+        out.resize(gray.len(), 0.0);
+        if width < 3 || height < 3 {
+            return Ok(out);
+        }
+
+        for y in 1..(height - 1) {
+            let row = y * width;
+            for x in 1..(width - 1) {
+                let i = row + x;
+                let gx = gray[i + 1] - gray[i - 1];
+                let gy = gray[i + width] - gray[i - width];
+                out[i] = gx.abs() + gy.abs();
+            }
+        }
+        Ok(out)
+    }
+
+    fn detect_sticky_regions(&self, prev: &[f32], next: &[f32], width: usize, height: usize) -> (u32, u32) {
+        if width == 0 || height == 0 {
+            return (0, 0);
+        }
+
+        let threshold = self.config.dynamic_threshold;
+        let max_check = (height / 3).max(1);
+
+        let mut top = 0usize;
+        while top < max_check {
+            let row_start = top * width;
+            let mut diff = 0.0f32;
+            for x in 0..width {
+                let idx = row_start + x;
+                diff += (prev[idx] - next[idx]).abs();
+            }
+            if diff / width as f32 > threshold {
+                break;
+            }
+            top += 1;
+        }
+
+        let mut bottom = 0usize;
+        while bottom < max_check {
+            let row = height - 1 - bottom;
+            let row_start = row * width;
+            let mut diff = 0.0f32;
+            for x in 0..width {
+                let idx = row_start + x;
+                diff += (prev[idx] - next[idx]).abs();
+            }
+            if diff / width as f32 > threshold {
+                break;
+            }
+            bottom += 1;
+        }
+
+        (top as u32, bottom as u32)
+    }
+
+    fn detect_stable_blocks(config: StitchConfig, pair: FramePairRef<'_>, region: StitchRegion, out: &mut Vec<usize>) {
+        let block = config.dynamic_block_size.max(8);
+        let block_count = (region.width / block).max(1);
+        let y_start = region.fixed_top.min(region.height);
+        let y_end = region.height.saturating_sub(region.fixed_bottom).max(y_start + 1);
+
+        out.clear();
+        if out.capacity() < block_count {
+            out.reserve(block_count - out.capacity());
+        }
+
+        for b in 0..block_count {
+            let x0 = b * block;
+            let x1 = ((b + 1) * block).min(region.width);
+            if x1 <= x0 {
+                continue;
+            }
+
+            let mut diff_sum = 0.0f32;
+            let mut count = 0usize;
+            for y in y_start..y_end {
+                let row = y * region.width;
+                for x in x0..x1 {
+                    let i = row + x;
+                    diff_sum += (pair.prev[i] - pair.next[i]).abs();
+                    count += 1;
+                }
+            }
+
+            if count == 0 {
+                continue;
+            }
+            let avg = diff_sum / count as f32;
+            if avg <= config.dynamic_threshold {
+                out.push(b);
+            }
+        }
+    }
+
+    fn row_signature(config: StitchConfig, edge: &[f32], region: StitchRegion, stable_blocks: &[usize], out: &mut Vec<f32>) {
+        let block = config.dynamic_block_size.max(8);
+        let y_start = region.fixed_top.min(region.height);
+        let y_end = region.height.saturating_sub(region.fixed_bottom).max(y_start + 1);
+
+        out.clear();
+        let capacity = y_end.saturating_sub(y_start);
+        if out.capacity() < capacity {
+            out.reserve(capacity - out.capacity());
+        }
+        for y in y_start..y_end {
+            let row = y * region.width;
+            let mut sum = 0.0f32;
+            let mut n = 0usize;
+            for &b in stable_blocks {
+                let x0 = b * block;
+                let x1 = ((b + 1) * block).min(region.width);
+                for x in x0..x1 {
+                    sum += edge[row + x];
+                    n += 1;
+                }
+            }
+            out.push(if n == 0 { 0.0 } else { sum / n as f32 });
+        }
+
+        let mean = if out.is_empty() {
+            0.0
+        } else {
+            out.iter().copied().sum::<f32>() / out.len() as f32
+        };
+        for v in out.iter_mut() {
+            *v -= mean;
+        }
+    }
+
+    fn downsample_signature(input: &[f32], factor: usize, out: &mut Vec<f32>) {
+        out.clear();
+        if factor <= 1 {
+            out.extend_from_slice(input);
+            return;
+        }
+
+        out.reserve(input.len().div_ceil(factor));
+        for chunk in input.chunks(factor) {
+            let sum = chunk.iter().copied().sum::<f32>();
+            out.push(sum / chunk.len() as f32);
+        }
+    }
+
+    fn signature_score(a: &[f32], b: &[f32], shift: i32, min_overlap: usize) -> Option<f32> {
+        if a.is_empty() || b.is_empty() {
+            return None;
+        }
+
+        let len = a.len().min(b.len()) as i32;
+        let overlap = len - shift.unsigned_abs() as i32;
+        if overlap <= 0 || overlap < min_overlap as i32 {
+            return None;
+        }
+
+        let (a_start, b_start) = if shift >= 0 {
+            (shift as usize, 0usize)
+        } else {
+            (0usize, (-shift) as usize)
+        };
+
+        let overlap = overlap as usize;
+        let mut sum_a = 0.0f32;
+        let mut sum_b = 0.0f32;
+        let mut sum_aa = 0.0f32;
+        let mut sum_bb = 0.0f32;
+        let mut sum_ab = 0.0f32;
+
+        for i in 0..overlap {
+            let av = a[a_start + i];
+            let bv = b[b_start + i];
+            sum_a += av;
+            sum_b += bv;
+            sum_aa += av * av;
+            sum_bb += bv * bv;
+            sum_ab += av * bv;
+        }
+
+        let n = overlap as f32;
+        let cov = sum_ab - (sum_a * sum_b / n);
+        let var_a = (sum_aa - (sum_a * sum_a / n)).max(0.0);
+        let var_b = (sum_bb - (sum_b * sum_b / n)).max(0.0);
+        let denom = (var_a.sqrt() * var_b.sqrt()).max(f32::EPSILON);
+        Some(cov / denom)
+    }
+
+    fn best_signature_shift(a: &[f32], b: &[f32], min_overlap: usize, start_shift: i32, end_shift: i32) -> Option<i32> {
+        let mut best_shift = 0i32;
+        let mut best_score = -1.0f32;
+        let mut found = false;
+
+        for shift in start_shift..=end_shift {
+            let Some(score) = Self::signature_score(a, b, shift, min_overlap) else {
+                continue;
+            };
+            if !found || score > best_score {
+                best_score = score;
+                best_shift = shift;
+                found = true;
+            }
+        }
+
+        if found { Some(best_shift) } else { None }
+    }
+
+    fn multiscale_row_shift(
+        signature_prev: &[f32],
+        signature_next: &[f32],
+        min_overlap: usize,
+        coarse_prev: &mut Vec<f32>,
+        coarse_next: &mut Vec<f32>,
+        medium_prev: &mut Vec<f32>,
+        medium_next: &mut Vec<f32>,
+    ) -> Option<i32> {
+        let len = signature_prev.len().min(signature_next.len());
+        if len < min_overlap {
+            return None;
+        }
+
+        Self::downsample_signature(signature_prev, 4, coarse_prev);
+        Self::downsample_signature(signature_next, 4, coarse_next);
+        Self::downsample_signature(signature_prev, 2, medium_prev);
+        Self::downsample_signature(signature_next, 2, medium_next);
+
+        let mut shift = 0i32;
+
+        let coarse_len = coarse_prev.len().min(coarse_next.len());
+        let coarse_overlap = min_overlap.div_ceil(4).max(4);
+        if coarse_len > coarse_overlap {
+            let max_shift = (coarse_len - coarse_overlap) as i32;
+            shift = Self::best_signature_shift(coarse_prev, coarse_next, coarse_overlap, -max_shift, max_shift).unwrap_or(0);
+        }
+
+        let medium_len = medium_prev.len().min(medium_next.len());
+        let medium_overlap = min_overlap.div_ceil(2).max(6);
+        if medium_len > medium_overlap {
+            let max_shift = (medium_len - medium_overlap) as i32;
+            let center = (shift * 2).clamp(-max_shift, max_shift);
+            let radius = 6i32.min(max_shift.max(1));
+            let start = (center - radius).max(-max_shift);
+            let end = (center + radius).min(max_shift);
+            shift = Self::best_signature_shift(medium_prev, medium_next, medium_overlap, start, end).unwrap_or(center);
+        }
+
+        let full_len = signature_prev.len().min(signature_next.len());
+        if full_len <= min_overlap {
+            return None;
+        }
+        let max_shift = (full_len - min_overlap) as i32;
+        let center = (shift * 2).clamp(-max_shift, max_shift);
+        let radius = 8i32.min(max_shift.max(1));
+        let start = (center - radius).max(-max_shift);
+        let end = (center + radius).min(max_shift);
+        Self::best_signature_shift(signature_prev, signature_next, min_overlap, start, end)
+    }
+
+    fn refine_shift_zncc(
+        config: StitchConfig,
+        pair: FramePairRef<'_>,
+        region: StitchRegion,
+        coarse_shift: i32,
+        stable_blocks: &[usize],
+        strip_scores: &mut Vec<f32>,
+    ) -> Option<(i32, f32, f32)> {
+        let valid_h = region.valid_height() as i32;
+        if valid_h <= config.min_overlap as i32 {
+            return None;
+        }
+
+        let max_shift = valid_h - config.min_overlap as i32;
+        if max_shift <= 0 {
+            return None;
+        }
+
+        let mut best_shift = 0i32;
+        let mut best_score = -1.0f32;
+        let mut second_score = -1.0f32;
+
+        let search_start = coarse_shift.saturating_sub(config.zncc_search_radius).max(-max_shift);
+        let search_end = coarse_shift.saturating_add(config.zncc_search_radius).min(max_shift);
+
+        for shift in search_start..=search_end {
+            let score = Self::zncc_score_for_shift(config, pair, region, shift, stable_blocks, strip_scores);
+
+            if score > best_score {
+                second_score = best_score;
+                best_score = score;
+                best_shift = shift;
+            } else if score > second_score {
+                second_score = score;
+            }
+        }
+
+        if best_score < -0.99 {
+            return None;
+        }
+
+        if second_score < -0.99 {
+            second_score = best_score;
+        }
+
+        Some((best_shift, best_score, second_score))
+    }
+
+    fn zncc_score_for_shift(
+        config: StitchConfig,
+        pair: FramePairRef<'_>,
+        region: StitchRegion,
+        shift: i32,
+        stable_blocks: &[usize],
+        strip_scores: &mut Vec<f32>,
+    ) -> f32 {
+        let Some(overlap) = region.valid_height().checked_sub(shift.unsigned_abs() as usize) else {
+            return -1.0;
+        };
+        let patch_h = config.zncc_patch_height;
+        if overlap <= config.min_overlap as usize || overlap < patch_h {
+            return -1.0;
+        }
+
+        let strips = config.zncc_strip_count;
+        let block = config.dynamic_block_size;
+        let overlap_start_next = region.fixed_top + if shift >= 0 { 0 } else { shift.unsigned_abs() as usize };
+        let overlap_start_prev = region.fixed_top + if shift >= 0 { shift as usize } else { 0 };
+
+        if strip_scores.capacity() < strips {
+            strip_scores.reserve(strips - strip_scores.capacity());
+        }
+        strip_scores.clear();
+        for si in 0..strips {
+            let center = (overlap as u64 * (si + 1) as u64 / (strips + 1) as u64) as usize;
+            let patch_start = center.saturating_sub(patch_h / 2).min(overlap - patch_h);
+
+            let mut score_sum = 0.0f32;
+            let mut score_count = 0usize;
+            for &b in stable_blocks {
+                let x0 = (b * block).min(region.width - 1);
+                let x1 = ((b + 1) * block).min(region.width);
+                if x1 - x0 < 2 {
+                    continue;
+                }
+                let patch = ZNCCPatch {
+                    x0,
+                    x1,
+                    y0_prev: overlap_start_prev + patch_start,
+                    y0_next: overlap_start_next + patch_start,
+                    patch_h,
+                };
+                let score = Self::zncc_patch(pair, region.width, patch);
+                if score.is_finite() {
+                    score_sum += score;
+                    score_count += 1;
+                }
+            }
+
+            if score_count == 0 {
+                continue;
+            }
+            strip_scores.push(score_sum / score_count as f32);
+        }
+
+        if strip_scores.is_empty() {
+            return -1.0;
+        }
+
+        strip_scores.iter().sum::<f32>() / strip_scores.len() as f32
+    }
+
+    fn zncc_patch(pair: FramePairRef<'_>, width: usize, patch: ZNCCPatch) -> f32 {
+        let mut sum_p = 0.0f32;
+        let mut sum_n = 0.0f32;
+        let mut count = 0usize;
+
+        for dy in 0..patch.patch_h {
+            let row_p = (patch.y0_prev + dy) * width;
+            let row_n = (patch.y0_next + dy) * width;
+            for x in patch.x0..patch.x1 {
+                sum_p += pair.prev[row_p + x];
+                sum_n += pair.next[row_n + x];
+                count += 1;
+            }
+        }
+
+        if count == 0 {
+            return 0.0;
+        }
+
+        let mean_p = sum_p / count as f32;
+        let mean_n = sum_n / count as f32;
+
+        let mut cov = 0.0f32;
+        let mut var_p = 0.0f32;
+        let mut var_n = 0.0f32;
+
+        for dy in 0..patch.patch_h {
+            let row_p = (patch.y0_prev + dy) * width;
+            let row_n = (patch.y0_next + dy) * width;
+            for x in patch.x0..patch.x1 {
+                let p = pair.prev[row_p + x] - mean_p;
+                let n = pair.next[row_n + x] - mean_n;
+                cov += p * n;
+                var_p += p * p;
+                var_n += n * n;
+            }
+        }
+
+        let denom = (var_p.sqrt() * var_n.sqrt()).max(f32::EPSILON);
+        cov / denom
+    }
+
+    fn find_smart_seam(&self, pair: FramePairRef<'_>, region: StitchRegion, overlap_valid: usize, stable_blocks: &[usize]) -> usize {
+        let block = self.config.dynamic_block_size.max(8);
+        let search_start = overlap_valid / self.config.seam_margin_divisor.max(2) as usize;
+        let search_end =
+            overlap_valid.saturating_mul((self.config.seam_margin_divisor.max(2) - 1) as usize) / self.config.seam_margin_divisor.max(2) as usize;
+
+        let mut best_k = overlap_valid / 2;
+        let mut best_energy = f32::MAX;
+
+        for k in search_start..search_end.max(search_start + 1) {
+            let prev_row = region.fixed_top + k;
+            let next_row = k;
+            if prev_row == 0 || prev_row >= region.height || next_row == 0 || next_row >= region.height {
+                continue;
+            }
+
+            let mut energy = 0.0f32;
+            let mut n = 0usize;
+            for &b in stable_blocks {
+                let x0 = b * block;
+                let x1 = ((b + 1) * block).min(region.width);
+                for x in x0..x1 {
+                    let p_idx = prev_row * region.width + x;
+                    let p_up = (prev_row - 1) * region.width + x;
+                    let n_idx = next_row * region.width + x;
+                    let n_up = (next_row - 1) * region.width + x;
+
+                    let p_grad = (pair.prev[p_idx] - pair.prev[p_up]).abs();
+                    let n_grad = (pair.next[n_idx] - pair.next[n_up]).abs();
+                    energy += (p_grad - n_grad).abs();
+                    n += 1;
+                }
+            }
+
+            if n == 0 {
+                continue;
+            }
+            let avg = energy / n as f32;
+            if avg < best_energy {
+                best_energy = avg;
+                best_k = k;
+            }
+        }
+
+        best_k
+    }
+
+    fn execute_stitch(&mut self, new_image: &RgbaImage, plan: StitchAppendPlan, allocation_bytes: u64) -> Result<bool, CaptureError> {
+        let Some(canvas) = self.canvas.as_mut() else {
+            return Ok(false);
+        };
+
+        let previous_valid_height = self.valid_height;
+        // The canvas retains the accepted frame's complete tail, including its
+        // footer. Use this match's exclusion on both sides, since detection can
+        // include a coincidentally unchanged content row on an individual pair.
+        let content_end = self.valid_height.saturating_sub(plan.fixed_bottom);
+        if plan.trim_amount > content_end {
+            return Ok(false);
+        }
+
+        let keep_h = content_end - plan.trim_amount;
+        let append_h = plan.append_end_y.saturating_sub(plan.append_start_y);
+        let new_total_h = keep_h.checked_add(append_h).ok_or(CaptureError::CapacityExceeded {
+            max_pixels: self.max_output_pixels,
+        })?;
+        let width = canvas.width();
+        if u64::from(width) * u64::from(new_total_h) > self.max_output_pixels {
+            return Err(CaptureError::CapacityExceeded {
+                max_pixels: self.max_output_pixels,
+            });
+        }
+
+        if new_total_h > canvas.height() {
+            let available_height = (allocation_bytes / 4 / u64::from(width))
+                .min(self.max_output_pixels / u64::from(width))
+                .min(u64::from(u32::MAX)) as u32;
+            if available_height < new_total_h {
+                return Err(CaptureError::WorkingSetExceeded {
+                    max_bytes: self.max_working_bytes,
+                    required_bytes: self
+                        .max_working_bytes
+                        .saturating_sub(allocation_bytes)
+                        .saturating_add(u64::from(width) * u64::from(new_total_h) * 4),
+                });
+            }
+            // Prefer modest headroom, but always fall back to what fits beside
+            // the old canvas. Matching and seam decisions are unchanged.
+            let new_cap = canvas.height().saturating_add(canvas.height() / 2).max(new_total_h).min(available_height);
+            let mut new_canvas = allocate_image(width, new_cap)?;
+            Self::copy_region(canvas, 0, &mut new_canvas, 0, keep_h);
+            self.canvas = Some(new_canvas);
+        }
+
+        let Some(canvas) = self.canvas.as_mut() else {
+            return Ok(false);
+        };
+
+        if append_h > 0 {
+            Self::copy_region(new_image, plan.append_start_y, canvas, keep_h, append_h);
+        }
+
+        self.valid_height = new_total_h;
+        self.thumbnail.mark_dirty_from(keep_h.min(previous_valid_height));
+        Ok(true)
+    }
+
+    fn copy_region(src: &RgbaImage, src_y: u32, dest: &mut RgbaImage, dest_y: u32, height: u32) {
+        if height == 0 {
+            return;
+        }
+        let width_bytes = src.width() as usize * 4;
+        let copy_bytes = height as usize * width_bytes;
+        let src_offset = src_y as usize * width_bytes;
+        let dest_offset = dest_y as usize * width_bytes;
+
+        let src_raw = src.as_raw();
+        let dest_raw: &mut [u8] = dest.as_mut();
+
+        if src_offset + copy_bytes <= src_raw.len() && dest_offset + copy_bytes <= dest_raw.len() {
+            dest_raw[dest_offset..dest_offset + copy_bytes].copy_from_slice(&src_raw[src_offset..src_offset + copy_bytes]);
+        }
+    }
+}
+
+fn reserve<T>(buffer: &mut Vec<T>, capacity: usize) -> Result<(), CaptureError> {
+    if buffer.capacity() < capacity {
+        buffer
+            .try_reserve_exact(capacity.saturating_sub(buffer.len()))
+            .map_err(|_| CaptureError::AllocationFailed)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn allocate_image(width: u32, height: u32) -> Result<RgbaImage, CaptureError> {
+    let len = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or(CaptureError::AllocationFailed)?;
+    let mut pixels = Vec::new();
+    reserve(&mut pixels, len)?;
+    pixels.resize(len, 0);
+    RgbaImage::from_raw(width, height, pixels).ok_or(CaptureError::AllocationFailed)
+}
+
+pub(crate) fn preview_dimensions(width: u32, height: u32, target_width: u32) -> (u32, u32) {
+    let pixels = u64::from(width) * u64::from(height);
+    let scale = 1.0f64
+        .min(f64::from(target_width) / f64::from(width))
+        .min(f64::from(MAX_PREVIEW_EDGE) / f64::from(width))
+        .min(f64::from(MAX_PREVIEW_EDGE) / f64::from(height))
+        .min((MAX_PREVIEW_PIXELS as f64 / pixels as f64).sqrt());
+    let preview_width = (f64::from(width) * scale).floor().max(1.0) as u32;
+    let preview_height = ((u64::from(height) * u64::from(preview_width)) / u64::from(width)).clamp(1, u64::from(MAX_PREVIEW_EDGE)) as u32;
+    (preview_width, preview_height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage, imageops};
+
+    fn source(width: u32, height: u32) -> RgbaImage {
+        let mut img = RgbaImage::new(width, height);
+        for y in 0..height {
+            for x in 0..width {
+                let r = (((x * 31) ^ (y * 17)) & 0xff) as u8;
+                let g = (((x * 13) ^ (y * 57)) & 0xff) as u8;
+                let b = (((x * 97) ^ (y * 29)) & 0xff) as u8;
+                img.put_pixel(x, y, Rgba([r, g, b, 255]));
+            }
+        }
+        img
+    }
+
+    fn crop_frame(source: &RgbaImage, y: u32, h: u32) -> RgbaImage {
+        imageops::crop_imm(source, 0, y, source.width(), h).to_image()
+    }
+
+    // Six low-contrast columns remain stable under the default motion filter;
+    // the other columns distinguish moving content from the sticky edges.
+    fn scroll_source() -> RgbaImage {
+        RgbaImage::from_fn(240, 600, |x, y| {
+            let mut hash = x.wrapping_mul(0x9e37_79b9) ^ y.wrapping_mul(0x85eb_ca6b);
+            hash = (hash ^ (hash >> 16)).wrapping_mul(0x7feb_352d);
+            hash ^= hash >> 15;
+            let value = if x < 96 { 100 + (hash % 20) as u8 } else { hash as u8 };
+            Rgba([value, value, value, 255])
+        })
+    }
+
+    fn sticky_frame(source: &RgbaImage, offset: u32, content_height: u32) -> RgbaImage {
+        const STICKY_HEIGHT: u32 = 12;
+        RgbaImage::from_fn(source.width(), content_height + STICKY_HEIGHT * 2, |x, y| {
+            if y < STICKY_HEIGHT {
+                Rgba([20, 160, 50 + (x % 12) as u8, 255])
+            } else if y >= STICKY_HEIGHT + content_height {
+                Rgba([200, 50, 180 + (x % 12) as u8, 255])
+            } else {
+                *source.get_pixel(x, offset + y - STICKY_HEIGHT)
+            }
+        })
+    }
+
+    #[test]
+    fn slow_scroll_accumulates_against_committed_frame_and_keeps_one_footer() {
+        for repeated_bottom_row in [false, true] {
+            let mut stitcher = ScrollStitcher::new();
+            let mut src = scroll_source();
+            if repeated_bottom_row {
+                // At offset 4 the last content row also looks sticky. At offset
+                // 8 it moves again, so the detected footer extent changes.
+                for x in 0..src.width() {
+                    let pixel = *src.get_pixel(x, 179);
+                    src.put_pixel(x, 183, pixel);
+                }
+            }
+            stitcher.process_frame_detailed(sticky_frame(&src, 0, 180)).unwrap();
+
+            for offset in (2..=16).step_by(2) {
+                let result = stitcher.process_frame_detailed(sticky_frame(&src, offset, 180)).unwrap();
+                let committed_offset = offset / 4 * 4;
+                let expected_status = if offset % 4 == 0 {
+                    StitchFrameStatus::Appended
+                } else {
+                    StitchFrameStatus::Stationary
+                };
+                assert_eq!(result.status, expected_status, "offset {offset}, repeated row {repeated_bottom_row}");
+                assert_eq!(
+                    stitcher.get_final_image().unwrap(),
+                    sticky_frame(&src, 0, 180 + committed_offset),
+                    "offset {offset}, repeated row {repeated_bottom_row}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stitcher_marks_stationary_for_same_frame() {
+        let mut stitcher = ScrollStitcher::new();
+        let src = source(200, 420);
+        let first = crop_frame(&src, 10, 160);
+        assert_eq!(
+            stitcher.process_frame_detailed(first.clone()).unwrap().status,
+            StitchFrameStatus::Appended
+        );
+        assert_eq!(stitcher.process_frame_detailed(first).unwrap().status, StitchFrameStatus::Stationary);
+    }
+
+    #[test]
+    fn reverse_then_return_only_appends_content_beyond_committed_frame() {
+        let mut stitcher = ScrollStitcher::new();
+        let src = scroll_source();
+        stitcher.process_frame_detailed(sticky_frame(&src, 40, 180)).unwrap();
+
+        let mut committed_offset = 40;
+        for (offset, status) in [
+            (56, StitchFrameStatus::Appended),
+            (48, StitchFrameStatus::Reverse),
+            (40, StitchFrameStatus::Reverse),
+            (52, StitchFrameStatus::Reverse),
+            (56, StitchFrameStatus::Stationary),
+            (60, StitchFrameStatus::Appended),
+            (72, StitchFrameStatus::Appended),
+        ] {
+            let result = stitcher.process_frame_detailed(sticky_frame(&src, offset, 180)).unwrap();
+            assert_eq!(result.status, status, "offset {offset}");
+            if status == StitchFrameStatus::Appended {
+                committed_offset = offset;
+            }
+            assert_eq!(
+                stitcher.get_final_image().unwrap(),
+                sticky_frame(&src, 40, 180 + committed_offset - 40),
+                "offset {offset}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_observation_preserves_anchor_and_next_frames_are_pixel_complete() {
+        let src = scroll_source();
+        for bad_frame in [RgbaImage::from_pixel(240, 204, Rgba([255, 255, 255, 255])), sticky_frame(&src, 18, 181)] {
+            let mut stitcher = ScrollStitcher::new();
+            stitcher.process_frame_detailed(sticky_frame(&src, 0, 180)).unwrap();
+            assert_eq!(
+                stitcher.process_frame_detailed(sticky_frame(&src, 12, 180)).unwrap().status,
+                StitchFrameStatus::Appended
+            );
+            let before_rejection = stitcher.get_final_image().unwrap();
+            assert_eq!(
+                stitcher.process_frame_detailed(bad_frame).unwrap().status,
+                StitchFrameStatus::LowConfidence
+            );
+            assert_eq!(stitcher.get_final_image().unwrap(), before_rejection);
+
+            for offset in [24, 36] {
+                assert_eq!(
+                    stitcher.process_frame_detailed(sticky_frame(&src, offset, 180)).unwrap().status,
+                    StitchFrameStatus::Appended
+                );
+                assert_eq!(stitcher.get_final_image().unwrap(), sticky_frame(&src, 0, 180 + offset));
+            }
+        }
+    }
+
+    #[test]
+    fn public_processing_returns_resource_error_and_retains_committed_pixels() {
+        let src = scroll_source();
+        let first = sticky_frame(&src, 0, 180);
+        let mut stitcher = ScrollStitcher::with_limits(StitchConfig::default(), u64::from(first.width()) * u64::from(first.height()), 4_000_000);
+        stitcher.process_frame_detailed(first.clone()).unwrap();
+        assert!(matches!(
+            stitcher.process_frame_detailed(sticky_frame(&src, 12, 180)),
+            Err(CaptureError::CapacityExceeded { .. })
+        ));
+        assert_eq!(stitcher.get_final_image().unwrap(), first);
+    }
+
+    #[test]
+    fn invalid_config_values_return_typed_errors_before_allocating_or_accepting() {
+        type InvalidCase = (&'static str, fn(&mut StitchConfig));
+        let cases: &[InvalidCase] = &[
+            ("min_overlap", |c| c.min_overlap = 0),
+            ("min_overlap", |c| c.min_overlap = u32::MAX),
+            ("min_scroll_threshold", |c| c.min_scroll_threshold = 0),
+            ("min_scroll_threshold", |c| c.min_scroll_threshold = u32::MAX),
+            ("dynamic_block_size", |c| c.dynamic_block_size = 0),
+            ("dynamic_block_size", |c| c.dynamic_block_size = usize::MAX),
+            ("dynamic_threshold", |c| c.dynamic_threshold = f32::NAN),
+            ("dynamic_threshold", |c| c.dynamic_threshold = -1.0),
+            ("dynamic_threshold", |c| c.dynamic_threshold = f32::INFINITY),
+            ("min_stable_blocks", |c| c.min_stable_blocks = 0),
+            ("min_stable_blocks", |c| c.min_stable_blocks = usize::MAX),
+            ("zncc_strip_count", |c| c.zncc_strip_count = 0),
+            ("zncc_strip_count", |c| c.zncc_strip_count = usize::MAX),
+            ("zncc_patch_height", |c| c.zncc_patch_height = 0),
+            ("zncc_patch_height", |c| c.zncc_patch_height = usize::MAX),
+            ("zncc_search_radius", |c| c.zncc_search_radius = i32::MIN),
+            ("low_confidence_threshold", |c| c.low_confidence_threshold = f32::NAN),
+            ("low_confidence_threshold", |c| c.low_confidence_threshold = f32::INFINITY),
+            ("low_confidence_threshold", |c| c.low_confidence_threshold = 2.0),
+            ("low_confidence_gap", |c| c.low_confidence_gap = f32::NAN),
+            ("low_confidence_gap", |c| c.low_confidence_gap = -1.0),
+            ("low_confidence_gap", |c| c.low_confidence_gap = 3.0),
+            ("seam_margin_divisor", |c| c.seam_margin_divisor = 0),
+        ];
+        for &(field, invalidate) in cases {
+            let mut config = StitchConfig::default();
+            invalidate(&mut config);
+            let mut stitcher = ScrollStitcher::with_config(config);
+            assert_eq!(
+                stitcher.process_frame_detailed(RgbaImage::new(1, 1)).unwrap_err(),
+                CaptureError::InvalidStitchConfig { field }
+            );
+            assert!(stitcher.current_image().is_none());
+        }
+    }
+
+    #[test]
+    fn patches_larger_than_overlap_are_soft_rejections_and_leave_anchor_usable() {
+        let src = scroll_source();
+        for patch_height in [156, 157, 1000] {
+            let mut stitcher = ScrollStitcher::with_config(StitchConfig {
+                zncc_patch_height: patch_height,
+                ..StitchConfig::default()
+            });
+            let first = sticky_frame(&src, 0, 156);
+            assert_eq!(first.dimensions(), (240, 180));
+            stitcher.process_frame_detailed(first.clone()).unwrap();
+            let rejected = stitcher.process_frame_detailed(sticky_frame(&src, 12, 156)).unwrap();
+            assert_eq!(rejected.status, StitchFrameStatus::LowConfidence, "patch {patch_height}");
+            assert_eq!(stitcher.get_final_image().unwrap(), first);
+
+            // Restore a fitting patch to prove that rejection left the actual
+            // accepted frame intact. A maximal radius must not overflow either.
+            stitcher.config.zncc_patch_height = 8;
+            stitcher.config.zncc_search_radius = i32::MAX;
+            let resumed = stitcher.process_frame_detailed(sticky_frame(&src, 24, 156)).unwrap();
+            assert_eq!(resumed.status, StitchFrameStatus::Appended);
+            assert_eq!(stitcher.get_final_image().unwrap(), sticky_frame(&src, 0, 180));
+        }
+    }
+
+    #[test]
+    fn direct_input_accounts_for_spare_storage_and_analysis_uses_logical_pixels() {
+        const INPUT_BYTES: usize = 1024 * 1024;
+        for raw_len in [4, INPUT_BYTES] {
+            let input = || {
+                let mut raw = Vec::with_capacity(INPUT_BYTES);
+                raw.resize(raw_len, 0);
+                raw[..4].copy_from_slice(&[30, 60, 90, 255]);
+                RgbaImage::from_raw(1, 1, raw).unwrap()
+            };
+            let mut limited = ScrollStitcher::with_limits(StitchConfig::default(), 1, 4096);
+            assert!(matches!(
+                limited.process_frame_detailed(input()),
+                Err(CaptureError::WorkingSetExceeded { .. })
+            ));
+            assert!(limited.current_image().is_none());
+
+            let mut fitting = ScrollStitcher::with_limits(StitchConfig::default(), 1, 2 * INPUT_BYTES as u64);
+            fitting.process_frame_detailed(input()).unwrap();
+            let analysis = fitting.accepted_analysis.as_ref().unwrap();
+            assert_eq!(analysis.gray.len(), 1);
+            assert_eq!(analysis.edge.len(), 1);
+            assert_eq!(fitting.get_final_image().unwrap().as_raw(), &[30, 60, 90, 255]);
+        }
+    }
+
+    #[test]
+    fn canvas_growth_accounts_for_old_and_new_storage_and_preserves_data_on_rejection() {
+        let first = source(40, 30);
+        let original_allocation = first.as_raw().as_ptr();
+        let mut limited = ScrollStitcher::with_limits(StitchConfig::default(), 2400, 30_000);
+        limited.try_process_frame_detailed(first, 0).unwrap();
+        let (canvas, height) = limited.current_image().unwrap();
+        assert_eq!(height, 30);
+        assert_eq!(canvas.height(), 30);
+        assert_eq!(canvas.as_raw().as_ptr(), original_allocation);
+        let plan = StitchAppendPlan {
+            trim_amount: 0,
+            append_start_y: 0,
+            append_end_y: 30,
+            fixed_bottom: 0,
+        };
+        let next = source(40, 30);
+        let available = limited.admit_frame(40, 30, 40 * 30 * 4, 0).unwrap();
+        assert!(matches!(
+            limited.execute_stitch(&next, plan, available),
+            Err(CaptureError::WorkingSetExceeded { .. })
+        ));
+        assert_eq!(limited.current_image().unwrap().1, 30);
+        assert_eq!(limited.get_final_image().unwrap(), next);
+
+        let mut fitting = ScrollStitcher::with_limits(StitchConfig::default(), 2400, 50_000);
+        fitting.try_process_frame_detailed(next.clone(), 0).unwrap();
+        let available = fitting.admit_frame(40, 30, 40 * 30 * 4, 0).unwrap();
+        assert!(fitting.execute_stitch(&next, plan, available).unwrap());
+        let (canvas, height) = fitting.current_image().unwrap();
+        assert_eq!(height, 60);
+        assert_eq!(canvas.dimensions(), (40, 60));
+        let final_allocation = canvas.as_raw().as_ptr();
+        assert!(matches!(
+            fitting.execute_stitch(&next, plan, u64::MAX),
+            Err(CaptureError::CapacityExceeded { max_pixels: 2400 })
+        ));
+        let output = fitting.into_final_image().unwrap();
+        assert_eq!(output.dimensions(), (40, 60));
+        assert_eq!(output.as_raw().as_ptr(), final_allocation);
+    }
+}
