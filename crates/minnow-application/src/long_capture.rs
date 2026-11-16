@@ -17,7 +17,26 @@ pub enum LongCaptureStatus {
     CancellationRequested,
     Ready(ImageRef),
     Cancelled { partial: Option<ImageRef> },
-    Failed { error: OperationError, partial: Option<ImageRef> },
+    Failed { error: LongCaptureFailure, partial: Option<ImageRef> },
+}
+
+/// Preserve capture evidence across the application boundary; task failures have
+/// a separate origin and must not be parsed back out of display strings.
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum LongCaptureFailure {
+    #[error("{0}")]
+    Capture(minnow_capture::CaptureError),
+    #[error("{0}")]
+    Task(OperationError),
+}
+
+impl From<LongCaptureFailure> for OperationError {
+    fn from(error: LongCaptureFailure) -> Self {
+        match error {
+            LongCaptureFailure::Capture(error) => capture_error(error),
+            LongCaptureFailure::Task(error) => error,
+        }
+    }
 }
 
 /// Each UI projection owns a clone; finishing and retrying never consume pixels.
@@ -48,7 +67,7 @@ impl LongCaptureHandle {
                 CaptureOutcome::Ready(image) => LongCaptureStatus::Ready(image),
                 CaptureOutcome::Cancelled { partial } => LongCaptureStatus::Cancelled { partial },
                 CaptureOutcome::Failed { error, partial } => LongCaptureStatus::Failed {
-                    error: capture_error(error),
+                    error: LongCaptureFailure::Capture(error),
                     partial,
                 },
             };
@@ -57,7 +76,7 @@ impl LongCaptureHandle {
         match &phase {
             JobPhase::Cancelled => LongCaptureStatus::Cancelled { partial: None },
             JobPhase::Failed(error) => LongCaptureStatus::Failed {
-                error: error.clone(),
+                error: LongCaptureFailure::Task(error.clone()),
                 partial: None,
             },
             JobPhase::CancellationRequested => LongCaptureStatus::CancellationRequested,
@@ -75,7 +94,7 @@ impl LongCaptureHandle {
         self.phase.clone()
     }
 
-    /// Begin acquisition once all target windows exist and the source is closed.
+    /// Begin acquisition once all target windows exist and the selection overlay is closed.
     /// Every clone shares this one-shot start decision.
     pub fn start(&self) -> bool {
         let terminal = self.phase.borrow().is_terminal();

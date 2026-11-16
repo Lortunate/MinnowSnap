@@ -144,28 +144,24 @@ fn toolbar_save_hover_menu_button(
     let hover_state = menu_state.clone();
     let menu_hover_state = menu_state.clone();
     let click_state = menu_state.clone();
+    let disabled = (spec.disabled)(state);
 
     let button = Button::new(spec.id)
         .compact()
         .icon(toolbar_icon(app_ctx, spec.icon))
         .tooltip(spec.tooltip_text(state, None))
-        .disabled((spec.disabled)(state))
+        .disabled(disabled)
         .on_click(move |_, window: &mut Window, cx: &mut App| {
             close_save_menu_immediately(&click_state, cx);
             primary_action(command.clone(), window, cx);
-        })
-        .on_hover(move |hovered, window, cx| {
-            update_save_menu_hover_state(&hover_state, window, cx, |state| {
-                state.trigger_hovered = *hovered;
-            });
         });
     let button = if (spec.active)(state) { button.outline() } else { button.ghost() };
 
-    Popover::new("overlay-save-hover-popover")
+    let popover = Popover::new("overlay-save-hover-popover")
         .appearance(false)
         .overlay_closable(false)
         .anchor(Anchor::TopRight)
-        .open(is_open)
+        .open(is_open && !disabled)
         .trigger(button)
         .content(move |_, _window, cx| {
             let menu_action = menu_action.clone();
@@ -213,7 +209,17 @@ fn toolbar_save_hover_menu_button(
                         .child(i18n::preferences::select_save_directory()),
                 )
                 .into_any_element()
+        });
+
+    // Button tooltips own the button's hover listener; menu hover belongs to its container.
+    div()
+        .id("overlay-save-hover-trigger")
+        .on_hover(move |hovered, window, cx| {
+            update_save_menu_hover_state(&hover_state, window, cx, |state| {
+                state.trigger_hovered = *hovered && !disabled;
+            });
         })
+        .child(popover)
         .into_any_element()
 }
 
@@ -323,4 +329,73 @@ pub(crate) fn overlay_toolbar(
     }
 
     toolbar_panel(app_ctx, layout).child(row)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{Context, Modifiers, Render, TestAppContext, point};
+    use std::{cell::Cell, rc::Rc};
+
+    struct SaveButtonHarness {
+        output_pending: bool,
+        saves: Rc<Cell<usize>>,
+    }
+
+    impl Render for SaveButtonHarness {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let saves = self.saves.clone();
+            let on_action: OverlayActionHandler = Rc::new(move |command, _, _| {
+                assert!(matches!(
+                    command,
+                    OverlayCommand::Capture(CaptureCommand::Execute(crate::flows::output::CaptureIntent::Save(
+                        minnow_application::SaveDestination::Preferences
+                    )))
+                ));
+                saves.set(saves.get() + 1);
+            });
+            let spec = *CAPTURE_BUTTONS.iter().find(|spec| spec.id == SAVE_BUTTON_ID).unwrap();
+            let state = OverlayToolbarState {
+                tool: None,
+                can_undo: false,
+                can_redo: false,
+                output_pending: self.output_pending,
+                font_available: true,
+            };
+            div().size_full().child(
+                div()
+                    .absolute()
+                    .left(px(200.))
+                    .top(px(200.))
+                    .child(toolbar_action_button(window, cx, spec, state, None, on_action)),
+            )
+        }
+    }
+
+    #[gpui::test]
+    fn save_button_renders_with_tooltip_and_dispatches_only_when_enabled(cx: &mut TestAppContext) {
+        cx.update(gpui_component::init);
+        let saves = Rc::new(Cell::new(0));
+        let (view, window) = cx.add_window_view(|_, _| SaveButtonHarness {
+            output_pending: false,
+            saves: saves.clone(),
+        });
+        window.update(|window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        });
+        window.simulate_mouse_move(point(px(210.), px(210.)), None, Modifiers::default());
+        window.simulate_click(point(px(210.), px(210.)), Modifiers::default());
+        assert_eq!(saves.get(), 1);
+        window.update(|window, cx| {
+            view.update(cx, |view, cx| {
+                view.output_pending = true;
+                cx.notify();
+            });
+            window.refresh();
+            window.draw(cx).clear(cx);
+        });
+        window.simulate_click(point(px(210.), px(210.)), Modifiers::default());
+        assert_eq!(saves.get(), 1);
+    }
 }

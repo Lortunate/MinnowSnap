@@ -1,14 +1,19 @@
 //! Capture contracts and platform-independent capture processing.
 
+mod matching;
 mod run;
 mod scroll;
+mod source;
 mod stitcher;
 
 use minnow_imaging::{CaptureGeometry, CapturedFrame, DisplayId, GeometryError, RectF};
 
+pub use source::CaptureSource;
+
+pub use matching::{MatchEvidence, StitchConfig, StitchRejection};
 pub use run::{CaptureControl, CaptureRequest, CaptureRun, CaptureRunConfig, PreviewSlot, PreviewSnapshot};
 pub use scroll::{CaptureOutcome, CapturePhase, ScrollCapture, ScrollCaptureConfig};
-pub use stitcher::{ScrollStitcher, StitchConfig, StitchFrameResult, StitchFrameStatus};
+pub use stitcher::{ScrollStitcher, StitchFrameResult, StitchFrameStatus};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CaptureTarget {
@@ -41,6 +46,8 @@ pub enum CaptureError {
     Cancelled,
     #[error("capture has no usable frames")]
     Empty,
+    #[error("capture ended with unverified content: {reason}")]
+    Incomplete { reason: StitchRejection },
     #[error("capture target geometry changed during the session")]
     TargetChanged,
     #[error("capture has already reached a terminal state")]
@@ -62,7 +69,22 @@ pub enum CaptureError {
 /// The backend may block while capturing. Cancellation is cooperative and does
 /// not assert that an in-flight backend call has already stopped.
 pub trait CaptureBackend: Send + Sync {
+    /// Opens one display-pinned acquisition session. Native backends can keep
+    /// filters and capture resources here instead of rebuilding them per frame.
+    fn open_scroll_source(&self, target: &CaptureTarget) -> Result<Box<dyn CaptureSource + '_>, CaptureError> {
+        Ok(Box::new(source::BackendSource::new(self, target.clone())))
+    }
+
     fn capture(&self, target: &CaptureTarget) -> Result<CapturedFrame, CaptureError>;
     fn displays(&self) -> Result<Vec<DisplayInfo>, CaptureError>;
     fn windows(&self, display: &DisplayId) -> Result<Vec<WindowInfo>, CaptureError>;
+}
+
+fn reserve<T>(buffer: &mut Vec<T>, capacity: usize) -> Result<(), CaptureError> {
+    if buffer.capacity() < capacity {
+        buffer
+            .try_reserve_exact(capacity.saturating_sub(buffer.len()))
+            .map_err(|_| CaptureError::AllocationFailed)?;
+    }
+    Ok(())
 }

@@ -87,6 +87,7 @@ pub struct ScrollCapture {
     config: ScrollCaptureConfig,
     phase: CapturePhase,
     outcome: Option<CaptureOutcome>,
+    unresolved: Option<crate::StitchRejection>,
 }
 
 impl ScrollCapture {
@@ -118,6 +119,7 @@ impl ScrollCapture {
         Ok(Self {
             selection,
             geometry: None,
+            unresolved: None,
             stitcher: Some(ScrollStitcher::with_limits(
                 config.stitch,
                 config.max_output_pixels,
@@ -200,6 +202,7 @@ impl ScrollCapture {
         }
         let stitcher = self.stitcher.as_mut().expect("capturing state owns a stitcher");
         let result = stitcher.try_process_frame_detailed(pixels, retained_bytes)?;
+        self.unresolved = result.warning;
         self.geometry.get_or_insert_with(|| frame.geometry().clone());
         Ok(result)
     }
@@ -225,6 +228,11 @@ impl ScrollCapture {
             };
         }
 
+        if let Some(reason) = self.unresolved {
+            let error = CaptureError::Incomplete { reason };
+            self.fail(error.clone());
+            return Err(error);
+        }
         self.phase = CapturePhase::Finalizing;
         match self.release_working_set() {
             Some(image) => {
@@ -400,18 +408,13 @@ mod tests {
             ViewRect(RectF::new(0.0, 0.0, 1.0, 1.0)),
             ScrollCaptureConfig {
                 stitch: StitchConfig {
-                    low_confidence_threshold: f32::NAN,
+                    min_matching_rows: f32::NAN,
                     ..StitchConfig::default()
                 },
                 ..ScrollCaptureConfig::default()
             },
         );
-        assert!(matches!(
-            result,
-            Err(CaptureError::InvalidStitchConfig {
-                field: "low_confidence_threshold"
-            })
-        ));
+        assert!(matches!(result, Err(CaptureError::InvalidStitchConfig { field: "min_matching_rows" })));
     }
 
     #[test]

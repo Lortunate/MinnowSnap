@@ -52,7 +52,7 @@ pub(crate) fn open_window(
         cx,
         window_options(layout.frame_bounds, false),
         |window, cx| {
-            windowing::set_always_on_top(window, cx)?;
+            windowing::prepare_capture_window(window, cx)?;
             windowing::set_click_through(window, true, cx)
         },
         {
@@ -71,7 +71,7 @@ pub(crate) fn open_window(
         coordinator.report_window_warning(format!("Selection frame hidden: {error}"));
     }
 
-    if let Err(error) = windowing::open_prepared_window(cx, window_options(layout.toolbar_bounds, true), windowing::set_always_on_top, {
+    if let Err(error) = windowing::open_prepared_window(cx, window_options(layout.toolbar_bounds, true), windowing::prepare_capture_window, {
         let coordinator = coordinator.clone();
         move |window, cx| {
             appearance::apply_saved_preferences(Some(window), cx);
@@ -88,7 +88,7 @@ pub(crate) fn open_window(
         return Err(error);
     }
 
-    if let Err(error) = windowing::open_prepared_window(cx, window_options(layout.preview_bounds, false), windowing::set_always_on_top, {
+    if let Err(error) = windowing::open_prepared_window(cx, window_options(layout.preview_bounds, false), windowing::prepare_capture_window, {
         let coordinator = coordinator.clone();
         move |window, cx| {
             appearance::apply_saved_preferences(Some(window), cx);

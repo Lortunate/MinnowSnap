@@ -66,6 +66,11 @@ overlay:
   notify:
     qr_not_found: "No QR code detected"
   long_capture:
+    changed_size: "The selection size changed. Please restart capture."
+    lost_overlap: "Cannot connect this content. Scroll back up, then scroll down slowly."
+    insufficient_detail: "Not enough distinctive content to append. Scroll back to text or graphics."
+    ambiguous: "Repeated content makes the distance uncertain. Scroll back, then use smaller steps."
+    reverse: "Scrolled back. Continue down past the last captured position to append."
     output_continues: "Output continues after closing this window."
     processing: "Processing long capture..."
     scroll_hint: "Scroll to capture"

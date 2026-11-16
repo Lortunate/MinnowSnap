@@ -13,6 +13,7 @@ pub struct UiPaths {
 
 /// Main-thread native integrations supplied by the composition root.
 pub trait UiHost {
+    fn exclude_from_capture(&self, window: &Window) -> OperationResult<()>;
     fn set_always_on_top(&self, window: &Window) -> OperationResult<()>;
     fn set_click_through(&self, window: &Window, enabled: bool) -> OperationResult<()>;
     fn start_window_drag(&self, window: &Window) -> OperationResult<()>;

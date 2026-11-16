@@ -66,6 +66,11 @@ overlay:
   notify:
     qr_not_found: "未检测到二维码"
   long_capture:
+    changed_size: "选区尺寸发生变化，请重新开始。"
+    lost_overlap: "当前内容无法与已采集部分衔接，请向上回滚后缓慢向下滚动。"
+    insufficient_detail: "当前区域缺少可辨认内容，暂未追加。请回滚到有文字或图案的位置。"
+    ambiguous: "重复内容无法确定滚动距离，暂未追加。请回滚后小幅滚动。"
+    reverse: "已向上回滚，向下超过最后采集位置后将继续追加。"
     output_continues: "关闭窗口后，已提交的保存或复制仍会继续。"
     processing: "正在处理长截图..."
     scroll_hint: "滚动以捕获"

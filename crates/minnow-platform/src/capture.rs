@@ -1,3 +1,6 @@
+#[cfg(target_os = "macos")]
+mod macos;
+
 use minnow_capture::{CaptureBackend, CaptureError, CaptureTarget, DisplayInfo, WindowInfo};
 use minnow_imaging::{CaptureGeometry, CapturedFrame, DisplayId, ImageAsset, RectF, ScreenPoint};
 use xcap::Monitor;
@@ -8,6 +11,11 @@ use xcap::Monitor;
 pub struct NativeCapture;
 
 impl CaptureBackend for NativeCapture {
+    #[cfg(target_os = "macos")]
+    fn open_scroll_source(&self, target: &CaptureTarget) -> Result<Box<dyn minnow_capture::CaptureSource + '_>, CaptureError> {
+        Ok(Box::new(macos::ScreenSource::open(target)?))
+    }
+
     fn capture(&self, target: &CaptureTarget) -> Result<CapturedFrame, CaptureError> {
         let monitor = select_monitor(target)?;
         let mut geometry = monitor_geometry(&monitor)?;

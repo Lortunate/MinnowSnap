@@ -25,6 +25,12 @@ pub fn set_click_through(handle: WindowHandle<'_>, enabled: bool) -> OperationRe
     platform::set_click_through(handle, enabled)
 }
 
+/// Excludes a capture-control window before acquisition starts. On macOS the
+/// per-session ScreenCaptureKit source excludes the whole application.
+pub fn exclude_from_capture(handle: WindowHandle<'_>) -> OperationResult<()> {
+    platform::exclude_from_capture(handle)
+}
+
 pub fn start_system_drag(handle: WindowHandle<'_>) -> OperationResult<()> {
     platform::start_system_drag(handle)
 }
@@ -42,7 +48,7 @@ mod platform {
     use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
     use windows::Win32::UI::WindowsAndMessaging::{
         GWL_EXSTYLE, GetWindowLongPtrW, HTCAPTION, HWND_NOTOPMOST, HWND_TOPMOST, PostMessageW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-        SetWindowLongPtrW, SetWindowPos, WM_NCLBUTTONDOWN, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+        SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos, WDA_EXCLUDEFROMCAPTURE, WM_NCLBUTTONDOWN, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     };
 
     fn hwnd(handle: WindowHandle<'_>) -> OperationResult<HWND> {
@@ -104,6 +110,10 @@ mod platform {
         }
     }
 
+    pub(super) fn exclude_from_capture(handle: WindowHandle<'_>) -> OperationResult<()> {
+        unsafe { SetWindowDisplayAffinity(hwnd(handle)?, WDA_EXCLUDEFROMCAPTURE) }.map_err(|error| native_error("exclude window from capture", error))
+    }
+
     fn native_error(operation: &str, error: impl std::fmt::Display) -> OperationError {
         OperationError::new(ErrorKind::Native, format!("failed to {operation}: {error}"))
     }
@@ -115,6 +125,11 @@ mod platform {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSFloatingWindowLevel, NSNormalWindowLevel, NSView, NSWindow};
     use raw_window_handle::RawWindowHandle;
+
+    pub(super) fn exclude_from_capture(_handle: WindowHandle<'_>) -> OperationResult<()> {
+        // ScreenSource owns application-wide exclusion for the run.
+        Ok(())
+    }
 
     fn with_window<R>(handle: WindowHandle<'_>, operation: impl FnOnce(&NSWindow) -> R) -> OperationResult<R> {
         let _main_thread =
@@ -151,6 +166,10 @@ mod platform {
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 mod platform {
     use super::*;
+
+    pub(super) fn exclude_from_capture(_handle: WindowHandle<'_>) -> OperationResult<()> {
+        Err(unsupported("capture window exclusion"))
+    }
 
     pub(super) fn set_always_on_top(_handle: WindowHandle<'_>, _enabled: bool) -> OperationResult<()> {
         Err(unsupported("window levels"))

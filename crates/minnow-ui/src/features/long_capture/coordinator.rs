@@ -6,6 +6,22 @@ use minnow_imaging::ImageRef;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
+fn capture_warning(error: &minnow_application::CaptureError) -> String {
+    use minnow_application::{CaptureError, StitchRejection};
+    if let CaptureError::Incomplete { reason } = error {
+        let key = match reason {
+            StitchRejection::DimensionsChanged => "overlay.long_capture.changed_size",
+            StitchRejection::InsufficientOverlap | StitchRejection::ContentChanged => "overlay.long_capture.lost_overlap",
+            StitchRejection::InsufficientDetail => "overlay.long_capture.insufficient_detail",
+            StitchRejection::Ambiguous => "overlay.long_capture.ambiguous",
+            StitchRejection::Reverse => "overlay.long_capture.reverse",
+        };
+        rust_i18n::t!(key).to_string()
+    } else {
+        error.to_string()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum LongCaptureWindowKind {
     Frame,
@@ -88,7 +104,7 @@ fn terminal_image(status: LongCaptureStatus, partial_accepted: bool) -> Option<O
         LongCaptureStatus::Failed { partial: Some(image), .. } | LongCaptureStatus::Cancelled { partial: Some(image) } if partial_accepted => {
             Some(Ok(image))
         }
-        LongCaptureStatus::Failed { error, .. } => Some(Err(error)),
+        LongCaptureStatus::Failed { error, .. } => Some(Err(error.into())),
         LongCaptureStatus::Cancelled { .. } => Some(Err(minnow_application::OperationError::cancelled())),
         _ => None,
     }
@@ -120,7 +136,10 @@ impl PresentationState {
         snapshot.window_warning = (!self.window_warnings.is_empty()).then(|| self.window_warnings.join("\n"));
         snapshot.result = LongCaptureResult::from_status(&status);
         snapshot.capture_error = match status {
-            LongCaptureStatus::Failed { error, .. } => Some(error.to_string()),
+            LongCaptureStatus::Failed { error, .. } => Some(match error {
+                minnow_application::LongCaptureFailure::Capture(error) => capture_warning(&error),
+                minnow_application::LongCaptureFailure::Task(error) => error.to_string(),
+            }),
             _ => None,
         };
         snapshot
@@ -245,9 +264,7 @@ impl LongCaptureCoordinator {
             state.snapshot.preview_reduced = crate::presentation::render_image::preview_is_reduced(image.width(), image.height());
             state.snapshot.preview_image = Some(crate::presentation::render_image::from_rgba_copy(image.pixels()));
         }
-        if let Some(warning) = preview.warning {
-            state.snapshot.warning_text = warning;
-        }
+        state.snapshot.warning_text = preview.warning.as_ref().map(capture_warning).unwrap_or_default();
         true
     }
     fn refresh_windows<C: AppContext>(&self, cx: &mut C) -> bool {
@@ -327,7 +344,7 @@ mod tests {
     fn failed_capture_requires_an_explicit_choice_before_partial_output() {
         let image = ImageAsset::new(image::RgbaImage::new(2, 3));
         let failed = LongCaptureStatus::Failed {
-            error: OperationError::new(ErrorKind::Native, "capture stopped"),
+            error: minnow_application::LongCaptureFailure::Task(OperationError::new(ErrorKind::Native, "capture stopped")),
             partial: Some(image.clone()),
         };
         let projection = LongCaptureResult::from_status(&failed);
@@ -345,7 +362,7 @@ mod tests {
     #[test]
     fn failure_without_pixels_never_offers_output() {
         let failed = LongCaptureStatus::Failed {
-            error: OperationError::new(ErrorKind::Native, "capture stopped"),
+            error: minnow_application::LongCaptureFailure::Task(OperationError::new(ErrorKind::Native, "capture stopped")),
             partial: None,
         };
         assert_eq!(LongCaptureResult::from_status(&failed), LongCaptureResult::Failed);
@@ -361,7 +378,7 @@ mod tests {
         let image = ImageAsset::new(image::RgbaImage::new(2, 3));
         let source = Arc::downgrade(&image);
         let failed = LongCaptureStatus::Failed {
-            error: OperationError::new(ErrorKind::Native, "capture stopped"),
+            error: minnow_application::LongCaptureFailure::Task(OperationError::new(ErrorKind::Native, "capture stopped")),
             partial: Some(image),
         };
         let mut state = PresentationState::default();
@@ -417,7 +434,7 @@ mod tests {
         for status in [
             LongCaptureStatus::Running,
             LongCaptureStatus::Failed {
-                error: OperationError::new(ErrorKind::Native, "capture failed"),
+                error: minnow_application::LongCaptureFailure::Task(OperationError::new(ErrorKind::Native, "capture failed")),
                 partial: None,
             },
         ] {

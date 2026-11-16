@@ -143,7 +143,7 @@ pub struct PreviewSnapshot {
     pub revision: u64,
     pub height: u32,
     pub image: Option<ImageRef>,
-    pub warning: Option<String>,
+    pub warning: Option<CaptureError>,
 }
 
 /// A single replaceable preview, never a queue of obsolete image buffers.
@@ -158,9 +158,15 @@ impl PreviewSlot {
         lock_recover(&self.0).clone()
     }
 
-    fn publish(&self, height: u32, image: Option<ImageRef>, warning: Option<String>) {
+    fn publish(&self, height: u32, image: Option<ImageRef>, warning: Option<CaptureError>) {
         let mut slot = lock_recover(&self.0);
         let revision = slot.as_ref().map_or(1, |previous| previous.revision.saturating_add(1));
+        // The height describes these exact pixels, even on warning-only updates.
+        let height = if image.is_some() {
+            height
+        } else {
+            slot.as_ref().map_or(0, |previous| previous.height)
+        };
         let image = image.or_else(|| slot.as_ref().and_then(|previous| previous.image.clone()));
         *slot = Some(PreviewSnapshot {
             revision,
@@ -220,7 +226,7 @@ impl CaptureRun {
         // A cancellation accepted during finalization remains cancellation.
         self.control.settle(outcome, |outcome| {
             let warning = match outcome {
-                CaptureOutcome::Failed { error, .. } => Some(error.to_string()),
+                CaptureOutcome::Failed { error, .. } => Some(error.clone()),
                 _ => None,
             };
             self.previews.publish(height, preview, warning);
@@ -228,8 +234,8 @@ impl CaptureRun {
     }
 
     fn run_inner(&mut self, backend: &dyn CaptureBackend) -> CaptureOutcome {
-        let mut target = self.target.clone();
-        let mut low_confidence_streak = 0usize;
+        let mut source = None;
+        let mut preview_dirty = false;
         let mut warning = None;
         let mut last_preview = None::<Instant>;
 
@@ -243,7 +249,21 @@ impl CaptureRun {
                 CaptureRequest::Running => {}
             }
 
-            let frame = match backend.capture(&target) {
+            if source.is_none() {
+                source = match backend.open_scroll_source(&self.target) {
+                    Ok(source) => Some(source),
+                    Err(error) => {
+                        return if self.control.request() == CaptureRequest::Cancel {
+                            self.session.cancel()
+                        } else {
+                            self.session.fail(error)
+                        };
+                    }
+                };
+                // Initialization can itself wait on native callbacks.
+                continue;
+            }
+            let frame = match source.as_mut().expect("source initialized").capture() {
                 Ok(frame) => frame,
                 Err(error) => {
                     return if self.control.request() == CaptureRequest::Cancel {
@@ -257,7 +277,7 @@ impl CaptureRun {
             if self.control.request() == CaptureRequest::Cancel {
                 return self.session.cancel();
             }
-            if let CaptureTarget::Display(display) = &target
+            if let CaptureTarget::Display(display) = &self.target
                 && frame.geometry().display_id != *display
             {
                 return self.session.fail(CaptureError::TargetChanged);
@@ -267,29 +287,17 @@ impl CaptureRun {
                 Ok(update) => update,
                 Err(_) => return self.session.outcome().expect("frame failure produces a terminal outcome"),
             };
-            // A Primary request becomes a fixed display after its first frame.
-            target = CaptureTarget::Display(frame.geometry().display_id.clone());
 
             let previous_warning = warning.clone();
-            match update.status {
-                StitchFrameStatus::Appended | StitchFrameStatus::Stationary => {
-                    low_confidence_streak = 0;
-                    warning = None;
-                }
-                StitchFrameStatus::LowConfidence | StitchFrameStatus::Reverse => {
-                    low_confidence_streak += 1;
-                    if low_confidence_streak >= 6 {
-                        warning = update.warning;
-                    }
-                }
-            }
+            warning = update.warning.map(|reason| CaptureError::Incomplete { reason });
+            preview_dirty |= update.status == StitchFrameStatus::Appended;
 
-            let publish_frame =
-                update.status == StitchFrameStatus::Appended && last_preview.is_none_or(|last| last.elapsed() >= self.config.preview_interval);
+            let publish_frame = preview_dirty && last_preview.is_none_or(|last| last.elapsed() >= self.config.preview_interval);
             if publish_frame || previous_warning != warning {
                 let image = publish_frame.then(|| self.session.preview(self.config.preview_width)).flatten();
                 self.previews.publish(self.session.height(), image, warning.clone());
                 if publish_frame {
+                    preview_dirty = false;
                     last_preview = Some(Instant::now());
                 }
             }
@@ -427,7 +435,15 @@ mod tests {
         assert_eq!(outcome.phase(), CapturePhase::Failed);
         assert_eq!(outcome.error(), Some(&error));
         assert_eq!(outcome.image().unwrap().dimensions(), (80, 60));
-        assert!(previews.latest().unwrap().warning.unwrap().contains("screen source disappeared"));
+        assert!(
+            previews
+                .latest()
+                .unwrap()
+                .warning
+                .unwrap()
+                .to_string()
+                .contains("screen source disappeared")
+        );
     }
 
     #[test]
@@ -441,6 +457,89 @@ mod tests {
         let outcome = job.run(&backend);
         assert!(matches!(outcome, CaptureOutcome::Cancelled { partial: None }));
         assert!(control.is_finished());
+    }
+
+    struct SourceBackend {
+        control: CaptureControl,
+        cancel_on_open: bool,
+        fail_on_open: bool,
+        opened: AtomicUsize,
+        captured: AtomicUsize,
+        dropped: AtomicUsize,
+    }
+
+    impl CaptureBackend for SourceBackend {
+        fn open_scroll_source(&self, _: &CaptureTarget) -> Result<Box<dyn crate::CaptureSource + '_>, CaptureError> {
+            self.opened.fetch_add(1, AtomicOrdering::Relaxed);
+            if self.cancel_on_open {
+                self.control.cancel();
+            }
+            if self.fail_on_open {
+                return Err(CaptureError::Backend("opening failed".into()));
+            }
+            Ok(Box::new(TestSource(self)))
+        }
+
+        fn capture(&self, _: &CaptureTarget) -> Result<CapturedFrame, CaptureError> {
+            panic!("run must use its owned source")
+        }
+
+        fn displays(&self) -> Result<Vec<DisplayInfo>, CaptureError> {
+            unreachable!()
+        }
+        fn windows(&self, _: &DisplayId) -> Result<Vec<WindowInfo>, CaptureError> {
+            unreachable!()
+        }
+    }
+
+    struct TestSource<'a>(&'a SourceBackend);
+
+    impl crate::CaptureSource for TestSource<'_> {
+        fn capture(&mut self) -> Result<CapturedFrame, CaptureError> {
+            if self.0.captured.fetch_add(1, AtomicOrdering::Relaxed) == 1 {
+                self.0.control.finish();
+            }
+            Ok(frame())
+        }
+    }
+
+    impl Drop for TestSource<'_> {
+        fn drop(&mut self) {
+            self.0.dropped.fetch_add(1, AtomicOrdering::Relaxed);
+        }
+    }
+
+    fn source_backend(control: CaptureControl, cancel_on_open: bool, fail_on_open: bool) -> SourceBackend {
+        SourceBackend {
+            control,
+            cancel_on_open,
+            fail_on_open,
+            opened: AtomicUsize::new(0),
+            captured: AtomicUsize::new(0),
+            dropped: AtomicUsize::new(0),
+        }
+    }
+
+    #[test]
+    fn cancellation_during_source_open_wins_even_if_opening_fails() {
+        for fail in [false, true] {
+            let job = run();
+            let backend = source_backend(job.control(), true, fail);
+            assert!(matches!(job.run(&backend), CaptureOutcome::Cancelled { partial: None }));
+            assert_eq!(backend.opened.load(AtomicOrdering::Relaxed), 1);
+            assert_eq!(backend.captured.load(AtomicOrdering::Relaxed), 0);
+            assert_eq!(backend.dropped.load(AtomicOrdering::Relaxed), usize::from(!fail));
+        }
+    }
+
+    #[test]
+    fn one_source_is_reused_and_released_before_completion_returns() {
+        let job = run();
+        let backend = source_backend(job.control(), false, false);
+        assert!(matches!(job.run(&backend), CaptureOutcome::Ready(_)));
+        assert_eq!(backend.opened.load(AtomicOrdering::Relaxed), 1);
+        assert_eq!(backend.captured.load(AtomicOrdering::Relaxed), 2);
+        assert_eq!(backend.dropped.load(AtomicOrdering::Relaxed), 1);
     }
 
     #[test]

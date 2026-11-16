@@ -40,6 +40,18 @@ data layout and resolved features.
 `scripts/` contains packaging and development commands. `.github/` contains CI
 and dependency-update automation. Resources stay with their owning package.
 
+## Scroll capture
+
+Scroll capture aligns successive observations against the last verified frame,
+then commits a pixel-verified seam. Ambiguous or missing overlap is reported;
+finishing in that state retains a partial image with an incomplete result.
+See [the capture architecture](crates/minnow-capture/README.md) for ownership,
+resource limits, recovery behavior and replay coverage.
+
+On macOS, scrolling capture requires macOS 14 or newer and Screen Recording
+permission. It uses a ScreenCaptureKit session that excludes this application's
+windows. Single screenshots continue to use the existing capture backend.
+
 ## Checks
 
 ```sh

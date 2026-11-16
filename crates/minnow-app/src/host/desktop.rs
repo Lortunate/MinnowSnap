@@ -143,6 +143,10 @@ impl NativePreferences for DesktopHost {
 }
 
 impl UiHost for DesktopHost {
+    fn exclude_from_capture(&self, window: &gpui::Window) -> OperationResult<()> {
+        minnow_platform::window::exclude_from_capture(HasWindowHandle::window_handle(window).map_err(native_error)?)
+    }
+
     fn set_always_on_top(&self, window: &gpui::Window) -> OperationResult<()> {
         minnow_platform::window::set_always_on_top(HasWindowHandle::window_handle(window).map_err(native_error)?, true)
     }

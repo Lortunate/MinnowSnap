@@ -15,3 +15,9 @@ pub(crate) fn set_always_on_top(window: &mut Window, cx: &App) -> minnow_applica
 pub(crate) fn set_click_through(window: &mut Window, enabled: bool, cx: &App) -> minnow_application::OperationResult<()> {
     crate::host(cx).set_click_through(window, enabled)
 }
+
+/// Shared preparation for all three long-capture windows.
+pub(crate) fn prepare_capture_window(window: &mut Window, cx: &App) -> minnow_application::OperationResult<()> {
+    crate::host(cx).exclude_from_capture(window)?;
+    set_always_on_top(window, cx)
+}
